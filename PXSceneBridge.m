@@ -7,7 +7,6 @@
 #import <math.h>
 #import <signal.h>
 #import <unistd.h>
-#import <notify.h>
 
 static NSString *PXHomeHandoffBundleID;
 static CFAbsoluteTime PXHomeHandoffDeadline;
@@ -83,17 +82,6 @@ static id PXIvar(id object, const char *name)
         if (ivar) return object_getIvar(object, ivar);
     }
     return nil;
-}
-
-static BOOL PXKeyboardHasContent(UIView *view)
-{
-    CALayer *layer = view.layer;
-    // UIKit can retain a full-screen keyboard container after removing its
-    // remote surface. Its bounds/window alone do not mean a keyboard is shown.
-    if (layer.sublayers.count > 0) return YES;
-    SEL context = NSSelectorFromString(@"contextId");
-    return [layer respondsToSelector:context] &&
-        ((unsigned int (*)(id, SEL))objc_msgSend)(layer, context) != 0;
 }
 
 static BOOL PXSetBool(id object, NSString *name, BOOL value)
@@ -310,6 +298,7 @@ static int PXApplicationPID(NSString *bundleID)
 @property(nonatomic, weak) UIView *keyboardOriginalParent;
 @property(nonatomic, assign) CGRect keyboardOriginalFrame;
 @property(nonatomic, assign) BOOL keyboardWasVisible;
+@property(nonatomic, assign) UIWindowLevel keyboardWindowLevel;
 @property(nonatomic, assign) BOOL relocatingKeyboard;
 @property(nonatomic, assign) BOOL fullscreenHandoff;
 @property(nonatomic, copy) NSString *latestSwitcherBundleID;
@@ -318,11 +307,9 @@ static int PXApplicationPID(NSString *bundleID)
 @property(nonatomic, strong) id originalOrientationMapResolver;
 @property(nonatomic, strong) NSNumber *originalOrientationMode;
 @property(nonatomic, assign) NSUInteger generation;
-@property(nonatomic, assign) int cameraNotifyToken;
 @end
 
 @implementation PXSceneBridge
-
 + (BOOL)consumeHomeHandoffForBundleID:(NSString *)bundleID
 {
     if (!NSThread.isMainThread) return NO;
@@ -407,66 +394,14 @@ static int PXApplicationPID(NSString *bundleID)
 }
 
 static NSHashTable<PXSceneBridge *> *PXBridges;
-static BOOL PXHostedCameraLocked;
-
-+ (void)setHostedCameraLocked:(BOOL)locked
-{
-    PXHostedCameraLocked = locked;
-    for (PXSceneBridge *bridge in PXBridges.allObjects)
-        [bridge publishHostedCamera:bridge.canvas != nil];
-}
-
-- (void)publishHostedCamera:(BOOL)hosted
-{
-    if (!hosted || PXHostedCameraLocked) {
-        if (_cameraNotifyToken >= 0) {
-            notify_set_state(_cameraNotifyToken, 0);
-            notify_cancel(_cameraNotifyToken);
-            _cameraNotifyToken = -1;
-        }
-        return;
-    }
-    if (self.bundleID.length == 0) return;
-    if (_cameraNotifyToken < 0) {
-        NSString *name = [@"com.moxuan.parallelx.camera-client." stringByAppendingString:self.bundleID];
-        if (notify_register_check(name.UTF8String, &_cameraNotifyToken) != NOTIFY_STATUS_OK) {
-            _cameraNotifyToken = -1;
-            return;
-        }
-    }
-    NSUserDefaults *defaults = [[NSUserDefaults alloc] initWithSuiteName:@"com.moxuan.parallelx"];
-    notify_set_state(_cameraNotifyToken, [defaults boolForKey:@"hostedCameraEnabled"] ? (uint64_t)getpid() : 0);
-}
 
 - (instancetype)init
 {
     if ((self = [super init])) {
-        _cameraNotifyToken = -1;
-        if (!PXBridges) {
-            PXBridges = [NSHashTable weakObjectsHashTable];
-            int epochToken;
-            if (notify_register_check("com.moxuan.parallelx.camera-session", &epochToken) == NOTIFY_STATUS_OK) {
-                notify_set_state(epochToken, (uint64_t)getpid());
-                // Keep the registration for this SpringBoard lifetime.
-            }
-            int settingsToken;
-            notify_register_dispatch("com.moxuan.parallelx.camera-updated", &settingsToken,
-                dispatch_get_main_queue(), ^(__unused int token) {
-                    for (PXSceneBridge *bridge in PXBridges.allObjects)
-                        [bridge publishHostedCamera:bridge.canvas != nil];
-                });
-        }
+        if (!PXBridges) PXBridges = [NSHashTable weakObjectsHashTable];
         [PXBridges addObject:self];
     }
     return self;
-}
-
-- (void)dealloc
-{
-    if (_cameraNotifyToken >= 0) {
-        notify_set_state(_cameraNotifyToken, 0);
-        notify_cancel(_cameraNotifyToken);
-    }
 }
 
 + (id)protectedSettings:(id)settings forAnyScene:(id)scene
@@ -483,7 +418,7 @@ static BOOL PXHostedCameraLocked;
     for (PXSceneBridge *bridge in PXBridges.allObjects)
         [bridge relocateKeyboardView:view];
     // A system-owned keyboard need not be reparented by ParallelX to be visible.
-    BOOL visible = PXKeyboardHasContent(view) && view.window && !view.window.hidden;
+    BOOL visible = view.window && !view.window.hidden;
     for (UIView *ancestor = view; ancestor && visible; ancestor = ancestor.superview)
         visible = !ancestor.hidden && ancestor.alpha > 0.01;
     CGRect frame = visible
@@ -610,38 +545,6 @@ static BOOL PXHostedCameraLocked;
         ((BOOL (*)(id, SEL, id, BOOL))objc_msgSend)(workspace, selector, bundleID, NO);
     if (!opened) self.fullscreenHandoff = previousHandoff;
     return opened;
-}
-
-- (BOOL)closeApplicationAndRemoveSwitcherCard:(NSString *)bundleID
-{
-    NSAssert(NSThread.isMainThread, @"ParallelX Scene access must be on the main thread");
-    if (bundleID.length == 0 || [bundleID isEqualToString:@"com.apple.springboard"] ||
-        [[self frontmostBundleID] isEqualToString:bundleID]) return NO;
-    id switcher = PXCall(NSClassFromString(@"SBMainSwitcherViewController"), @"sharedInstance");
-    SEL remove = NSSelectorFromString(@"_deleteAppLayoutsMatchingBundleIdentifier:");
-    NSMethodSignature *signature = [switcher methodSignatureForSelector:remove];
-    if (!signature || signature.numberOfArguments != 3 ||
-        signature.methodReturnType[0] != 'v' || [signature getArgumentTypeAtIndex:2][0] != '@') return NO;
-    NSArray *layouts = PXCall(switcher, @"recentAppLayouts");
-    if (![layouts isKindOfClass:NSArray.class]) return NO;
-    BOOL hasCard = NO;
-    for (id layout in layouts) {
-        NSArray *items = PXCall(layout, @"allItems");
-        if (![items isKindOfClass:NSArray.class]) continue;
-        for (id item in items) {
-            if ([PXCall(item, @"bundleIdentifier") isEqualToString:bundleID]) { hasCard = YES; break; }
-        }
-        if (hasCard) break;
-    }
-    @try {
-        // Native card deletion also performs SpringBoard's user-quit operation.
-        ((void (*)(id, SEL, id))objc_msgSend)(switcher, remove, bundleID);
-    } @catch (__unused NSException *exception) { return NO; }
-    if (hasCard) return YES;
-    // A cold launch can have a process before its switcher card is registered.
-    int pid = PXApplicationPID(bundleID);
-    if (pid <= 1) return YES;
-    return pid != getpid() && kill(pid, SIGKILL) == 0;
 }
 
 - (BOOL)restartApplication:(NSString *)bundleID
@@ -920,7 +823,7 @@ static BOOL PXHostedCameraLocked;
         (![view isDescendantOfView:self.hostView] && view.superview != self.keyboardSlot)) return NO;
     for (UIView *ancestor = view; ancestor; ancestor = ancestor.superview)
         if (ancestor.hidden || ancestor.alpha <= 0.01) return NO;
-    return view.bounds.size.height > 0 && PXKeyboardHasContent(view);
+    return view.bounds.size.height > 0;
 }
 
 - (void)refreshKeyboardPlacement
@@ -1239,13 +1142,14 @@ static BOOL PXHostedCameraLocked;
 - (void)relocateKeyboardView:(UIView *)view
 {
     if (self.relocatingKeyboard) return;
-    if (![self usesExternalKeyboard] || !PXKeyboardHasContent(view)) {
+    if (![self usesExternalKeyboard]) {
         if (view == self.keyboardHostView && self.keyboardSlot && self.keyboardOriginalParent) {
             self.relocatingKeyboard = YES;
             [self.keyboardOriginalParent addSubview:view];
             view.frame = self.keyboardOriginalFrame;
             [self.keyboardSlot removeFromSuperview];
             self.keyboardSlot = nil;
+            self.keyboardOverlay.window.windowLevel = self.keyboardWindowLevel;
             self.relocatingKeyboard = NO;
             [NSNotificationCenter.defaultCenter postNotificationName:@"PXKeyboardStateChanged" object:self];
         }
@@ -1259,6 +1163,7 @@ static BOOL PXHostedCameraLocked;
             [self.keyboardSlot removeFromSuperview];
             self.keyboardSlot = nil;
             self.keyboardHostView = nil;
+            self.keyboardOverlay.window.windowLevel = self.keyboardWindowLevel;
             [NSNotificationCenter.defaultCenter postNotificationName:@"PXKeyboardStateChanged" object:self];
         }
         else {
@@ -1279,8 +1184,8 @@ static BOOL PXHostedCameraLocked;
     self.keyboardOriginalParent = view.superview;
     self.keyboardOriginalFrame = view.frame;
     self.relocatingKeyboard = YES;
-    // This shared overlay is the handle window. PXPanel owns its current level,
-    // including Cover Sheet depth; a keyboard must not restore an old snapshot.
+    if (!self.keyboardSlot) self.keyboardWindowLevel = overlay.window.windowLevel;
+    overlay.window.windowLevel = MAX(overlay.window.windowLevel, self.canvas.window.windowLevel + 1);
     UIView *previousSlot = self.keyboardSlot;
     self.keyboardHostView = nil;
     self.keyboardSlot = nil;
@@ -1330,7 +1235,6 @@ static BOOL PXHostedCameraLocked;
     self.canvas = canvas;
     self.keyboardOverlay = keyboardOverlay;
     self.bundleID = bundleID;
-    [self publishHostedCamera:YES];
     __weak typeof(self) weakSelf = self;
     __block NSUInteger attempts = 0;
     __block id preparedScene = nil;
@@ -1430,9 +1334,9 @@ static BOOL PXHostedCameraLocked;
 - (void)close
 {
     NSAssert(NSThread.isMainThread, @"ParallelX Scene access must be on the main thread");
-    [self publishHostedCamera:NO];
     self.generation += 1;
     self.latestSwitcherBundleID = nil;
+    if (self.keyboardSlot) self.keyboardOverlay.window.windowLevel = self.keyboardWindowLevel;
     self.keyboardHostView = nil;
     self.keyboardSlot.userInteractionEnabled = NO;
     [self.keyboardSlot removeFromSuperview];

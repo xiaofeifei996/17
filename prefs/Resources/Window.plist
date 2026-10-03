@@ -4,6 +4,7 @@
         { cell = PSGroupCell; label = "分屏窗口"; },
         { cell = PSLinkCell; label = "位置、尺寸、圆角与阴影"; detail = PXPageHostController; id = radius; },
         { cell = PSSwitchCell; label = "显示分屏应用图标与名称"; defaults = "com.moxuan.parallelx"; key = "showSplitAppIdentity"; default = 1; PostNotification = "com.moxuan.parallelx.capture-updated"; },
+        { cell = PSSwitchCell; label = "记忆分屏窗口大小与位置"; defaults = "com.moxuan.parallelx"; key = "rememberSplitFrameEnabled"; default = 0; },
         { cell = PSGroupCell; label = "角落小窗"; },
         { cell = PSLinkCell; label = "位置、大小与排列"; detail = PXPageHostController; id = dock; }
     );

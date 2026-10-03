@@ -25,71 +25,6 @@ assert 'BulletinDestinationBanner' in tweak and 'notificationSplitEnabled' in ex
 assert 'BOOL candidate = PXExternalTarget(' in tweak and tweak.count('BOOL candidate = PXExternalTarget(') == 2
 assert '通知横幅跳转分屏' in external_settings and '通知中心点击仍按系统原方式全屏打开' in external_settings
 apps = [('c', 'C'), ('b', 'B'), ('a', 'A')]
-# Both native URL entry points close the expanded host only on successful
-# blacklist launches. Notification taps and parked windows are unaffected.
-assert 'if (closeSplitOut) *closeSplitOut = [excluded containsObject:bundleID];' in external_target
-assert tweak.count('if (!error && closeSplit) PXCloseSplitAfterExcludedURL();') == 2
-assert tweak.count('if (route || closeSplit)') == 2
-excluded_close = panel.split('@objc public static func closeSplitAfterExcludedURL()', 1)[1].split('@objc public static func externalOpenApplication', 1)[0]
-assert 'shared.closeHost(animated: true)' in excluded_close
-assert 'removeDock' not in excluded_close and 'dockedHosts' not in excluded_close
-assert 'logURLBlacklist' not in panel + tweak + bridge
-# Real visible hosted clients need per-request trust for suspended URL opens.
-# Do not trust payload attribution, parked/hidden hosts, brokers or notification taps.
-trust = tweak.split('static BOOL PXTrustHostedURLRequest(', 1)[1].split('static BOOL PXExternalTarget(', 1)[0]
-assert 'PXDeviceLocked || PXIsNotificationOpen(values)' in trust
-assert 'PXRequestTrustState(request) != 0' in trust
-assert 'NSString *sourceID = PXBundleID(source);' in trust and 'PXSourceBundleID(' not in trust
-assert 'isInteractiveHostedURLSource:' in trust and 'signature.numberOfArguments != 3' in trust
-assert 'PXRequestTrustState(request) == 1' in trust
-assert 'if (prepared) PXTrustHostedURLRequest(request, source, options);' in tweak
-request_flow = tweak.split('static void PXHandleOpenRequest(', 1)[1].split('static void PXHandleTrustedOpen(', 1)[0]
-assert request_flow.index('request, setOptions, prepared') < request_flow.index('PXTrustHostedURLRequest(')
-assert request_flow.index('PXTrustHostedURLRequest(') < request_flow.index('PXOriginalHandleOpenRequest(')
-assert 'if (original) original(error);' in request_flow
-source_gate = panel.split('func isInteractiveHostedURLSource(', 1)[1].split('@objc public static func start()', 1)[0]
-assert 'Thread.isMainThread, !shared.deviceLocked, !shared.coverSheetVisible' in source_gate
-assert 'shared.hostedBundleID == bundleID' in source_gate and 'shared.activeBridge.hasHostedSurface()' in source_gate
-assert 'isHidden == false' in source_gate and 'isUserInteractionEnabled == true' in source_gate
-assert 'dockedHosts' not in source_gate
-assert 'PXOriginalServiceActivate' not in tweak and 'PXOriginalServiceTrusted' not in tweak
-for removed in ('logURLOpen', 'traceURLOpen', 'PXTraceURLOpen', 'url-open.log', 'trustedBefore', 'trustApplied'):
-    assert removed not in tweak + panel + bridge + bridge_header
-# Both external launch callbacks reuse the ordinary fullscreen-to-host handoff.
-# Only the currently fullscreen target leaves the native fullscreen presentation.
-external_open = panel.split('@objc public static func externalOpenApplication(', 1)[1].split('private func externalOpenFailed(', 1)[0]
-assert 'shared.panelFrontmostBundleID = PXSceneBridge.shared().frontmostBundleID()' in external_open
-assert external_open.index('shared.panelFrontmostBundleID =') < external_open.index('shared.openHost(bundleID)')
-assert 'shared.panelFrontmostBundleID = nil' not in external_open
-open_host = panel.split('private func openHost(', 1)[1].split('private func openFullscreen(', 1)[0]
-assert 'let wasFullscreen = panelFrontmostBundleID == bundleID' in open_host
-assert 'presentHost(bundleID, wasFullscreen: wasFullscreen)' in open_host
-for frontmost, target, current_at_handoff, expected in (
-    ('target', 'target', 'target', True),
-    ('main', 'target', 'main', False),
-    (None, 'target', None, False),
-    ('target', 'target', 'other', False),
-):
-    was_fullscreen = frontmost == target
-    assert (was_fullscreen and current_at_handoff == target) == expected
-# Empty UIKit keyboard containers do not count as visible keyboards or relocate.
-content_gate = bridge.split('static BOOL PXKeyboardHasContent(', 1)[1].split('static BOOL PXSetBool(', 1)[0]
-assert 'layer.sublayers.count > 0' in content_gate
-assert 'NSSelectorFromString(@"contextId")' in content_gate
-assert 'respondsToSelector:context' in content_gate and 'objc_msgSend)(layer, context) != 0' in content_gate
-assert 'return view.bounds.size.height > 0 && PXKeyboardHasContent(view);' in bridge
-assert 'BOOL visible = PXKeyboardHasContent(view) && view.window && !view.window.hidden;' in bridge
-relocation = bridge.split('- (void)relocateKeyboardView:(UIView *)view', 1)[1].split('- (void)relocateExistingKeyboard:', 1)[0]
-assert 'if (![self usesExternalKeyboard] || !PXKeyboardHasContent(view))' in relocation
-empty_branch = relocation.split('\n    if (view == self.keyboardHostView) {', 1)[0]
-assert '[self.keyboardOriginalParent addSubview:view]' in empty_branch
-assert '[self.keyboardSlot removeFromSuperview]' in empty_branch and '[self publishKeyboardVisibility]' in empty_branch
-for height, sublayers, context, expected in ((926, 0, 0, False), (926, 1, 0, True), (360, 1, 0, True), (360, 0, 42, True), (0, 1, 0, False)):
-    assert (height > 0 and (sublayers > 0 or context != 0)) == expected
-# Confirmed keyboard-content fix stays, temporary diagnostic code does not.
-for removed in ('logKeyboardShadowEvent', 'traceKeyboardState', 'traceKeyboardDismissState',
-                'keyboardShadowProbeState', 'keyboardProbeState', 'keyboard-shadow'):
-    assert removed not in bridge + bridge_header + panel + tweak
 excluded = {'b'}
 assert sorted(apps, key=lambda app: (app[0] not in excluded, app[1])) == [('b', 'B'), ('a', 'A'), ('c', 'C')]
 
@@ -171,7 +106,7 @@ assert tweak.index('switcherRemovedApplication:') < tweak.index('PXOriginalKillS
 assert 'window.windowLevel = .alert + 52' in panel.split('private func beginPanel()', 1)[1].split('@objc private func dragHandle', 1)[0]
 
 assert "Package: com.moxuan.parallelx" in control
-assert "firmware (<< 17.0)" in control
+assert "firmware (<< 16.0)" in control
 assert "PXPanel.swift" in makefile and "PXSceneBridge.m" in makefile
 assert 'stringArray(forKey: "applications")' in panel
 assert 'dictionary(forKey: "applicationNames")' in panel
@@ -202,7 +137,7 @@ assert 'UIImpactFeedbackGenerator(style: .medium)' in panel
 assert 'holdFeedbackTask?.cancel()' in panel
 assert 'self.selectedIndex == next' in panel
 assert 'selectedDuration >= controller.holdDuration' in panel
-reset_gesture = panel.split('if topReset || swipeDown {', 1)[1].split('if gesture.state == .changed || gesture.state == .ended', 1)[0]
+reset_gesture = panel.split('if gesture.state == .ended, translation.y > 35,', 1)[1].split('if gesture.state == .changed || gesture.state == .ended', 1)[0]
 animated_reset = reset_gesture.split('PXMotion.ease(0.24', 1)[1]
 assert animated_reset.index('card.transform = CGAffineTransform(scaleX: scale') < animated_reset.index('card.frame = target')
 assert animated_reset.index('UIView.performWithoutAnimation {') < animated_reset.index('card.frame = target')
@@ -212,11 +147,7 @@ assert window_action.index('hidePanel(animated: false)') < window_action.index('
 panel_close = panel.split('private func hidePanel(animated: Bool = true', 1)[1].split('private func openHost', 1)[0]
 assert panel_close.index('self.setHandlePanelProgress(0)') < panel_close.rindex('completion?()')
 assert 'guard let fullID = fullID else { parkMain(side: defaultDockSide); return }' in panel
-window_hold = panel.split('private func performWindowHold()', 1)[1].split('private func restartCurrentApplication()', 1)[0]
-assert 'else if let fullID = fullID {' in window_hold
-assert 'dockedHosts.isEmpty' not in window_hold
-assert 'dockAfterOpenBundleID = fullID' in window_hold
-assert 'while dockedHosts.count >= limit, let oldest = dockedHosts.first { removeDock(oldest) }' in panel
+assert 'else if dockedHosts.isEmpty, let fullID = fullID' in panel
 assert 'pendingSwap = (splitID, fullID)' in panel
 assert 'if self.dockAfterOpenBundleID == bundleID {' in panel
 assert 'if wasFullscreen && !skipHandoffAnimation {' in panel
@@ -257,8 +188,8 @@ assert 'shared.closeHost(animated: false, fullscreenHandoff: true)' in panel
 assert '!shared.fullscreenLaunchInProgress' in panel
 assert 'deadline: .now() + 0.75' not in fullscreen
 assert 'exposeSystemHomeIndicator' not in panel
-close_host = panel.split('private func closeHost(animated: Bool, fullscreenHandoff: Bool = false, completion:', 1)[1]
-assert close_host.index('window.isHidden = true\n            if self?.hostWindow == nil') < close_host.index('window.rootViewController = nil\n            completion?()')
+close_host = panel.split('private func closeHost(animated: Bool, fullscreenHandoff: Bool = false)', 1)[1]
+assert close_host.index('window.isHidden = true\n            if self?.hostWindow == nil') < close_host.index('window.rootViewController = nil\n        }')
 assert "#selector(moveHost(_:))" in panel
 assert "card.layer.cornerRadius" in panel and '"cornerRadius"' in panel
 assert 'resizePreview = (scale, x, start.minY)\n                applyResizePreview()' in panel
@@ -329,7 +260,7 @@ assert 'homeReady' not in handoff and 'finishWhenReady' not in handoff
 assert handoff.index('window?.isHidden = false') < handoff.index('self.activeBridge.prepareWindow(')
 assert handoff.index('let skipHandoffAnimation = self.dockAfterOpenBundleID == bundleID ||') < handoff.index('card.layer.cornerRadius = 0')
 assert 'self.fullscreenAfterOpenBundleID == bundleID' in handoff
-assert 'if wasFullscreen && (!skipHandoffAnimation || dockingFullscreen), frame.width > 0, frame.height > 0 {' in handoff
+assert 'if wasFullscreen && !skipHandoffAnimation, frame.width > 0, frame.height > 0 {' in handoff
 assert handoff.index('self.activeBridge.prepareWindow(') < handoff.index('if wasFullscreen && !skipHandoffAnimation {\n                PXMotion.spring(0.4')
 assert 'let scale = min(screen.width / frame.width, screen.height / frame.height)' in handoff
 assert handoff.index('clip.insertSubview(preview, aboveSubview: canvas)') < handoff.index('activeBridge.openApplication(bundleID, in: canvas')
@@ -402,9 +333,9 @@ assert 'dock.card.frame = CGRect(origin: .zero, size: frame.size)' not in panel
 assert 'if hostWindow != nil {' in panel
 assert 'dock.side = sender.direction == .left ? -1 : 1' in panel
 assert 'overlay.addGestureRecognizer(swipe)' in panel
-park = panel.split('private func parkMain(side: Int, animated: Bool = true)', 1)[1].split('private func layoutDocks(', 1)[0]
+park = panel.split('private func parkMain(side: Int)', 1)[1].split('private func layoutDocks(', 1)[0]
 assert 'root.addSubview(overlay)' in park and 'controls.addSubview(overlay)' not in park
-assert 'window.windowLevel =' not in park
+assert 'window.windowLevel = .statusBar + 0.3' in park
 assert 'card.layer.shadowOpacity = 0' not in park
 assert 'let overlay = UIView(frame: card.frame)' in park
 assert 'dock.overlay.frame = frame' in panel
@@ -425,7 +356,7 @@ dock_prefs = (root / 'prefs' / 'PXDockController.swift').read_text(encoding='utf
 assert 'UISegmentedControl(items: ["左侧", "右侧"])' in dock_prefs
 assert 'forKey: "dockSide"' in dock_prefs
 assert 'parkMain(side: defaultDockSide)' in panel.split('private func dockTapped', 1)[1].split('private func parkMain', 1)[0]
-park_main = panel.split('private func parkMain(side: Int, animated: Bool = true)', 1)[1].split('private func layoutDocks(', 1)[0]
+park_main = panel.split('private func parkMain(side: Int)', 1)[1].split('private func layoutDocks(', 1)[0]
 assert 'let loading = !canvas.isUserInteractionEnabled' in park_main
 assert 'loading: loading' in park_main and 'dockedHosts.append(dock)' in park_main
 assert 'guard canvas.isUserInteractionEnabled else {' not in park_main
@@ -474,51 +405,8 @@ assert 'CGSize(width: 32, height: 32)' in picker
 root_plist = (root / 'prefs' / 'Resources' / 'Root.plist').read_text(encoding='utf-8')
 assert 'cell = PSLinkCell; label = "应用、快捷操作与排序"' in root_plist
 assert 'key = "clearOnLock"' in (root / 'prefs/Resources/System.plist').read_text(encoding='utf-8')
-# The shared handle window has one current-state level owner, not per-keyboard
-# snapshots that can outlive Cover Sheet transitions or another hosted bridge.
-assert 'keyboardWindowLevel' not in bridge
-assert 'keyboardOverlay.window.windowLevel' not in bridge
-assert 'overlay.window.windowLevel' not in bridge
-appearance = panel.split('private func updateHandleAppearance()', 1)[1].split('private func setHandlePanelProgress(', 1)[0]
-assert 'updateHandleVisibility()' in appearance and 'window.windowLevel =' not in appearance
-visibility = panel.split('private func updateHandleVisibility()', 1)[1].split('@objc public static func setCoverSheetVisible(', 1)[0]
-assert 'let level = coverSheetVisible' in visibility and 'window.windowLevel = level' in visibility
-overlay_levels = panel.split('private func updateOverlayWindowLevels()', 1)[1].split('@objc public static func setCoverSheetVisible(', 1)[0]
-assert 'for (index, dock) in dockedHosts.enumerated() {' in overlay_levels
-assert 'dock.fullscreenHandoffInProgress ? .statusBar + 0.3 : level - CGFloat(index + 1)' in overlay_levels
-assert 'dock.window.windowLevel != dockLevel { dock.window.windowLevel = dockLevel }' in overlay_levels
-dock_layout = panel.split('private func layoutDocks(', 1)[1].split('@objc private func restoreDockTapped(', 1)[0]
-assert 'updateOverlayWindowLevels()' in dock_layout
-assert 'where !dock.fullscreenHandoffInProgress' in dock_layout
-for sheet_level in (None, 1035, 999):
-    handle_level = 2051 if sheet_level is None else sheet_level
-    for handing_off in (False, True):
-        dock_level = 1000.3 if handing_off else handle_level - 1
-        remaining_level = handle_level - 1
-        assert remaining_level < handle_level
-        if handing_off and sheet_level is None:
-            assert remaining_level > dock_level
-        if sheet_level is not None:
-            assert remaining_level < sheet_level
-    dock_levels = [handle_level - index - 1 for index in range(4)]
-    assert all(older > newer for older, newer in zip(dock_levels, dock_levels[1:]))
-    assert all(dock_level < handle_level for dock_level in dock_levels)
-    if sheet_level is None:
-        assert all(dock_level > 1000.3 for dock_level in dock_levels)
-for events in (
-    ('keyboard-mount', 'sheet-open', 'keyboard-remove', 'sheet-close'),
-    ('sheet-open', 'keyboard-mount', 'sheet-close', 'keyboard-remove'),
-    ('keyboard-mount', 'sheet-open', 'host-close', 'sheet-close'),
-    ('sheet-open', 'keyboard-mount', 'sheet-close', 'host-close'),
-    ('keyboard-mount', 'sheet-open', 'other-host-close', 'sheet-close', 'keyboard-remove'),
-):
-    sheet_visible, level = False, 2051
-    for event in events:
-        if event in ('sheet-open', 'sheet-close'):
-            sheet_visible = event == 'sheet-open'
-            level = 1035 if sheet_visible else 2051
-        # Keyboard/host cleanup must leave the current handle level untouched.
-        assert level == (1035 if sheet_visible else 2051)
+assert 'self.canvas.window.windowLevel + 1' in bridge
+assert 'self.keyboardOverlay.window.windowLevel = self.keyboardWindowLevel' in bridge
 assert 'self.relocatingKeyboard' in bridge
 assert 'PXSetSceneFrame(mutable, PXServerFrameSize(mutable))' in bridge
 assert 'UILaunchStoryboardName' in bridge and 'renderInContext:context' in bridge
@@ -616,7 +504,7 @@ assert 'px.action.recent' in picker and 'urls.count < 10' in picker
 assert 'px.action.kayoko' in picker
 assert 'key = "hideForScreenshot"' in (root / 'prefs' / 'Resources' / 'System.plist').read_text(encoding='utf-8')
 assert 'closeOutsideWithKeyboard' in panel and 'key = "closeOutsideWithKeyboard"' in (root / 'prefs/Resources/Keyboard.plist').read_text(encoding='utf-8')
-assert panel.count('initialCardFrame(in: screen, size:') == 5
+assert panel.count('initialCardFrame(in: screen, size:') == 4
 assert 'initialRightInset' in panel
 initial_frame = panel.split('private func initialCardFrame(', 1)[1].split('private func initialCardSize(', 1)[0]
 assert 'screen.width > screen.height ? "landscapeInitialRightInset" : "initialRightInset"' in initial_frame
@@ -627,41 +515,12 @@ for screen_width, card_width, right_inset in ((926, 332, 0), (926, 332, 40), (39
     assert screen_width - (screen_width - card_width - inset + card_width) == right_inset
 move_host = panel.split('@objc private func moveHost(_ gesture: UIPanGestureRecognizer)', 1)[1].split('private func closeHost(', 1)[0]
 assert 'translation.y < -35' in move_host and 'parkMain(side: defaultDockSide)' in move_host
-assert 'translation.y > 35' in move_host and 'velocity.y > 500' in move_host
+assert 'translation.y > 35' in move_host and 'velocity.y > 500 {' in move_host
 assert 'dockSwipeEnabled, gesture.view === hostMoveGrip' in move_host
 assert 'abs(translation.x) > abs(translation.y) * 1.2' in move_host
 assert 'translation.x * velocity.x > 0' in move_host
 assert 'parkMain(side: translation.x < 0 ? -1 : 1)' in move_host
-assert 'if dockSwipeEnabled, gesture.view === hostMoveGrip,' in move_host
-assert 'let topReset = gesture.view === hostTopGrip' in move_host
-assert 'if swipeDown, gesture.view === hostTopGrip' in move_host
-initial_down = move_host.split('let initial = initialCardFrame(in: screen, size: start.size)', 1)[1].split('let source = activeBridge.hostedSourceSize()', 1)[0]
-assert 'if swipeDown, gesture.view === hostMoveGrip,' in initial_down
-assert 'abs(start.maxX - initial.maxX) <= 2, abs(start.midY - initial.midY) <= 2' in initial_down
-assert 'fullscreenTapped()' in initial_down and 'return' in initial_down
-assert 'card.frame' not in initial_down  # The current frame already includes drag translation.
-assert '已在初始位置时下滑全屏打开应用' in (root / 'prefs/PXGestureAreaController.swift').read_text(encoding='utf-8')
-# Right-edge / vertical-center matching stays independent of resized dimensions.
-for right, center, expected in ((378, 422, True), (379, 420, True), (381, 422, False), (378, 458, False)):
-    assert (abs(right - 378) <= 2 and abs(center - 422) <= 2) == expected
-assert 'switcherPulledApplication' not in panel and 'traceSwitcher' not in bridge and 'PXSwitcherPanProbe' not in tweak
-assert 'closeApplicationAndRemoveSwitcherCard(bundleID)' in move_host
-assert 'topPan.maximumNumberOfTouches = 1' in panel
-assert 'fullscreenDock(dock)' in panel.split('@objc private func dockSwiped', 1)[1].split('private func removeDock', 1)[0]
-dock_fullscreen = panel.split('private func fullscreenDock(', 1)[1].split('private func removeDock(', 1)[0]
-assert dock_fullscreen.index('dock.fullscreenHandoffInProgress = true') < dock_fullscreen.index('dock.bridge.openFullscreenApplication(')
-assert dock_fullscreen.index('dock.fullscreenHandoffInProgress = true') < dock_fullscreen.index('updateOverlayWindowLevels()') < dock_fullscreen.index('PXMotion.spring(0.40')
-assert 'self.updateOverlayWindowLevels()' in dock_fullscreen
-assert 'readyTicks >= 2 || ticks >= 15' in dock_fullscreen
-assert 'weak dock' in dock_fullscreen and 'timer.invalidate()' in dock_fullscreen
-assert '$0.bundleID == bundleID && !$0.fullscreenHandoffInProgress' in panel
-assert '_deleteAppLayoutsMatchingBundleIdentifier:' in bridge
-camera = (root / 'PXCameraSupport.m').read_text(encoding='utf-8')
-assert 'if (!hosted && PXOriginalCameraState)' in camera
-assert 'camera-client.' in camera and 'camera-session' in camera
-assert '[self publishHostedCamera:NO]' in bridge and 'hostedCameraEnabled' in bridge
-assert 'if (!hosted || PXHostedCameraLocked)' in bridge
-assert '[PXSceneBridge setHostedCameraLocked:locked]' in tweak
+assert 'if dockSwipeEnabled, gesture.state == .ended, translation.y < -35' in move_host
 assert 'loading && translation' not in move_host
 assert 'initialCardSize(in: screen, source: source.width > 0 && source.height > 0 ? source :' in move_host
 assert 'initialCardFrame(in: screen, size: size)' in move_host

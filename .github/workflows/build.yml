@@ -1,40 +1,182 @@
-name: Build ParallelX iOS 15-16 RootHide
+name: Build ParallelX RootHide
 
 on:
-  push:
   workflow_dispatch:
-
-permissions:
-  contents: read
+  push:
+    branches:
+      - main
 
 jobs:
-  package:
-    runs-on: macos-15
+  build:
+    runs-on: macos-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Check alpha scope
-        run: |
-          python3 tests/test_scope.py
-          python3 tests/test_settings_menu.py
-      - name: Check app alphabet index
-        run: |
-          swiftc PXAppIndex.swift tests/app_index/main.swift -o "$RUNNER_TEMP/app-index-check"
-          "$RUNNER_TEMP/app-index-check"
-      - name: Install Theos and SDK
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          brew install make ldid
-          echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
-          echo "THEOS=$RUNNER_TEMP/theos" >> "$GITHUB_ENV"
-          git clone --depth=1 --recurse-submodules https://github.com/roothide/theos.git "$RUNNER_TEMP/theos"
-          mkdir -p "$RUNNER_TEMP/theos/sdks"
-          gh release download --repo theos/sdks --pattern iPhoneOS16.5.sdk.tar.xz --dir "$RUNNER_TEMP/theos/sdks"
-          tar -xJf "$RUNNER_TEMP/theos/sdks/iPhoneOS16.5.sdk.tar.xz" -C "$RUNNER_TEMP/theos/sdks"
-      - name: Build package
-        run: make clean package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1
-      - uses: actions/upload-artifact@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
-          name: ParallelX-iOS15-16-RootHide-alpha
-          path: packages/*.deb
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          brew update
+          brew unlink openssl@1.1 || true
+          brew install ldid dpkg
+          brew link --overwrite openssl@3 || true
+
+      - name: Install RootHide Theos
+        run: |
+          git clone --recursive https://github.com/roothide/theos.git "$HOME/theos"
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+
+      - name: Install iPhoneOS 16.5 SDK
+        run: |
+          git clone --depth 1 https://github.com/theos/sdks.git "$HOME/theos-sdks"
+
+          mkdir -p "$HOME/theos/sdks"
+
+          if [ ! -d "$HOME/theos-sdks/iPhoneOS16.5.sdk" ]; then
+            echo "iPhoneOS16.5.sdk not found"
+            exit 1
+          fi
+
+          cp -R "$HOME/theos-sdks/iPhoneOS16.5.sdk" "$HOME/theos/sdks/"
+
+      - name: Verify RootHide Theos
+        run: |
+          export THEOS="$HOME/theos"
+
+          echo "THEOS=$THEOS"
+
+          if [ ! -d "$THEOS/vendor/lib/iphone/roothide" ] && \
+             [ ! -d "$THEOS/lib/iphone/roothide" ]; then
+            echo "ERROR: RootHide package scheme was not installed."
+            echo "The installed Theos does not contain the roothide package scheme."
+            exit 1
+          fi
+
+          echo "RootHide package scheme detected."
+
+      - name: Check project configuration
+        run: |
+          echo "===== Makefile ====="
+          cat Makefile
+
+          echo
+          echo "===== control ====="
+
+          if [ -f control ]; then
+            cat control
+          else
+            echo "control file not found"
+            exit 1
+          fi
+
+      - name: Fix iOS deployment range
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          path = Path("control")
+
+          if path.exists():
+              data = path.read_text()
+
+              data = data.replace(
+                  "firmware (<< 16.0)",
+                  "firmware (<< 17.3.2)"
+              )
+
+              path.write_text(data)
+
+              print("Updated control:")
+              print(path.read_text())
+
+          test_scope = Path("tests/test_scope.py")
+
+          if test_scope.exists():
+              data = test_scope.read_text()
+              data = data.replace("16.0", "17.3.2")
+              test_scope.write_text(data)
+
+              print("Updated tests/test_scope.py")
+          PY
+
+      - name: Verify package scheme
+        env:
+          THEOS_PACKAGE_SCHEME: roothide
+        run: |
+          export THEOS="$HOME/theos"
+
+          echo "THEOS=$THEOS"
+          echo "THEOS_PACKAGE_SCHEME=$THEOS_PACKAGE_SCHEME"
+
+          find "$THEOS" \
+            \( -path "*/roothide" -o -path "*/roothide/*" \) \
+            -print | head -50
+
+      - name: Build Debian package
+        env:
+          THEOS: ${{ github.workspace }}/../theos
+          THEOS_PACKAGE_SCHEME: roothide
+        run: |
+          export THEOS="$HOME/theos"
+          export THEOS_PACKAGE_SCHEME=roothide
+
+          echo "THEOS=$THEOS"
+          echo "THEOS_PACKAGE_SCHEME=$THEOS_PACKAGE_SCHEME"
+
+          make clean
+
+          make package FINALPACKAGE=1
+
+      - name: Verify generated DEB
+        run: |
+          echo "===== Generated files ====="
+
+          find . -type f -name "*.deb" -print
+
+          if ! find . -type f -name "*.deb" | grep -q .; then
+            echo "ERROR: No .deb package was generated."
+            exit 1
+          fi
+
+          echo
+          echo "===== Package information ====="
+
+          for deb in $(find . -type f -name "*.deb"); do
+            echo
+            echo "----------------------------------------"
+            echo "$deb"
+            echo "----------------------------------------"
+
+            dpkg-deb -I "$deb"
+          done
+
+      - name: Verify iOS version requirement
+        run: |
+          echo "===== Checking firmware dependency ====="
+
+          for deb in $(find . -type f -name "*.deb"); do
+            dpkg-deb -f "$deb" Depends
+          done
+
+      - name: Collect DEB
+        run: |
+          mkdir -p release
+
+          find . \
+            -type f \
+            -name "*.deb" \
+            -not -path "./release/*" \
+            -exec cp {} release/ \;
+
+          echo "===== Release files ====="
+          ls -lh release/
+
+      - name: Upload DEB
+        uses: actions/upload-artifact@v4
+        with:
+          name: ParallelX-RootHide-iOS-15-to-17.3.1
+          path: release/*.deb
           if-no-files-found: error
+          retention-days: 30

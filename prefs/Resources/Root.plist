@@ -1,17 +1,134 @@
-{
-    title = "ParallelX";
-    items = (
-        { cell = PSGroupCell; label = "应用与面板"; },
-        { cell = PSLinkCell; label = "应用、快捷操作与排序"; detail = PXPageHostController; id = picker; },
-        { cell = PSLinkCell; label = "半圆面板与手柄"; detail = PXPageHostController; id = launcher; },
-        { cell = PSGroupCell; label = "窗口与交互"; },
-        { cell = PSLinkCell; label = "分屏窗口与角落小窗"; detail = PXSettingsListController; id = window; },
-        { cell = PSLinkCell; label = "手势区域"; detail = PXPageHostController; id = gestures; },
-        { cell = PSLinkCell; label = "键盘"; detail = PXSettingsListController; id = keyboard; },
-        { cell = PSGroupCell; label = "外部打开与系统"; },
-        { cell = PSLinkCell; label = "通知与 URL 跳转"; detail = PXSettingsListController; id = external; },
-        { cell = PSLinkCell; label = "锁屏、截图与录屏"; detail = PXSettingsListController; id = system; },
-        { cell = PSGroupCell; label = "配置"; },
-        { cell = PSLinkCell; label = "备份与恢复"; detail = PXPageHostController; id = backup; }
-    );
-}
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+    <key>items</key>
+    <array>
+
+        <dict>
+            <key>cell</key>
+            <string>PSGroupCell</string>
+            <key>label</key>
+            <string>应用与面板</string>
+        </dict>
+
+        <dict>
+            <key>cell</key>
+            <string>PSLinkCell</string>
+            <key>detail</key>
+            <string>PXPageHostController</string>
+            <key>id</key>
+            <string>picker</string>
+            <key>label</key>
+            <string>应用、快捷操作与排序</string>
+        </dict>
+
+        <dict>
+            <key>cell</key>
+            <string>PSLinkCell</string>
+            <key>detail</key>
+            <string>PXPageHostController</string>
+            <key>id</key>
+            <string>launcher</string>
+            <key>label</key>
+            <string>半圆面板与手柄</string>
+        </dict>
+
+
+        <dict>
+            <key>cell</key>
+            <string>PSGroupCell</string>
+            <key>label</key>
+            <string>窗口与交互</string>
+        </dict>
+
+        <dict>
+            <key>cell</key>
+            <string>PSLinkCell</string>
+            <key>detail</key>
+            <string>PXSettingsListController</string>
+            <key>id</key>
+            <string>window</string>
+            <key>label</key>
+            <string>分屏窗口与角落小窗</string>
+        </dict>
+
+        <dict>
+            <key>cell</key>
+            <string>PSLinkCell</string>
+            <key>detail</key>
+            <string>PXPageHostController</string>
+            <key>id</key>
+            <string>gestures</string>
+            <key>label</key>
+            <string>手势区域</string>
+        </dict>
+
+        <dict>
+            <key>cell</key>
+            <string>PSLinkCell</string>
+            <key>detail</key>
+            <string>PXSettingsListController</string>
+            <key>id</key>
+            <string>keyboard</string>
+            <key>label</key>
+            <string>键盘</string>
+        </dict>
+
+
+        <dict>
+            <key>cell</key>
+            <string>PSGroupCell</string>
+            <key>label</key>
+            <string>外部打开与系统</string>
+        </dict>
+
+        <dict>
+            <key>cell</key>
+            <string>PSLinkCell</string>
+            <key>detail</key>
+            <string>PXSettingsListController</string>
+            <key>id</key>
+            <string>external</string>
+            <key>label</key>
+            <string>通知与 URL 跳转</string>
+        </dict>
+
+        <dict>
+            <key>cell</key>
+            <string>PSLinkCell</string>
+            <key>detail</key>
+            <string>PXSettingsListController</string>
+            <key>id</key>
+            <string>system</string>
+            <key>label</key>
+            <string>锁屏、截图与录屏</string>
+        </dict>
+
+
+        <dict>
+            <key>cell</key>
+            <string>PSGroupCell</string>
+            <key>label</key>
+            <string>配置</string>
+        </dict>
+
+        <dict>
+            <key>cell</key>
+            <string>PSLinkCell</string>
+            <key>detail</key>
+            <string>PXPageHostController</string>
+            <key>id</key>
+            <string>backup</string>
+            <key>label</key>
+            <string>备份与恢复</string>
+        </dict>
+
+    </array>
+
+    <key>title</key>
+    <string>ParallelX</string>
+
+</dict>
+</plist>
