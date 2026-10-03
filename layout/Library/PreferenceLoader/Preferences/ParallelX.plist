@@ -6,6 +6,7 @@
         hasIcon = 1;
         icon = "icon.png";
         isController = 1;
+        overridePrincipalClass = 1;
         label = "ParallelX";
     };
 }
