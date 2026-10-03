@@ -1,4 +1,4 @@
-name: Build ParallelX iOS 15 RootHide
+name: Build ParallelX iOS 15-16 RootHide
 
 on:
   push:
@@ -35,6 +35,6 @@ jobs:
         run: make clean package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1
       - uses: actions/upload-artifact@v4
         with:
-          name: ParallelX-iOS15-RootHide-alpha
+          name: ParallelX-iOS15-16-RootHide-alpha
           path: packages/*.deb
           if-no-files-found: error
