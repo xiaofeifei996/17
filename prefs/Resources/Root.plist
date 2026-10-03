@@ -1,0 +1,17 @@
+{
+    title = "ParallelX";
+    items = (
+        { cell = PSGroupCell; label = "应用与面板"; },
+        { cell = PSLinkCell; label = "应用、快捷操作与排序"; detail = PXPageHostController; id = picker; },
+        { cell = PSLinkCell; label = "半圆面板与手柄"; detail = PXPageHostController; id = launcher; },
+        { cell = PSGroupCell; label = "窗口与交互"; },
+        { cell = PSLinkCell; label = "分屏窗口与角落小窗"; detail = PXSettingsListController; id = window; },
+        { cell = PSLinkCell; label = "手势区域"; detail = PXPageHostController; id = gestures; },
+        { cell = PSLinkCell; label = "键盘"; detail = PXSettingsListController; id = keyboard; },
+        { cell = PSGroupCell; label = "外部打开与系统"; },
+        { cell = PSLinkCell; label = "通知与 URL 跳转"; detail = PXSettingsListController; id = external; },
+        { cell = PSLinkCell; label = "锁屏、截图与录屏"; detail = PXSettingsListController; id = system; },
+        { cell = PSGroupCell; label = "配置"; },
+        { cell = PSLinkCell; label = "备份与恢复"; detail = PXPageHostController; id = backup; }
+    );
+}

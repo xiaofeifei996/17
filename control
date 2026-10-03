@@ -1,11 +1,10 @@
-Package: com.huayuarc.cputhermal
-Name: CPU 解除温控
-Author: Huayuarc
-Description: 适配 iOS 15-17 与不同 iPhone/iPad 机型的温控管理插件。注入 thermalmonitord，阻止高温系统降频与降亮度、阻止系统原生调频，并内置 CPU/GPU/Package 温控旁路、ProMotion 120Hz 与亮度守护（拦截一切降低亮度/背光的写入）。
-Depends: mobilesubstrate, preferenceloader
-Maintainer: Huayuarc
+Package: com.moxuan.parallelx
+Name: ParallelX
+Version: 0.1.0~alpha211
+Architecture: iphoneos-arm64
+Description: Minimal iOS 15 RootHide floating app window with a Swift side panel.
+Maintainer: moxuan
+Author: moxuan
 Section: Tweaks
-Icon: https://huayuarc.github.io/icon/cputhermal.png
-Sileodepiction: https://huayuarc.github.io/sileodepiction/CPUthermal/js.json
-Architecture: iphoneos-arm
-Version: 1.6.2-161
+Depends: mobilesubstrate, preferenceloader, firmware (>= 15.0), firmware (<< 17.0)
+Conflicts: com.m4fn3.myrtle, com.moxuan.myrtleswitcherfix, com.moxuan.moxuansplit
