@@ -1,0 +1,40 @@
+name: Build ParallelX iOS 15 RootHide
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check alpha scope
+        run: |
+          python3 tests/test_scope.py
+          python3 tests/test_settings_menu.py
+      - name: Check app alphabet index
+        run: |
+          swiftc PXAppIndex.swift tests/app_index/main.swift -o "$RUNNER_TEMP/app-index-check"
+          "$RUNNER_TEMP/app-index-check"
+      - name: Install Theos and SDK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          brew install make ldid
+          echo "$(brew --prefix make)/libexec/gnubin" >> "$GITHUB_PATH"
+          echo "THEOS=$RUNNER_TEMP/theos" >> "$GITHUB_ENV"
+          git clone --depth=1 --recurse-submodules https://github.com/roothide/theos.git "$RUNNER_TEMP/theos"
+          mkdir -p "$RUNNER_TEMP/theos/sdks"
+          gh release download --repo theos/sdks --pattern iPhoneOS16.5.sdk.tar.xz --dir "$RUNNER_TEMP/theos/sdks"
+          tar -xJf "$RUNNER_TEMP/theos/sdks/iPhoneOS16.5.sdk.tar.xz" -C "$RUNNER_TEMP/theos/sdks"
+      - name: Build package
+        run: make clean package THEOS_PACKAGE_SCHEME=roothide FINALPACKAGE=1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ParallelX-iOS15-RootHide-alpha
+          path: packages/*.deb
+          if-no-files-found: error
