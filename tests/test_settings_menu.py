@@ -16,7 +16,7 @@ assert set(keys) == {
     "showSplitAppIdentity", "portraitExternalKeyboard", "landscapeExternalKeyboard",
     "externalKeyboardHorizontalPercent", "closeOutsideWithKeyboard", "keyboardDimOpacity",
     "internalKeyboardZoomPercent",
-    "notificationSplitEnabled", "urlSplitEnabled", "clearOnLock", "hideForScreenshot",
+    "notificationSplitEnabled", "urlSplitEnabled", "clearOnLock", "hideForScreenshot", "hostedCameraEnabled",
 }
 panel = (root / "PXPanel.swift").read_text(encoding="utf-8")
 assert 'forKey: "internalKeyboardZoomPercent"' in panel

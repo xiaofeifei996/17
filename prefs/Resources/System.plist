@@ -4,6 +4,8 @@
         { cell = PSGroupCell; label = "锁屏"; footerText = "开启后，锁屏时关闭主分屏和所有角落小窗；关闭时维持原来的解锁恢复行为。"; },
         { cell = PSSwitchCell; label = "锁屏时清理分屏和小窗"; defaults = "com.moxuan.parallelx"; key = "clearOnLock"; default = 0; },
         { cell = PSGroupCell; label = "截图与录屏"; footerText = "截图、录屏时排除手柄和面板，设备上仍可正常操作；不隐藏分屏及键盘。"; },
-        { cell = PSSwitchCell; label = "截图/录屏中隐藏手柄和面板"; defaults = "com.moxuan.parallelx"; key = "hideForScreenshot"; default = 0; PostNotification = "com.moxuan.parallelx.capture-updated"; }
+        { cell = PSSwitchCell; label = "截图/录屏中隐藏手柄和面板"; defaults = "com.moxuan.parallelx"; key = "hideForScreenshot"; default = 0; PostNotification = "com.moxuan.parallelx.capture-updated"; },
+        { cell = PSGroupCell; label = "分屏相机"; footerText = "允许托管中的应用调用相机，不改变系统相机授权。默认关闭；首次安装组件后需重启设备使媒体服务加载，开启后重新进入应用的相机页面。"; },
+        { cell = PSSwitchCell; label = "允许分屏应用调用相机"; defaults = "com.moxuan.parallelx"; key = "hostedCameraEnabled"; default = 0; PostNotification = "com.moxuan.parallelx.camera-updated"; }
     );
 }

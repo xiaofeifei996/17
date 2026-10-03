@@ -72,7 +72,7 @@ public final class PXGestureAreaController: UIViewController {
         debugLabel.text = "显示手势触发区域"
         debugLabel.font = .preferredFont(forTextStyle: .body)
         scroll.addSubview(debugLabel)
-        dockSwipeLabel.text = "上滑及左右快滑停靠小窗"
+        dockSwipeLabel.text = "底部上滑及左右快滑停靠小窗"
         dockSwipeLabel.font = .preferredFont(forTextStyle: .body)
         scroll.addSubview(dockSwipeLabel)
         dockSwipeSwitch.isOn = defaults?.object(forKey: "dockSwipeEnabled") as? Bool ?? true
@@ -81,7 +81,7 @@ public final class PXGestureAreaController: UIViewController {
         debugSwitch.isOn = defaults?.bool(forKey: "gestureDebug") ?? false
         debugSwitch.addTarget(self, action: #selector(debugChanged), for: .valueChanged)
         scroll.addSubview(debugSwitch)
-        hint.text = "顶部和底部透明区域分别设置；双击关闭、长按全屏、拖动移动、下滑恢复初始位置与大小。底部快滑向左或向右，可停靠到对应的上角。区域尺寸更改在下次打开窗口时生效。"
+        hint.text = "顶部单指快滑：上滑恢复初始位置与大小，下滑关闭分屏并结束对应后台、清理后台卡片。底部下滑恢复初始位置与大小；已在初始位置时下滑全屏打开应用。底部上滑及左右快滑停靠小窗。双击关闭分屏、长按全屏、拖动移动；小窗下滑全屏打开。区域尺寸更改在下次打开窗口时生效。"
         hint.textColor = .secondaryLabel
         hint.font = .preferredFont(forTextStyle: .footnote)
         hint.numberOfLines = 0
@@ -113,7 +113,7 @@ public final class PXGestureAreaController: UIViewController {
         debugCard.frame = CGRect(x: 16, y: row + 30, width: width - 32, height: 62)
         debugLabel.frame = CGRect(x: 32, y: row + 43, width: width - 130, height: 36)
         debugSwitch.frame.origin = CGPoint(x: width - 32 - debugSwitch.bounds.width, y: row + 42)
-        hint.frame = CGRect(x: 32, y: row + 106, width: width - 64, height: 90)
+        hint.frame = CGRect(x: 32, y: row + 106, width: width - 64, height: 130)
         scroll.contentSize = CGSize(width: width, height: hint.frame.maxY + 24)
     }
 

@@ -5,6 +5,7 @@ NS_ASSUME_NONNULL_BEGIN
 + (BOOL)consumeHomeHandoffForBundleID:(NSString *)bundleID;
 + (BOOL)consumeHomeHandoffForCurrentApplication;
 + (void)noteSystemOrientation:(UIInterfaceOrientation)orientation;
++ (void)setHostedCameraLocked:(BOOL)locked;
 + (UIInterfaceOrientation)systemOrientation;
 + (instancetype)sharedBridge;
 + (nullable id)protectedSettings:(id)settings forAnyScene:(id)scene;
@@ -36,6 +37,7 @@ NS_ASSUME_NONNULL_BEGIN
     NS_SWIFT_NAME(prepareWindow(for:wasFullscreen:completion:));
 - (nullable id)protectedSettings:(id)settings forScene:(id)scene;
 - (BOOL)openFullscreenApplication:(NSString *)bundleID;
+- (BOOL)closeApplicationAndRemoveSwitcherCard:(NSString *)bundleID;
 - (BOOL)restartApplication:(NSString *)bundleID
                  suspended:(BOOL)suspended
                 completion:(void (^)(BOOL success))completion;

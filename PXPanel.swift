@@ -47,7 +47,36 @@ private enum PXMotion {
         animation.animations = [position, transform]
         animation.duration = 0.32 / speed
         animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        card.layer.removeAnimation(forKey: "pxHostGeometry")
         card.layer.add(animation, forKey: "pxScreenRotation")
+    }
+
+    static func geometry(_ card: UIView, from frame: CGRect, duration: TimeInterval = 0.28,
+                         cornerRadius: CGFloat? = nil) {
+        guard !UIAccessibility.isReduceMotionEnabled, frame.width > 0, frame.height > 0,
+              card.frame.width > 0, card.frame.height > 0, card.window?.isHidden == false else { return }
+        let position = CABasicAnimation(keyPath: "position")
+        position.fromValue = NSValue(cgPoint: CGPoint(x: frame.midX, y: frame.midY))
+        position.toValue = NSValue(cgPoint: card.layer.position)
+        let transform = CABasicAnimation(keyPath: "transform")
+        transform.fromValue = NSValue(caTransform3D: CATransform3DScale(card.layer.transform,
+            frame.width / card.frame.width, frame.height / card.frame.height, 1))
+        transform.toValue = NSValue(caTransform3D: card.layer.transform)
+        let animation = CAAnimationGroup()
+        animation.animations = [position, transform]
+        animation.duration = duration / speed
+        animation.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        if let cornerRadius = cornerRadius {
+            let corners = CABasicAnimation(keyPath: "cornerRadius")
+            corners.fromValue = cornerRadius
+            corners.toValue = card.layer.cornerRadius
+            animation.animations?.append(corners)
+            corners.duration = animation.duration
+            corners.timingFunction = animation.timingFunction
+            card.subviews.first?.layer.add(corners, forKey: "pxHostCorners")
+        }
+        card.layer.removeAnimation(forKey: "pxScreenRotation")
+        card.layer.add(animation, forKey: "pxHostGeometry")
     }
 }
 private let shortcuts: [(id: String, name: String, symbol: String)] = [
@@ -139,18 +168,13 @@ private final class PXDockedHost {
     let topCorners: [UIView]
     let topGrip: UIView?
     let moveGrip: UIView?
-    let landscapeMoveGrips: [UIView]
     let overlay: UIView
     var loading: Bool
-    // Exact frame captured when the split window is parked. The dock layout
-    // is allowed to resize/reposition the mini-window without changing this.
-    var parkedFrame: CGRect?
-    var parkedScreenBounds: CGRect?
+    var fullscreenHandoffInProgress = false
 
     init(window: UIWindow, card: UIView, canvas: UIView, bridge: PXSceneBridge,
          bundleID: String, side: Int, corners: [UIView], topCorners: [UIView],
-         topGrip: UIView?, moveGrip: UIView?, landscapeMoveGrips: [UIView], overlay: UIView,
-         loading: Bool) {
+         topGrip: UIView?, moveGrip: UIView?, overlay: UIView, loading: Bool) {
         self.window = window
         self.card = card
         self.canvas = canvas
@@ -162,11 +186,8 @@ private final class PXDockedHost {
         self.topCorners = topCorners
         self.topGrip = topGrip
         self.moveGrip = moveGrip
-        self.landscapeMoveGrips = landscapeMoveGrips
         self.overlay = overlay
         self.loading = loading
-        self.parkedFrame = nil
-        self.parkedScreenBounds = nil
     }
 }
 
@@ -1037,17 +1058,15 @@ public final class PXPanelEntry: NSObject {
     private var hostCard: UIView?
     private var hostCorners: [UIView] = []
     private var hostTopCorners: [UIView] = []
-    private var hostLandscapeMoveGrips: [UIView] = []
     private var dockedHosts: [PXDockedHost] = []
     private var activeBridge: PXSceneBridge = .shared()
     private var hostMoveGrip: UIView?
     private var hostTopGrip: UIView?
-    private var hostMemoryButton: UIButton?
-    private var restoreRememberedFrameOnNextLayout = false
     private weak var hostCanvas: UIView?
     private var panel: PXPanelViewController?
     private var handle: UIView?
     private var hostedBundleID: String?
+    private var hostLayoutSourceSize = CGSize.zero
     private var fullscreenToWindowInProgress = false
     private var fullscreenLaunchInProgress = false
     private var externalPendingBundleID: String?
@@ -1083,12 +1102,17 @@ public final class PXPanelEntry: NSObject {
     private var keyboardFocusBase: CGRect?
     private var keyboardFocusFrame = CGRect.null
     private var keyboardFocusRadius: CGFloat = 20
-    // Only the initial open or an actual screen/orientation change may reflow the split card.
-    // Ordinary hosted-geometry callbacks must preserve the current split frame.
-    private var forceHostFrameReflow = false
 
     @objc public static func hasVisibleHost() -> Bool {
         shared.hostWindow?.isHidden == false || shared.dockedHosts.contains { !$0.window.isHidden }
+    }
+
+    @objc public static func isInteractiveHostedURLSource(_ bundleID: String) -> Bool {
+        guard Thread.isMainThread, !shared.deviceLocked, !shared.coverSheetVisible,
+              shared.hostedBundleID == bundleID,
+              shared.hostWindow?.isHidden == false,
+              shared.hostWindow?.isUserInteractionEnabled == true else { return false }
+        return shared.activeBridge.hasHostedSurface()
     }
 
     @objc public static func start() {
@@ -1131,7 +1155,7 @@ public final class PXPanelEntry: NSObject {
                     shared.closeHost(animated: false, fullscreenHandoff: true)
                 }
             }
-            for dock in shared.dockedHosts.filter({ $0.bundleID == bundleID }) {
+            for dock in shared.dockedHosts.filter({ $0.bundleID == bundleID && !$0.fullscreenHandoffInProgress }) {
                 shared.removeDock(dock, fullscreenHandoff: true)
             }
         }
@@ -1166,10 +1190,16 @@ public final class PXPanelEntry: NSObject {
         }
     }
 
+    @objc public static func closeSplitAfterExcludedURL() {
+        shared.closeHost(animated: true)
+    }
+
     @objc public static func externalOpenApplication(_ bundleID: String) {
         guard !shared.deviceLocked, shared.activeScene() != nil else { return }
         shared.externalPendingBundleID = bundleID
-        shared.panelFrontmostBundleID = nil
+        // A URL target already displayed fullscreen needs the normal surface
+        // handoff. A different fullscreen app must remain untouched underneath.
+        shared.panelFrontmostBundleID = PXSceneBridge.shared().frontmostBundleID()
         shared.openHost(bundleID)
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             guard shared.externalPendingBundleID == bundleID else { return }
@@ -1313,7 +1343,6 @@ public final class PXPanelEntry: NSObject {
         panel?.view.setNeedsLayout()
         // Home can rotate to portrait during the handoff. The hosted scene
         // keeps its direction, but its card must enter the new screen bounds.
-        forceHostFrameReflow = true
         UIView.performWithoutAnimation { matchHostAspect() }
         activeBridge.refreshHostedOrientationMap()
         activeBridge.refreshKeyboardPlacement()
@@ -1328,10 +1357,21 @@ public final class PXPanelEntry: NSObject {
     }
 
     @objc private func hostedGeometryChanged(_ notification: Notification) {
+        let ownScene = (notification.object as? PXSceneBridge) === activeBridge
+        let source = activeBridge.hostedSourceSize()
+        let orientationChanged = hostLayoutSourceSize.width > 0 && source.width > 0 &&
+            (hostLayoutSourceSize.width > hostLayoutSourceSize.height) != (source.width > source.height)
+        let card = hostCard
+        let oldFrame = card?.layer.presentation()?.frame ?? card?.frame
         UIView.performWithoutAnimation {
-            if (notification.object as? PXSceneBridge) === activeBridge && !fullscreenToWindowInProgress { matchHostAspect() }
+            if ownScene && !fullscreenToWindowInProgress { matchHostAspect() }
             for dock in dockedHosts { dock.bridge.layoutHost() }
             layoutDocks(animated: false)
+        }
+        if ownScene, orientationChanged, !fullscreenToWindowInProgress,
+           PXSceneBridge.systemOrientation() == layoutOrientation,
+           hostCanvas?.isUserInteractionEnabled == true, let card = card, let oldFrame = oldFrame {
+            PXMotion.geometry(card, from: oldFrame)
         }
     }
 
@@ -1473,7 +1513,6 @@ public final class PXPanelEntry: NSObject {
 
     private func updateHandleAppearance() {
         guard let window = handleWindow, let pill = handle else { return }
-        window.windowLevel = .alert + 51
         updateHandleVisibility()
         let defaults = UserDefaults(suiteName: preferenceDomain)
         let width = min(52, max(12, CGFloat(defaults?.object(forKey: "handleWidth") as? Int ?? 24)))
@@ -1502,9 +1541,18 @@ public final class PXPanelEntry: NSObject {
     private func updateHandleVisibility() {
         // Myrtle's lock-screen handle level is 1035, below the Cover Sheet chrome.
         if let handle = handle, handle.isHidden != deviceLocked { handle.isHidden = deviceLocked }
+        updateOverlayWindowLevels()
+    }
+
+    private func updateOverlayWindowLevels() {
         let level = coverSheetVisible
             ? coverSheetWindowLevel ?? UIWindow.Level(rawValue: 1035) : .alert + 51
         if let window = handleWindow, window.windowLevel != level { window.windowLevel = level }
+        for (index, dock) in dockedHosts.enumerated() {
+            // Older docks stay above the fullscreen-sized entrance of a new dock.
+            let dockLevel: UIWindow.Level = dock.fullscreenHandoffInProgress ? .statusBar + 0.3 : level - CGFloat(index + 1)
+            if dock.window.windowLevel != dockLevel { dock.window.windowLevel = dockLevel }
+        }
     }
 
     @objc public static func setCoverSheetVisible(_ visible: Bool) {
@@ -1785,7 +1833,7 @@ public final class PXPanelEntry: NSObject {
                     if self?.pendingSwap?.foreground == splitID { self?.pendingSwap = nil }
                 }
             }
-        } else if dockedHosts.isEmpty, let fullID = fullID {
+        } else if let fullID = fullID {
             dockAfterOpenBundleID = fullID
             panelFrontmostBundleID = fullID
             openHost(fullID)
@@ -1796,13 +1844,30 @@ public final class PXPanelEntry: NSObject {
         let splitID = hostedBundleID
         guard let bundleID = splitID ?? PXSceneBridge.shared().frontmostBundleID(),
               bundleID != "com.apple.springboard", !bundleID.isEmpty else { return }
-        let bridge = PXSceneBridge.shared()
-        guard bridge.restartApplication(bundleID, suspended: splitID != nil,
-            completion: { [weak self] success in
-                guard success, splitID != nil else { return }
-                self?.presentHost(bundleID, wasFullscreen: false)
-            }) else { return }
-        if splitID != nil { closeHost(animated: false) }
+        let window = hostWindow
+        let card = hostCard
+        let restart = { [weak self] in
+            guard let self = self else { return }
+            if splitID != nil && self.hostWindow !== window { return }
+            guard PXSceneBridge.shared().restartApplication(bundleID, suspended: splitID != nil,
+                completion: { [weak self] success in
+                    guard let self = self, success, splitID != nil,
+                          self.hostWindow == nil, !self.deviceLocked else { return }
+                    self.presentHost(bundleID, wasFullscreen: false)
+                }) else {
+                window?.isUserInteractionEnabled = true
+                PXMotion.spring(0.18) { card?.alpha = 1; card?.transform = .identity }
+                return
+            }
+            if splitID != nil { self.closeHost(animated: false) }
+        }
+        if splitID != nil, let window = window, let card = card {
+            window.isUserInteractionEnabled = false
+            PXMotion.ease(0.20, animations: {
+                card.alpha = 0
+                card.transform = CGAffineTransform(scaleX: 0.96, y: 0.96)
+            }, completion: { _ in restart() })
+        } else { restart() }
     }
 
     private func runConfiguredAction(_ entry: [String: Any]) {
@@ -1859,11 +1924,7 @@ public final class PXPanelEntry: NSObject {
         else { closeHost(animated: false) }
         fullscreenToWindowInProgress = wasFullscreen
         hostedBundleID = bundleID
-        // Keep this enabled for the first scene layout as well as orientation
-        // changes; the frame has already been applied above, so this no longer
-        // causes a visible jump.
-        restoreRememberedFrameOnNextLayout = rememberSplitFrameEnabled
-        forceHostFrameReflow = true
+        hostLayoutSourceSize = .zero
         launchMovedCenter = nil
         launchWidthScale = nil
         let screen = controls.bounds
@@ -1871,12 +1932,7 @@ public final class PXPanelEntry: NSObject {
         let size = initialCardSize(in: screen, source: CGSize(width: min(natural.width, natural.height), height: max(natural.width, natural.height)))
         let width = size.width
         let height = size.height
-        let defaultCardFrame = initialCardFrame(in: screen, size: CGSize(width: width, height: height))
-        // Resolve the remembered frame before the window is shown. This avoids
-        // the old behavior where the split window first appeared at its default
-        // position and then jumped to the remembered position after the scene
-        // finished mounting.
-        let cardFrame = (rememberSplitFrameEnabled ? rememberedFrame(bundleID: bundleID, in: screen) : nil) ?? defaultCardFrame
+        let cardFrame = initialCardFrame(in: screen, size: CGSize(width: width, height: height))
         let window = PXHandleWindow(windowScene: scene)
         window.frame = scene.coordinateSpace.bounds
         window.windowLevel = .statusBar + 0.2
@@ -1929,9 +1985,6 @@ public final class PXPanelEntry: NSObject {
         titleName.lineBreakMode = .byTruncatingTail
         title.contentView.addSubview(titleName)
         clip.addSubview(title)
-        // The remember-size/position switch is configured from ParallelX settings.
-        // Do not place the pin button inside the main split window.
-        hostMemoryButton = nil
         hostCanvas = canvas
         let coldStart = !activeBridge.hasScene(forApplication: bundleID)
         let debug = defaults?.bool(forKey: "gestureDebug") == true
@@ -1962,8 +2015,10 @@ public final class PXPanelEntry: NSObject {
         topGrip.backgroundColor = debug ? UIColor.systemBlue.withAlphaComponent(0.25) : .clear
         PXSceneBridge.keepTransparentGestureViewHittable(topGrip)
         topGrip.isAccessibilityElement = true
-        topGrip.accessibilityLabel = "顶部拖动移动；双击关闭；长按全屏"
-        topGrip.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(moveHost(_:))))
+        topGrip.accessibilityLabel = "顶部拖动移动；上滑恢复初始位置与大小；下滑关闭分屏与后台；双击关闭；长按全屏"
+        let topPan = UIPanGestureRecognizer(target: self, action: #selector(moveHost(_:)))
+        topPan.maximumNumberOfTouches = 1
+        topGrip.addGestureRecognizer(topPan)
         let topDoubleTap = UITapGestureRecognizer(target: self, action: #selector(closeTapped))
         topDoubleTap.numberOfTapsRequired = 2
         topGrip.addGestureRecognizer(topDoubleTap)
@@ -1971,24 +2026,6 @@ public final class PXPanelEntry: NSObject {
                                                                   action: #selector(moveGripHeld(_:))))
         root.view.insertSubview(topGrip, belowSubview: hostTopCorners[0])
         hostTopGrip = topGrip
-        // Landscape full-height windows no longer have a usable bottom/top drag
-        // area. Add dedicated left/right move regions inside the card so the
-        // window can always be dragged horizontally without stealing the whole
-        // hosted app surface.
-        hostLandscapeMoveGrips.removeAll()
-        for side in [-1, 1] {
-            let grip = UIView(frame: .zero)
-            grip.tag = side
-            grip.backgroundColor = debug ? UIColor.systemBlue.withAlphaComponent(0.20) : .clear
-            PXSceneBridge.keepTransparentGestureViewHittable(grip)
-            grip.isUserInteractionEnabled = true
-            grip.isAccessibilityElement = true
-            grip.accessibilityLabel = side < 0 ? "左侧拖动移动分屏窗口" : "右侧拖动移动分屏窗口"
-            grip.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(moveHost(_:))))
-            root.view.addSubview(grip)
-            hostLandscapeMoveGrips.append(grip)
-        }
-
         let moveGrip = UIView(frame: .zero)
         moveGrip.backgroundColor = .clear
         PXSceneBridge.keepTransparentGestureViewHittable(moveGrip)
@@ -2069,7 +2106,8 @@ public final class PXPanelEntry: NSObject {
             let radius = card.layer.cornerRadius
             let skipHandoffAnimation = self.dockAfterOpenBundleID == bundleID ||
                 self.fullscreenAfterOpenBundleID == bundleID
-            if wasFullscreen && !skipHandoffAnimation, frame.width > 0, frame.height > 0 {
+            let dockingFullscreen = wasFullscreen && self.dockAfterOpenBundleID == bundleID
+            if wasFullscreen && (!skipHandoffAnimation || dockingFullscreen), frame.width > 0, frame.height > 0 {
                 let screen = window?.rootViewController?.view.bounds ?? UIScreen.main.bounds
                 let scale = min(screen.width / frame.width, screen.height / frame.height)
                 card.transform = CGAffineTransform(scaleX: scale, y: scale)
@@ -2106,7 +2144,13 @@ public final class PXPanelEntry: NSObject {
                 }
                 if self.dockAfterOpenBundleID == bundleID {
                     self.dockAfterOpenBundleID = nil
-                    self.parkMain(side: self.defaultDockSide)
+                    if dockingFullscreen {
+                        let start = card.frame
+                        card.layer.cornerRadius = radius
+                        card.subviews.first?.layer.cornerRadius = radius
+                        self.parkMain(side: self.defaultDockSide, animated: false)
+                        PXMotion.geometry(card, from: start, duration: 0.40, cornerRadius: 0)
+                    } else { self.parkMain(side: self.defaultDockSide) }
                 }
             }
             if wasFullscreen && !skipHandoffAnimation {
@@ -2123,139 +2167,30 @@ public final class PXPanelEntry: NSObject {
         }
     }
 
-    private var rememberSplitFrameEnabled: Bool {
-        UserDefaults(suiteName: preferenceDomain)?.object(forKey: "rememberSplitFrameEnabled") as? Bool ?? false
-    }
-
-    private func rememberFrameKey(bundleID: String, screen: CGRect) -> String {
-        let orientation = screen.width > screen.height ? "landscape" : "portrait"
-        return "rememberedSplitFrame.v1.\(bundleID).\(orientation)"
-    }
-
-    private func saveRememberedFrame(bundleID: String?, frame: CGRect, in screen: CGRect) {
-        guard rememberSplitFrameEnabled, let bundleID, screen.width > 0, screen.height > 0 else { return }
-        let clamped = frame.intersection(screen).isNull ? frame : frame
-        let x = min(max(clamped.minX, screen.minX), max(screen.minX, screen.maxX - clamped.width))
-        let y = min(max(clamped.minY, screen.minY), max(screen.minY, screen.maxY - clamped.height))
-        let width = min(max(1, clamped.width), screen.width)
-        let height = min(max(1, clamped.height), screen.height)
-        let dict: [String: Double] = [
-            "x": Double((x - screen.minX) / screen.width),
-            "y": Double((y - screen.minY) / screen.height),
-            "w": Double(width / screen.width),
-            "h": Double(height / screen.height)
-        ]
-        UserDefaults(suiteName: preferenceDomain)?.set(dict, forKey: rememberFrameKey(bundleID: bundleID, screen: screen))
-    }
-
-    private func rememberedFrame(bundleID: String, in screen: CGRect) -> CGRect? {
-        guard rememberSplitFrameEnabled, screen.width > 0, screen.height > 0,
-              let dict = UserDefaults(suiteName: preferenceDomain)?.dictionary(forKey: rememberFrameKey(bundleID: bundleID, screen: screen)),
-              let xd = dict["x"] as? Double, let yd = dict["y"] as? Double,
-              let wd = dict["w"] as? Double, let hd = dict["h"] as? Double else { return nil }
-        let width = min(screen.width, max(1, screen.width * CGFloat(wd)))
-        let height = min(screen.height, max(1, screen.height * CGFloat(hd)))
-        let x = min(max(screen.minX + screen.width * CGFloat(xd), screen.minX), screen.maxX - width)
-        let y = min(max(screen.minY + screen.height * CGFloat(yd), screen.minY), screen.maxY - height)
-        return CGRect(x: x, y: y, width: width, height: height)
-    }
-
-    private func updateRememberButton(_ button: UIButton) {
-        let enabled = rememberSplitFrameEnabled
-        button.setTitle(enabled ? "记忆 ✓" : "记忆", for: .normal)
-        button.setImage(UIImage(systemName: enabled ? "pin.fill" : "pin"), for: .normal)
-        button.tintColor = enabled ? .systemBlue : .secondaryLabel
-        button.setTitleColor(enabled ? .systemBlue : .label, for: .normal)
-        button.backgroundColor = enabled ? UIColor.systemBlue.withAlphaComponent(0.16) : UIColor.black.withAlphaComponent(0.08)
-        button.accessibilityLabel = enabled ? "记忆大小位置：已开启，点击关闭" : "记忆大小位置：已关闭，点击开启"
-    }
-
-    private func makeRememberButton() -> UIButton {
-        let button = UIButton(type: .system)
-        button.tag = 0x50584D
-        button.layer.cornerRadius = 10
-        button.clipsToBounds = true
-        button.isAccessibilityElement = true
-        button.titleLabel?.font = .systemFont(ofSize: 11, weight: .semibold)
-        button.contentEdgeInsets = UIEdgeInsets(top: 0, left: 7, bottom: 0, right: 7)
-        button.addTarget(self, action: #selector(toggleRememberSplitFrame(_:)), for: .touchUpInside)
-        updateRememberButton(button)
-        return button
-    }
-
-    @objc private func toggleRememberSplitFrame(_ sender: UIButton) {
-        let defaults = UserDefaults(suiteName: preferenceDomain)
-        let enabled = !rememberSplitFrameEnabled
-        defaults?.set(enabled, forKey: "rememberSplitFrameEnabled")
-        if enabled {
-            if let window = hostWindow, let card = hostCard, let bundleID = hostedBundleID,
-               let screen = window.rootViewController?.view.bounds {
-                saveRememberedFrame(bundleID: bundleID, frame: card.frame, in: screen)
-            }
-        }
-        updateRememberButton(sender)
-        if let hostMemoryButton { updateRememberButton(hostMemoryButton) }
-    }
-
-    private func layoutRememberButton(_ button: UIButton, in frame: CGRect) {
-        let width = min(62, max(48, frame.width * 0.18))
-        let height = min(30, max(26, frame.height * 0.06))
-        button.frame = CGRect(x: frame.maxX - width - 8, y: frame.minY + 40, width: width, height: height)
-        button.layer.cornerRadius = height / 2
-    }
-
     private func matchHostAspect() {
         guard let window = hostWindow, let card = hostCard else { return }
-        let screen = window.rootViewController?.view.bounds ?? UIScreen.main.bounds
-        guard screen.width > 0, screen.height > 0 else { return }
-
         let source = activeBridge.hostedSourceSize()
-        let hasCurrentFrame = card.bounds.width > 0 && card.bounds.height > 0 &&
-            card.frame.width > 0 && card.frame.height > 0
-        let shouldReflow = forceHostFrameReflow || !hasCurrentFrame
-
+        guard source.width > 0, source.height > 0 else { return }
+        hostLayoutSourceSize = source
+        let screen = window.rootViewController?.view.bounds ?? UIScreen.main.bounds
+        let initial = initialCardSize(in: screen, source: source)
+        var size = initial
+        if let requested = launchWidthScale {
+            let scale = min(requested, (screen.width - 24) / initial.width,
+                            (screen.height - 40) / initial.height)
+            size = CGSize(width: initial.width * scale, height: initial.height * scale)
+        }
         keyboardFocusBase = nil
         keyboardFocusFrame = .null
         card.transform = .identity
-
-        if shouldReflow {
-            guard source.width > 0, source.height > 0 else { return }
-            let initial = initialCardSize(in: screen, source: source)
-            var size = initial
-            if let requested = launchWidthScale {
-                let scale = min(requested, (screen.width - 24) / initial.width,
-                                (screen.height - 40) / initial.height)
-                size = CGSize(width: initial.width * scale, height: initial.height * scale)
-            }
-            card.frame = initialCardFrame(in: screen, size: size)
-            if restoreRememberedFrameOnNextLayout, let bundleID = hostedBundleID,
-               let remembered = rememberedFrame(bundleID: bundleID, in: screen) {
-                card.frame = remembered
-            }
-            if let center = launchMovedCenter {
-                card.center = CGPoint(x: min(max(center.x, screen.minX + size.width / 2), screen.maxX - size.width / 2),
-                                      y: min(max(center.y, screen.minY + size.height / 2), screen.maxY - size.height / 2))
-            }
-        } else {
-            // Hosted scene/layout callbacks are not allowed to recreate the default
-            // frame. Keep the exact current split position and size, merely clamp it
-            // to the current screen in case the safe area changed.
-            var frame = card.frame
-            let width = min(frame.width, screen.width)
-            let height = min(frame.height, screen.height)
-            frame.size = CGSize(width: width, height: height)
-            frame.origin.x = min(max(frame.origin.x, screen.minX), screen.maxX - width)
-            frame.origin.y = min(max(frame.origin.y, screen.minY), screen.maxY - height)
-            card.frame = frame
+        card.frame = initialCardFrame(in: screen, size: size)
+        if let center = launchMovedCenter {
+            card.center = CGPoint(x: min(max(center.x, screen.minX + size.width / 2), screen.maxX - size.width / 2),
+                                  y: min(max(center.y, screen.minY + size.height / 2), screen.maxY - size.height / 2))
         }
-
-        restoreRememberedFrameOnNextLayout = false
-        forceHostFrameReflow = false
         launchMovedCenter = nil
         launchWidthScale = nil
-        let radiusSource = source.width > 0 && source.height > 0 ? source :
-            CGSize(width: max(1, card.bounds.width), height: max(1, card.bounds.height))
-        card.layer.cornerRadius = configuredCornerRadius(in: screen, source: radiusSource)
+        card.layer.cornerRadius = configuredCornerRadius(in: screen, source: source)
         card.layoutIfNeeded()
         layoutHostControls()
         activeBridge.layoutHost()
@@ -2263,53 +2198,29 @@ public final class PXPanelEntry: NSObject {
 
     private func initialCardFrame(in screen: CGRect, size: CGSize) -> CGRect {
         let defaults = UserDefaults(suiteName: preferenceDomain)
-        let landscape = screen.width > screen.height
-        let key = landscape ? "landscapeInitialRightInset" : "initialRightInset"
+        let key = screen.width > screen.height ? "landscapeInitialRightInset" : "initialRightInset"
         let saved = defaults?.object(forKey: key) as? NSNumber
         let legacy = defaults?.object(forKey: "initialRightInset") as? NSNumber
         let inset = min(max(0, screen.width - size.width), max(0, CGFloat(saved?.doubleValue ?? legacy?.doubleValue ?? 12)))
-
-        // In landscape the split window is intentionally full-height.
-        // Keep its top edge at the screen top instead of vertically centering it.
-        let y = landscape && size.height >= screen.height - 1
-            ? screen.minY
-            : screen.midY - size.height / 2
-
         return CGRect(x: screen.maxX - size.width - inset,
-                      y: y, width: size.width, height: size.height)
+                      y: screen.midY - size.height / 2, width: size.width, height: size.height)
     }
 
     private func initialCardSize(in screen: CGRect, source: CGSize) -> CGSize {
         guard source.width > 0, source.height > 0 else { return .zero }
         let landscape = screen.width > screen.height
         let defaults = UserDefaults(suiteName: preferenceDomain)
-
-        if landscape {
-            // Landscape split windows fill the screen vertically.
-            // This deliberately ignores the old 78%/95% landscape size setting.
-            // The source aspect ratio determines the width.
-            let height = screen.height
-            let scale = height / source.height
-            let width = source.width * scale
-
-            // If an unusually wide source would exceed the physical screen,
-            // clamp to the screen width while preserving the aspect ratio.
-            if width > screen.width {
-                let clampedScale = screen.width / source.width
-                return CGSize(width: screen.width, height: source.height * clampedScale)
-            }
-            return CGSize(width: width, height: height)
-        }
-
-        let key = source.width > source.height
+        let key = landscape ? "initialWidthPercent" : source.width > source.height
             ? "portraitLandscapeInitialWidthPercent" : "portraitInitialWidthPercent"
         let saved = defaults?.object(forKey: key) as? NSNumber
         let legacy = defaults?.object(forKey: "initialWidthPercent") as? NSNumber
         let portrait = defaults?.object(forKey: "portraitInitialWidthPercent") as? NSNumber
-        let fallback = source.width > source.height ? portrait : legacy
+        let fallback = !landscape && source.width > source.height ? portrait : legacy
         let initialWidthFraction = CGFloat(min(95, max(35, saved?.doubleValue ?? fallback?.doubleValue ?? 78))) / 100
-        let scale = min(screen.width * initialWidthFraction / source.width,
-                        (screen.height - 80) / source.height)
+        let scale = landscape
+            ? min(screen.height * initialWidthFraction / max(source.width, source.height),
+                  (screen.width - landscapeDockWidth(in: screen) - 48) / source.width)
+            : min(screen.width * initialWidthFraction / source.width, (screen.height - 80) / source.height)
         return CGSize(width: source.width * scale, height: source.height * scale)
     }
 
@@ -2405,10 +2316,6 @@ public final class PXPanelEntry: NSObject {
         }
     }
 
-    private func clipBringToFront(_ view: UIView, in card: UIView) {
-        view.superview?.bringSubviewToFront(view)
-    }
-
     private func layoutHostControls() {
         guard let card = hostCard, hostWindow != nil else { return }
         let defaults = UserDefaults(suiteName: preferenceDomain)
@@ -2462,30 +2369,6 @@ public final class PXPanelEntry: NSObject {
         let offset = min(40, max(-30, CGFloat(truncating: defaults?.object(forKey: "gestureOffset") as? NSNumber ?? 0)))
         hostMoveGrip?.frame = CGRect(x: frame.midX - width / 2, y: frame.maxY + offset,
                                      width: width, height: height)
-
-        // In landscape the card is normally full-height, so the old bottom/top
-        // grips are outside the visible screen. Keep narrow, transparent move
-        // regions on both sides of the card. They are placed inside the card so
-        // UIKit can receive the pan even when the hosted surface fills the card.
-        let screen = hostWindow?.rootViewController?.view.bounds ?? UIScreen.main.bounds
-        let landscape = screen.width > screen.height
-        if landscape {
-            let gripWidth: CGFloat = 44
-            let verticalInset: CGFloat = min(28, max(8, frame.height * 0.06))
-            let gripHeight = max(44, frame.height - verticalInset * 2)
-            if hostLandscapeMoveGrips.count == 2 {
-                hostLandscapeMoveGrips[0].frame = CGRect(x: frame.minX + 2,
-                                                         y: frame.minY + verticalInset,
-                                                         width: gripWidth, height: gripHeight)
-                hostLandscapeMoveGrips[1].frame = CGRect(x: frame.maxX - gripWidth - 2,
-                                                         y: frame.minY + verticalInset,
-                                                         width: gripWidth, height: gripHeight)
-                hostLandscapeMoveGrips.forEach { $0.isHidden = false }
-            }
-        } else {
-            hostLandscapeMoveGrips.forEach { $0.isHidden = true }
-        }
-
         let topWidth = min(360, max(120, CGFloat(truncating: defaults?.object(forKey: "topGestureWidth") as? NSNumber ?? 300)))
         let topHeight = min(120, max(36, CGFloat(truncating: defaults?.object(forKey: "topGestureHeight") as? NSNumber ?? 80)))
         let topOffset = min(40, max(-30, CGFloat(truncating: defaults?.object(forKey: "topGestureOffset") as? NSNumber ?? 0)))
@@ -2498,7 +2381,7 @@ public final class PXPanelEntry: NSObject {
         parkMain(side: defaultDockSide)
     }
 
-    @discardableResult private func parkMain(side: Int) -> Bool {
+    @discardableResult private func parkMain(side: Int, animated: Bool = true) -> Bool {
         restoreKeyboardFocus()
         guard let window = hostWindow, let card = hostCard, let canvas = hostCanvas,
               let bundleID = hostedBundleID,
@@ -2510,13 +2393,13 @@ public final class PXPanelEntry: NSObject {
         let overlay = UIView(frame: card.frame)
         overlay.backgroundColor = UIColor(white: 1, alpha: 0.02)
         overlay.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(restoreDockTapped(_:))))
-        for direction in [UISwipeGestureRecognizer.Direction.up, .left, .right] {
+        overlay.accessibilityLabel = "轻点恢复分屏；上滑关闭小窗；下滑全屏；左右滑动更换位置"
+        for direction in [UISwipeGestureRecognizer.Direction.up, .down, .left, .right] {
             let swipe = UISwipeGestureRecognizer(target: self, action: #selector(dockSwiped(_:)))
             swipe.direction = direction
             overlay.addGestureRecognizer(swipe)
         }
         root.addSubview(overlay)
-        window.windowLevel = .statusBar + 0.3
         card.viewWithTag(0x505847)?.isHidden = true
         card.viewWithTag(0x505848)?.isHidden = true
         canvas.isUserInteractionEnabled = false
@@ -2524,37 +2407,28 @@ public final class PXPanelEntry: NSObject {
         let dock = PXDockedHost(window: window, card: card, canvas: canvas,
                                 bridge: activeBridge, bundleID: bundleID, side: side,
                                 corners: hostCorners, topCorners: hostTopCorners,
-                                topGrip: hostTopGrip, moveGrip: hostMoveGrip, landscapeMoveGrips: hostLandscapeMoveGrips, overlay: overlay,
+                                topGrip: hostTopGrip, moveGrip: hostMoveGrip, overlay: overlay,
                                 loading: loading)
-        // Capture the real split-window frame BEFORE layoutDocks() changes the
-        // card into its mini-window size/position. Reusing this exact frame on
-        // every restore prevents the second dock -> restore cycle from drifting.
-        dock.parkedFrame = card.frame
-        dock.parkedScreenBounds = root.bounds
-        if rememberSplitFrameEnabled {
-            saveRememberedFrame(bundleID: bundleID, frame: card.frame, in: root.bounds)
-        }
         dockedHosts.append(dock)
         if dockAfterOpenBundleID == bundleID { dockAfterOpenBundleID = nil }
         if fullscreenAfterOpenBundleID == bundleID { fullscreenAfterOpenBundleID = nil }
-        (hostCorners + hostTopCorners + hostLandscapeMoveGrips + [hostTopGrip, hostMoveGrip].compactMap { $0 }).forEach { $0.isHidden = true }
+        (hostCorners + hostTopCorners + [hostTopGrip, hostMoveGrip].compactMap { $0 }).forEach { $0.isHidden = true }
         hostWindow = nil
         hostCard = nil
         hostCanvas = nil
         hostCorners = []
         hostTopCorners = []
-        hostLandscapeMoveGrips = []
         hostMoveGrip = nil
         hostTopGrip = nil
-        hostMemoryButton = nil
         hostedBundleID = nil
         activeBridge = PXSceneBridge()
         refreshKeyboardDismissLayer()
-        layoutDocks()
+        layoutDocks(animated: animated)
         return true
     }
 
     private func layoutDocks(animated: Bool = true) {
+        updateOverlayWindowLevels()
         let screen = handleWindow?.rootViewController?.view.bounds ?? UIScreen.main.bounds
         let landscape = screen.width > screen.height
         let top: CGFloat = landscape ? 16 : max(50, handleWindow?.rootViewController?.view.safeAreaInsets.top ?? 50) + 12
@@ -2565,7 +2439,7 @@ public final class PXPanelEntry: NSObject {
             let source = dock.bridge.hostedSourceSize()
             return source.width > 0 && source.height > 0 ? source : fallback
         }
-        for (index, dock) in dockedHosts.enumerated() {
+        for (index, dock) in dockedHosts.enumerated() where !dock.fullscreenHandoffInProgress {
             let source = sourceForDock(dock)
             let requested = dockWidth(for: source, in: screen)
             let baseSize = initialCardSize(in: screen, source: source)
@@ -2606,20 +2480,95 @@ public final class PXPanelEntry: NSObject {
     @objc private func dockSwiped(_ sender: UISwipeGestureRecognizer) {
         guard let dock = dockedHosts.first(where: { $0.overlay === sender.view }) else { return }
         if sender.direction == .up {
-            removeDock(dock)
+            removeDock(dock, animated: true)
+        } else if sender.direction == .down {
+            fullscreenDock(dock)
         } else {
             dock.side = sender.direction == .left ? -1 : 1
             layoutDocks()
         }
     }
 
-    private func removeDock(_ dock: PXDockedHost, fullscreenHandoff: Bool = false) {
+    private func fullscreenDock(_ dock: PXDockedHost) {
+        guard dock.overlay.isUserInteractionEnabled else { return }
+        let screen = dock.window.rootViewController?.view.bounds ?? dock.window.bounds
+        let bounds = dock.card.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return }
+        let transform = dock.card.transform
+        let center = dock.card.center
+        let radius = dock.card.layer.cornerRadius
+        let shadow = dock.card.layer.shadowOpacity
+        let scale = dock.card.frame.width / bounds.width
+        dock.fullscreenHandoffInProgress = true
+        updateOverlayWindowLevels()
+        dock.overlay.isUserInteractionEnabled = false
+        dock.window.isUserInteractionEnabled = false
+        PXMotion.spring(0.40, animations: {
+            dock.card.transform = CGAffineTransform(scaleX: screen.width / bounds.width,
+                                                   y: screen.height / bounds.height)
+            dock.card.center = CGPoint(x: screen.midX, y: screen.midY)
+            dock.card.layer.cornerRadius = radius * scale / min(screen.width / bounds.width, screen.height / bounds.height)
+            dock.card.subviews.first?.layer.cornerRadius = dock.card.layer.cornerRadius
+            dock.card.layer.shadowOpacity = 0
+        }, completion: { [weak self] _ in
+            guard let self = self,
+                  self.dockedHosts.contains(where: { $0 === dock }) else { return }
+            // Activation is only a request; keep the expanded surface until
+            // the native foreground handoff, just as fullscreenTapped does.
+            if !self.deviceLocked && dock.bridge.openFullscreenApplication(dock.bundleID) {
+                var ticks = 0
+                var readyTicks = 0
+                let timer = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self, weak dock] timer in
+                    guard let self = self, let dock = dock,
+                          self.dockedHosts.contains(where: { $0 === dock }) else {
+                        timer.invalidate()
+                        return
+                    }
+                    ticks += 1
+                    readyTicks = PXSceneBridge.shared().frontmostBundleID() == dock.bundleID
+                        ? readyTicks + 1 : 0
+                    if readyTicks >= 2 || ticks >= 15 {
+                        timer.invalidate()
+                        dock.fullscreenHandoffInProgress = false
+                        self.removeDock(dock, fullscreenHandoff: true)
+                    }
+                }
+                RunLoop.main.add(timer, forMode: .common)
+            } else {
+                PXMotion.spring(0.20, animations: {
+                    dock.card.transform = transform
+                    dock.card.center = center
+                    dock.card.layer.cornerRadius = radius
+                    dock.card.subviews.first?.layer.cornerRadius = radius
+                    dock.card.layer.shadowOpacity = shadow
+                }, completion: { [weak self] _ in
+                    guard let self = self, self.dockedHosts.contains(where: { $0 === dock }) else { return }
+                    dock.fullscreenHandoffInProgress = false
+                    self.updateOverlayWindowLevels()
+                    dock.overlay.isUserInteractionEnabled = true
+                    dock.window.isUserInteractionEnabled = true
+                })
+            }
+        })
+    }
+
+    private func removeDock(_ dock: PXDockedHost, fullscreenHandoff: Bool = false, animated: Bool = false) {
         dockedHosts.removeAll { $0 === dock }
         dock.overlay.removeFromSuperview()
-        dock.window.isHidden = true
-        if fullscreenHandoff { dock.bridge.closeForFullscreen() }
-        else { dock.bridge.close() }
-        dock.window.rootViewController = nil
+        dock.window.isUserInteractionEnabled = false
+        let finish = {
+            dock.window.isHidden = true
+            if fullscreenHandoff { dock.bridge.closeForFullscreen() }
+            else { dock.bridge.close() }
+            dock.window.rootViewController = nil
+        }
+        if animated && !fullscreenHandoff {
+            PXMotion.ease(0.22, options: .curveEaseInOut, animations: {
+                dock.card.alpha = 0
+                dock.card.transform = dock.card.transform.scaledBy(x: 0.94, y: 0.94)
+                dock.card.layer.shadowOpacity = 0
+            }, completion: { _ in finish() })
+        } else { finish() }
         layoutDocks()
     }
 
@@ -2643,56 +2592,27 @@ public final class PXPanelEntry: NSObject {
         hostTopCorners = dock.topCorners
         hostMoveGrip = dock.moveGrip
         hostTopGrip = dock.topGrip
-        hostLandscapeMoveGrips = dock.landscapeMoveGrips
         hostedBundleID = dock.bundleID
-        (hostCorners + hostTopCorners + hostLandscapeMoveGrips + [hostTopGrip, hostMoveGrip].compactMap { $0 }).forEach { $0.isHidden = false }
+        (hostCorners + hostTopCorners + [hostTopGrip, hostMoveGrip].compactMap { $0 }).forEach { $0.isHidden = false }
         let screen = dock.window.rootViewController?.view.bounds ?? UIScreen.main.bounds
         let natural = UIScreen.main.fixedCoordinateSpace.bounds.size
         let source = dock.bridge.hostedSourceSize()
         let fallback = CGSize(width: min(natural.width, natural.height),
                               height: max(natural.width, natural.height))
         let resolved = source.width > 0 && source.height > 0 ? source : fallback
-        let defaultFrame = initialCardFrame(in: screen, size: initialCardSize(in: screen, source: resolved))
-        // Prefer the exact frame captured when this window was parked. While
-        // docked, layoutDocks() changes card.frame for the mini-window, so
-        // reading card.frame here would otherwise make repeated restores drift.
-        let sameScreen = dock.parkedScreenBounds.map { $0.size == screen.size } ?? false
-        let frame = (sameScreen ? dock.parkedFrame : nil)
-            ?? (rememberSplitFrameEnabled ? rememberedFrame(bundleID: dock.bundleID, in: screen) : nil)
-            ?? defaultFrame
-        // The dock card is transformed while it is a mini-window. Never assign
-        // `frame` while that transform is active: UIKit derives frame from
-        // bounds/center/transform, and doing both in the same animation can
-        // introduce a small position error. That error used to accumulate on
-        // the second and subsequent dock -> split restores.
-        let targetBounds = CGRect(origin: .zero, size: frame.size)
-        let targetCenter = CGPoint(x: frame.midX, y: frame.midY)
-        let currentTransform = dock.card.transform
+        hostLayoutSourceSize = resolved
+        let frame = initialCardFrame(in: screen, size: initialCardSize(in: screen, source: resolved))
         dock.card.layer.cornerRadius = configuredCornerRadius(in: screen, source: resolved)
         PXMotion.spring(0.32, animations: {
-            dock.card.bounds = targetBounds
-            dock.card.center = targetCenter
             dock.card.transform = .identity
+            dock.card.frame = frame
             dock.card.layoutIfNeeded()
             dock.bridge.layoutHost()
         }, completion: { [weak self, weak dock] _ in
             guard let self = self, let dock = dock, self.hostWindow === dock.window else { return }
-            // Force an exact final geometry after the transform animation.
-            // This makes every restore start and end at the same frame instead
-            // of carrying forward any fractional transform/center rounding.
-            UIView.performWithoutAnimation {
-                dock.card.transform = .identity
-                dock.card.bounds = targetBounds
-                dock.card.center = targetCenter
-                dock.card.frame = frame
-                dock.card.layer.cornerRadius = self.configuredCornerRadius(in: screen, source: resolved)
-                dock.card.subviews.first?.layer.cornerRadius = dock.card.layer.cornerRadius
-                dock.card.layoutIfNeeded()
-                dock.bridge.layoutHost()
-                self.layoutHostControls()
-            }
+            self.layoutHostControls()
         })
-        _ = currentTransform
+        layoutDocks()
     }
 
     @objc private func closeTapped() { closeHost(animated: true) }
@@ -2833,10 +2753,6 @@ public final class PXPanelEntry: NSObject {
                 card.layer.cornerRadius = resizeStartRadius
                 CATransaction.commit()
             }
-            if gesture.state == .ended, let bundleID = hostedBundleID,
-               let screen = window.rootViewController?.view.bounds {
-                saveRememberedFrame(bundleID: bundleID, frame: card.frame, in: screen)
-            }
             resizeStartFrame = nil
             layoutHostControls()
         }
@@ -2869,30 +2785,41 @@ public final class PXPanelEntry: NSObject {
            gesture.state == .ended, abs(translation.x) > 35,
            abs(translation.x) > abs(translation.y) * 1.2,
            abs(velocity.x) > 500, translation.x * velocity.x > 0 {
-            if let bundleID = hostedBundleID,
-               let screen = window.rootViewController?.view.bounds {
-                saveRememberedFrame(bundleID: bundleID, frame: card.frame, in: screen)
-            }
             moveStartFrame = nil
             parkMain(side: translation.x < 0 ? -1 : 1)
             return
         }
-        if dockSwipeEnabled, gesture.state == .ended, translation.y < -35,
+        let topReset = gesture.view === hostTopGrip && gesture.state == .ended &&
+            translation.y < -35 && -translation.y > abs(translation.x) * 1.2 && velocity.y < -500
+        if dockSwipeEnabled, gesture.view === hostMoveGrip,
+           gesture.state == .ended, translation.y < -35,
            -translation.y > abs(translation.x) * 1.2,
            velocity.y < -500 {
-            if let bundleID = hostedBundleID,
-               let screen = window.rootViewController?.view.bounds {
-                saveRememberedFrame(bundleID: bundleID, frame: card.frame, in: screen)
-            }
             moveStartFrame = nil
             parkMain(side: defaultDockSide)
             return
         }
-        if gesture.state == .ended, translation.y > 35,
-           translation.y > abs(translation.x) * 1.2,
-           velocity.y > 500 {
+        let swipeDown = gesture.state == .ended && translation.y > 35 &&
+            translation.y > abs(translation.x) * 1.2 && velocity.y > 500
+        if topReset || swipeDown {
             moveStartFrame = nil
+            if swipeDown, gesture.view === hostTopGrip, let bundleID = hostedBundleID {
+                closeHost(animated: true, completion: { [weak self] in
+                    guard let self = self, self.hostedBundleID != bundleID,
+                          !self.dockedHosts.contains(where: { $0.bundleID == bundleID }) else { return }
+                    _ = PXSceneBridge.shared().closeApplicationAndRemoveSwitcherCard(bundleID)
+                })
+                return
+            }
             let screen = window.rootViewController?.view.bounds ?? UIScreen.main.bounds
+            // Use the position before this swipe moved the card. Only the
+            // bottom region at the initial position promotes the app fullscreen.
+            let initial = initialCardFrame(in: screen, size: start.size)
+            if swipeDown, gesture.view === hostMoveGrip,
+               abs(start.maxX - initial.maxX) <= 2, abs(start.midY - initial.midY) <= 2 {
+                fullscreenTapped()
+                return
+            }
             let source = activeBridge.hostedSourceSize()
             let natural = UIScreen.main.fixedCoordinateSpace.bounds.size
             let size = initialCardSize(in: screen, source: source.width > 0 && source.height > 0 ? source :
@@ -2930,39 +2857,16 @@ public final class PXPanelEntry: NSObject {
                 dockAfterOpenBundleID = nil
                 fullscreenAfterOpenBundleID = nil
             }
-            let screen = window.rootViewController?.view.bounds ?? UIScreen.main.bounds
-            var proposed = start.offsetBy(dx: translation.x, dy: translation.y)
-
-            // Keep the whole split window inside the visible screen. This is
-            // especially important for the landscape full-height layout: it can
-            // move left/right, but its top/bottom edges must remain on-screen.
-            if proposed.width <= screen.width {
-                proposed.origin.x = min(max(proposed.origin.x, screen.minX),
-                                        screen.maxX - proposed.width)
-            } else {
-                proposed.origin.x = screen.minX
-            }
-            if proposed.height <= screen.height {
-                proposed.origin.y = min(max(proposed.origin.y, screen.minY),
-                                        screen.maxY - proposed.height)
-            } else {
-                proposed.origin.y = screen.minY
-            }
-
-            card.frame = proposed
+            card.frame = start.offsetBy(dx: translation.x, dy: translation.y)
             if hostCanvas?.isUserInteractionEnabled == false { launchMovedCenter = card.center }
             layoutHostControls()
         }
         if gesture.state == .ended || gesture.state == .cancelled || gesture.state == .failed {
-            if gesture.state == .ended, let bundleID = hostedBundleID,
-               let screen = window.rootViewController?.view.bounds {
-                saveRememberedFrame(bundleID: bundleID, frame: card.frame, in: screen)
-            }
             moveStartFrame = nil
         }
     }
 
-    private func closeHost(animated: Bool, fullscreenHandoff: Bool = false) {
+    private func closeHost(animated: Bool, fullscreenHandoff: Bool = false, completion: (() -> Void)? = nil) {
         guard let window = hostWindow else { return }
         keyboardHideInFlight = false
         keyboardDismissSuppressed = false
@@ -2973,7 +2877,6 @@ public final class PXPanelEntry: NSObject {
         resizePreview = nil
         hostCorners.forEach { $0.removeFromSuperview() }
         hostTopCorners.forEach { $0.removeFromSuperview() }
-        hostLandscapeMoveGrips.forEach { $0.removeFromSuperview() }
         hostMoveGrip?.removeFromSuperview()
         hostTopGrip?.removeFromSuperview()
         window.isUserInteractionEnabled = false
@@ -2982,10 +2885,8 @@ public final class PXPanelEntry: NSObject {
         hostCanvas = nil
         hostCorners = []
         hostTopCorners = []
-        hostLandscapeMoveGrips = []
         hostMoveGrip = nil
         hostTopGrip = nil
-        hostMemoryButton = nil
         hostedBundleID = nil
         launchMovedCenter = nil
         launchWidthScale = nil
@@ -3004,6 +2905,7 @@ public final class PXPanelEntry: NSObject {
                 else { bridge.close() }
             }
             window.rootViewController = nil
+            completion?()
         }
         if animated, let card = closingCard {
             PXMotion.ease(0.28, options: .curveEaseInOut, animations: {

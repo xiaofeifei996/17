@@ -36,6 +36,7 @@ static void PXPublishLockState(BOOL locked)
 {
     if (PXDeviceLocked == locked) return;
     PXDeviceLocked = locked;
+    [PXSceneBridge setHostedCameraLocked:locked];
     [NSNotificationCenter.defaultCenter postNotificationName:@"PXLockStateChanged"
         object:nil userInfo:@{@"locked": @(locked)}];
 }
@@ -256,7 +257,42 @@ static BOOL PXIsNotificationOpen(NSDictionary *values)
         [origin isEqualToString:@"BulletinDestinationCoverSheet"];
 }
 
-static BOOL PXExternalTarget(id options, id target, id source, NSString **bundleOut)
+static NSInteger PXRequestTrustState(id request)
+{
+    SEL selector = NSSelectorFromString(@"isTrusted");
+    NSMethodSignature *signature = [request methodSignatureForSelector:selector];
+    if (!signature || signature.numberOfArguments != 2 ||
+        (signature.methodReturnType[0] != 'B' && signature.methodReturnType[0] != 'c')) return -1;
+    return ((BOOL (*)(id, SEL))objc_msgSend)(request, selector);
+}
+
+static BOOL PXTrustHostedURLRequest(id request, id source, id options)
+{
+    // SBMainWorkspace rejects suspended opens from untrusted app clients.
+    // Like PullOver-X, accept only the real client of our visible, interactive host,
+    // never a payload-claimed source, arbitrary background app or notification tap.
+    NSDictionary *values = PXOptionsDictionary(options);
+    if (!NSThread.isMainThread || PXDeviceLocked || PXIsNotificationOpen(values) ||
+        PXRequestTrustState(request) != 0) return NO;
+    id url = PXValue(options, @"url") ?: values[@"__PayloadURL"] ?: values[@"__PayloadOpenURL"];
+    if (![url isKindOfClass:NSURL.class] && ![url isKindOfClass:NSString.class]) return NO;
+    NSString *sourceID = PXBundleID(source);
+    if (!sourceID.length || [sourceID isEqualToString:PXRequestBundleID(request)]) return NO;
+    Class entry = NSClassFromString(@"PXPanelEntry");
+    SEL matches = NSSelectorFromString(@"isInteractiveHostedURLSource:");
+    if (![entry respondsToSelector:matches] ||
+        !((BOOL (*)(id, SEL, id))objc_msgSend)(entry, matches, sourceID)) return NO;
+    SEL setter = NSSelectorFromString(@"setTrusted:");
+    NSMethodSignature *signature = [request methodSignatureForSelector:setter];
+    if (!signature || signature.numberOfArguments != 3 || signature.methodReturnType[0] != 'v' ||
+        ([signature getArgumentTypeAtIndex:2][0] != 'B' &&
+         [signature getArgumentTypeAtIndex:2][0] != 'c')) return NO;
+    ((void (*)(id, SEL, BOOL))objc_msgSend)(request, setter, YES);
+    return PXRequestTrustState(request) == 1;
+}
+
+static BOOL PXExternalTarget(id options, id target, id source, NSString **bundleOut,
+                             BOOL *closeSplitOut)
 {
     NSDictionary *values = PXOptionsDictionary(options);
     NSString *bundleID = PXBundleID(target);
@@ -275,6 +311,7 @@ static BOOL PXExternalTarget(id options, id target, id source, NSString **bundle
         [defaults boolForKey:@"notificationSplitEnabled"] :
         [defaults objectForKey:@"urlSplitEnabled"] == nil || [defaults boolForKey:@"urlSplitEnabled"];
     NSArray *excluded = !notification && link ? [defaults stringArrayForKey:@"urlSplitExcluded"] : nil;
+    if (closeSplitOut) *closeSplitOut = [excluded containsObject:bundleID];
     BOOL eligible = enabled && ![excluded containsObject:bundleID] &&
         ![bundleID isEqualToString:@"com.apple.springboard"] &&
         ![bundleID isEqualToString:@"com.apple.mobileslideshow"] &&
@@ -315,6 +352,16 @@ static void PXExternalOpen(NSString *bundleID)
         SEL open = NSSelectorFromString(@"externalOpenApplication:");
         if ([entry respondsToSelector:open])
             ((void (*)(id, SEL, id))objc_msgSend)(entry, open, bundleID);
+    });
+}
+
+static void PXCloseSplitAfterExcludedURL(void)
+{
+    dispatch_async(dispatch_get_main_queue(), ^{
+        Class entry = NSClassFromString(@"PXPanelEntry");
+        SEL close = NSSelectorFromString(@"closeSplitAfterExcludedURL");
+        if ([entry respondsToSelector:close])
+            ((void (*)(id, SEL))objc_msgSend)(entry, close);
     });
 }
 
@@ -359,18 +406,20 @@ static void PXHandleOpenRequest(id workspace, SEL selector, id service, id reque
     id options = PXValue(request, @"options");
     NSString *bundleID = nil;
     id source = PXValue(request, @"clientProcess");
-    BOOL candidate = PXExternalTarget(options, PXRequestBundleID(request), source, &bundleID);
+    BOOL closeSplit = NO;
+    BOOL candidate = PXExternalTarget(options, PXRequestBundleID(request), source, &bundleID, &closeSplit);
     SEL setOptions = NSSelectorFromString(@"setOptions:");
     id prepared = candidate && [request respondsToSelector:setOptions]
         ? PXOptionsWithSuspendedLaunch(options) : nil;
     BOOL route = prepared != nil && !PXRouteRecentlyHandled(bundleID);
     if (prepared) ((void (*)(id, SEL, id))objc_msgSend)(request, setOptions, prepared);
+    if (prepared) PXTrustHostedURLRequest(request, source, options);
     if (route) {
         PXRememberRoute(bundleID, !PXIsNotificationOpen(PXOptionsDictionary(options)));
         PXDismissOpenedNotificationBanner(options);
     }
     id routed = completion;
-    if (route) {
+    if (route || closeSplit) {
         void (^original)(NSError *) = completion;
         routed = [^(NSError *error) {
             if (error && [PXPendingURLBackgroundTarget isEqualToString:bundleID]) {
@@ -378,7 +427,8 @@ static void PXHandleOpenRequest(id workspace, SEL selector, id service, id reque
                 PXPendingURLBackgroundUntil = 0;
             }
             if (original) original(error);
-            if (!error) PXExternalOpen(bundleID);
+            if (!error && route) PXExternalOpen(bundleID);
+            if (!error && closeSplit) PXCloseSplitAfterExcludedURL();
         } copy];
     }
     PXOriginalHandleOpenRequest(workspace, selector, service, request, routed);
@@ -388,7 +438,8 @@ static void PXHandleTrustedOpen(id workspace, SEL selector, id application, id o
                                 id settings, id origin, id result)
 {
     NSString *bundleID = nil;
-    BOOL candidate = PXExternalTarget(options, application, origin, &bundleID);
+    BOOL closeSplit = NO;
+    BOOL candidate = PXExternalTarget(options, application, origin, &bundleID, &closeSplit);
     id prepared = candidate ? PXOptionsWithSuspendedLaunch(options) : nil;
     BOOL route = prepared != nil && !PXRouteRecentlyHandled(bundleID);
     if (route) {
@@ -396,7 +447,7 @@ static void PXHandleTrustedOpen(id workspace, SEL selector, id application, id o
         PXDismissOpenedNotificationBanner(options);
     }
     id routed = result;
-    if (route) {
+    if (route || closeSplit) {
         void (^original)(NSError *) = result;
         routed = [^(NSError *error) {
             if (error && [PXPendingURLBackgroundTarget isEqualToString:bundleID]) {
@@ -404,7 +455,8 @@ static void PXHandleTrustedOpen(id workspace, SEL selector, id application, id o
                 PXPendingURLBackgroundUntil = 0;
             }
             if (original) original(error);
-            if (!error) PXExternalOpen(bundleID);
+            if (!error && route) PXExternalOpen(bundleID);
+            if (!error && closeSplit) PXCloseSplitAfterExcludedURL();
         } copy];
     }
     PXOriginalHandleTrustedOpen(workspace, selector, application, prepared ?: options,

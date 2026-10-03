@@ -108,6 +108,8 @@ public final class PXBackupController: UITableViewController, UIDocumentPickerDe
         }
         CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
             CFNotificationName(rawValue: "com.moxuan.parallelx.capture-updated" as CFString), nil, nil, true)
+        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName(rawValue: "com.moxuan.parallelx.camera-updated" as CFString), nil, nil, true)
         let alert = UIAlertController(title: "恢复完成", message: "重新打开设置页面和分屏窗口后，配置将全部生效。", preferredStyle: .alert)
         alert.addAction(UIAlertAction(title: "好", style: .default))
         present(alert, animated: true)
