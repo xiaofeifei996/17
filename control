@@ -2,9 +2,9 @@ Package: com.moxuan.parallelx
 Name: ParallelX
 Version: 0.1.0~alpha211
 Architecture: iphoneos-arm64
-Description: Minimal iOS 15 RootHide floating app window with a Swift side panel.
+Description: RootHide floating app window with a Swift side panel. Supports iOS 15-16.
 Maintainer: moxuan
 Author: moxuan
 Section: Tweaks
-Depends: mobilesubstrate, preferenceloader, firmware (>= 15.0), firmware (<< 16.0)
+Depends: mobilesubstrate, preferenceloader, firmware (>= 15.0)
 Conflicts: com.m4fn3.myrtle, com.moxuan.myrtleswitcherfix, com.moxuan.moxuansplit

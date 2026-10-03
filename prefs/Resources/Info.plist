@@ -7,5 +7,6 @@
     <key>CFBundleName</key><string>ParallelXPrefs</string>
     <key>CFBundlePackageType</key><string>BNDL</string>
     <key>NSPrincipalClass</key><string>PXRootListController</string>
+    <key>MinimumOSVersion</key><string>15.0</string>
 </dict>
 </plist>
