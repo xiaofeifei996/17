@@ -171,7 +171,7 @@ assert tweak.index('switcherRemovedApplication:') < tweak.index('PXOriginalKillS
 assert 'window.windowLevel = .alert + 52' in panel.split('private func beginPanel()', 1)[1].split('@objc private func dragHandle', 1)[0]
 
 assert "Package: com.moxuan.parallelx" in control
-assert "firmware (<< 16.0)" in control
+assert "firmware (<< 17.0)" in control
 assert "PXPanel.swift" in makefile and "PXSceneBridge.m" in makefile
 assert 'stringArray(forKey: "applications")' in panel
 assert 'dictionary(forKey: "applicationNames")' in panel
