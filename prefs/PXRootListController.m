@@ -1,17 +1,16 @@
 #import <Preferences/PSListController.h>
 #import <Preferences/PSSpecifier.h>
-#import <Preferences/PSViewController.h>
 #import <math.h>
 
-@interface PXPageHostController : PSViewController
+@interface PXPageHostController : PSListController
 @property(nonatomic, strong) UIViewController *contentController;
 @end
 
 @implementation PXPageHostController
 
-- (instancetype)initForContentSize:(CGSize)contentSize
+- (instancetype)init
 {
-    return [super initWithNibName:nil bundle:nil];
+    return [super init];
 }
 
 - (void)viewDidLoad
