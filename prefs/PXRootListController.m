@@ -89,12 +89,16 @@
 
         // Prevent invalid PSLinkCell navigation from loading Root recursively.
         if (plistName.length == 0) {
-            _specifiers = @[];
+            _specifiers = [NSMutableArray array];
             return _specifiers;
         }
 
         NSArray *loaded = [self loadSpecifiersFromPlistName:plistName target:self];
-        _specifiers = loaded ?: @[];
+        if (loaded) {
+            _specifiers = [loaded mutableCopy];
+        } else {
+            _specifiers = [NSMutableArray array];
+        }
     }
     return _specifiers;
 }
