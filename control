@@ -6,5 +6,5 @@ Description: Minimal iOS 15 RootHide floating app window with a Swift side panel
 Maintainer: moxuan
 Author: moxuan
 Section: Tweaks
-Depends: mobilesubstrate, preferenceloader, firmware (>= 15.0)
+Depends: mobilesubstrate, preferenceloader, firmware (>= 15.0), firmware (<< 16.0)
 Conflicts: com.m4fn3.myrtle, com.moxuan.myrtleswitcherfix, com.moxuan.moxuansplit
