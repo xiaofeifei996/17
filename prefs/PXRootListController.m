@@ -47,10 +47,18 @@
     NSString *className = pages[identifier ?: @""];
     Class pageClass = className ? NSClassFromString(className) : Nil;
     if (!pageClass && className) {
-        [[NSBundle bundleForClass:self.class] load];
+        NSBundle *bundle = [NSBundle bundleForClass:self.class];
+        [bundle load];
         pageClass = NSClassFromString(className);
     }
-    if (![pageClass isSubclassOfClass:UIViewController.class]) return;
+    if (!pageClass) {
+        NSLog(@"ParallelX: controller missing %@", className);
+        return;
+    }
+    if (![pageClass isSubclassOfClass:UIViewController.class]) {
+        NSLog(@"ParallelX: invalid controller %@", className);
+        return;
+    }
     UIViewController *page = [pageClass new];
     self.contentController = page;
     [self addChildViewController:page];
