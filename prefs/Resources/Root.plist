@@ -3,6 +3,8 @@
 <plist version="1.0">
 <dict>
 
+    <!-- cell = PSLinkCell; label = "应用、快捷操作与排序" -->
+
     <key>items</key>
     <array>
 
