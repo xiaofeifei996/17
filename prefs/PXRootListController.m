@@ -2,15 +2,15 @@
 #import <Preferences/PSSpecifier.h>
 #import <math.h>
 
-@interface PXPageHostController : PSListController
+@interface PXPageHostController : PSViewController
 @property(nonatomic, strong) UIViewController *contentController;
 @end
 
 @implementation PXPageHostController
 
-- (instancetype)init
+- (instancetype)initForContentSize:(CGSize)contentSize
 {
-    return [super init];
+    return [super initWithNibName:nil bundle:nil];
 }
 
 - (void)viewDidLoad
@@ -46,6 +46,10 @@
     };
     NSString *className = pages[identifier ?: @""];
     Class pageClass = className ? NSClassFromString(className) : Nil;
+    if (!pageClass && className) {
+        [[NSBundle bundleForClass:self.class] load];
+        pageClass = NSClassFromString(className);
+    }
     if (![pageClass isSubclassOfClass:UIViewController.class]) return;
     UIViewController *page = [pageClass new];
     self.contentController = page;
