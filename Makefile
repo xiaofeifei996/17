@@ -1,22 +1,48 @@
-ARCHS = arm64 arm64e
-TARGET = iphone:clang:16.5:15.0
+TARGET := iphone:clang:latest:15.0
+ARCHS = arm64e
 THEOS_PACKAGE_SCHEME = roothide
-FINALPACKAGE = 1
+INSTALL_TARGET_PROCESSES = SpringBoard
 
 include $(THEOS)/makefiles/common.mk
 
-TWEAK_NAME = ParallelX ParallelXCameraSupport
-ParallelX_FILES = Tweak.m PXPanel.swift PXAppIndex.swift PXSceneBridge.m PXAppCatalog.m
-ParallelX_FRAMEWORKS = UIKit Foundation QuartzCore
-ParallelX_LIBRARIES = substrate sqlite3
-ParallelX_CFLAGS = -fobjc-arc -Wall -Wextra
-ParallelX_SWIFTFLAGS = -swift-version 5
-ParallelXCameraSupport_FILES = PXCameraSupport.m
-ParallelXCameraSupport_FRAMEWORKS = Foundation
-ParallelXCameraSupport_LIBRARIES = substrate
-ParallelXCameraSupport_CFLAGS = -fobjc-arc -Wall -Wextra
+TWEAK_NAME = RegionShot RegionShotInput RegionShotCameraSupport
+RegionShot_FILES = Selection/RSFreezeSystemHooks.xm Trigger.xm Preferences/RSURLHooks.xm \
+	Preferences/RSOptions.m \
+	Preferences/RSBehaviorSettings.m \
+	History/RSHistoryStore.m \
+	History/RSHistoryController.m \
+	Manager/RSRegionShotManager.m \
+	Capture/RSScreenCapture.m \
+	Selection/RSSelectionWindow.m \
+	Selection/RSSelectionView.m \
+	Selection/RSSelectionToolbar.m \
+	Selection/RSMenuSettings.m \
+	Selection/RSRecognitionController.m \
+	Selection/RSImageEditor.m \
+	Floating/RSFloatingWindow.m \
+	Floating/RSFloatingImageView.m \
+	AI/RSChatController.m \
+	AI/RSChatCameraController.m \
+	AI/RSAISettingsController.m \
+	AI/RSSSEDecoder.m \
+	KeyboardAI/RSKAInterface.m \
+	KeyboardAI/RSKATokenView.m \
+	KeyboardAI/RSKAAnchoredMenuView.m \
+	Input/RSInputClipboard.m
+RegionShot_FILES += $(wildcard Annotation/*.m)
+RegionShot_CFLAGS = -fobjc-arc -Wall -Wextra -Wno-unused-parameter
+RegionShot_FRAMEWORKS = Foundation UIKit Photos QuartzCore Security PhotosUI UniformTypeIdentifiers Vision CoreImage AVFoundation ImageIO
 
+RegionShotInput_FILES = Input/Tweak.xm Input/RSSileo.xm Input/RSInputInterface.m Input/RSInputStream.m Input/RSInputStore.m Input/RSInputTokenView.m Input/RSInputAnchoredMenuView.m
+RegionShotInput_CFLAGS = -fobjc-arc -Wall -Wextra -Wno-unused-parameter
+RegionShotInput_FRAMEWORKS = UIKit Foundation WebKit
+RegionShotInput_LIBRARIES = roothide
+RegionShot_LIBRARIES = roothide
+RegionShotCameraSupport_FILES = CameraSupport/RSCameraMediaSupport.m
+RegionShotCameraSupport_CFLAGS = -fobjc-arc -Wall -Wextra -Wno-unused-parameter
+RegionShotCameraSupport_FRAMEWORKS = Foundation
+RegionShotCameraSupport_LIBRARIES = roothide
+RegionShot_FILES += Input/RSInputStore.m Input/RSInputOptionsController.m
 include $(THEOS_MAKE_PATH)/tweak.mk
-
-SUBPROJECTS += prefs
+SUBPROJECTS += Preferences
 include $(THEOS_MAKE_PATH)/aggregate.mk

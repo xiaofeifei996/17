@@ -1,0 +1,44 @@
+#import <Vision/Vision.h>
+#import <CoreImage/CoreImage.h>
+#import "RSWebURL.h"
+
+static inline NSURL *RSBarcodeWebURL(NSString *text) {
+    NSURL *web = RSWebURL(text);
+    if (web) return web;
+    NSString *value = [text stringByTrimmingCharactersInSet:NSCharacterSet.whitespaceAndNewlineCharacterSet];
+    NSURL *url = [NSURL URLWithString:value];
+    NSString *scheme = url.scheme.lowercaseString;
+    return url && value.length &&
+        ([scheme isEqualToString:@"weixin"] || [scheme isEqualToString:@"wechat"] ||
+         [scheme isEqualToString:@"alipay"] || [scheme isEqualToString:@"alipays"]) ? url : nil;
+}
+
+static inline VNDetectBarcodesRequest *RSBarcodeRequest(void) {
+    VNDetectBarcodesRequest *request = [VNDetectBarcodesRequest new];
+    // Exercise the same revision as the target iOS 15 device.
+    request.revision = VNDetectBarcodesRequestRevision2;
+    return request;
+}
+
+static inline NSArray<NSString *> *RSBarcodePayloads(NSArray<VNObservation *> *observations) {
+    NSMutableArray<NSString *> *strings = [NSMutableArray array];
+    for (VNObservation *observation in observations) {
+        NSString *text = nil;
+        if ( [observation isKindOfClass:VNBarcodeObservation.class])
+            text = ((VNBarcodeObservation *)observation).payloadStringValue;
+        if (text.length) [strings addObject:text];
+    }
+    return strings;
+}
+
+static inline NSArray<NSString *> *RSBarcodeStrings(CGImageRef image, NSArray<VNObservation *> *observations) {
+    NSArray<NSString *> *strings = RSBarcodePayloads(observations);
+    if (strings.count || !image) return strings;
+    // Vision revision 2 may return no observations for a valid QR. CoreImage is a native fallback.
+    CIDetector *detector = [CIDetector detectorOfType:CIDetectorTypeQRCode context:nil
+        options:@{CIDetectorAccuracy:CIDetectorAccuracyHigh}];
+    NSMutableArray *result = [NSMutableArray array];
+    for (CIQRCodeFeature *feature in [detector featuresInImage:[CIImage imageWithCGImage:image]])
+        if (feature.messageString.length) [result addObject:feature.messageString];
+    return result;
+}

@@ -1,0 +1,59 @@
+"""Guard the settings-only reorganization against configuration changes."""
+import json, re
+from pathlib import Path
+root = Path(__file__).resolve().parents[1]
+source = (root / 'Preferences/RSOptions.m').read_text(encoding='utf-8')
+actual = {}
+for line in source.splitlines():
+    match = re.search(r'@"key":@"([^"]+)"', line)
+    if match:
+        actual[match[1]] = dict(re.findall(r'@"(key|default|min|max|limit)":(@"(?:[^"\\]|\\.)*"|@[-\w.]+)', line))
+assert actual == json.loads((root / 'Tests/settings_contract.json').read_text(encoding='utf-8'))
+page = (root / 'Preferences/RSPreferences.m').read_text(encoding='utf-8')
+assert 'detail:RSPreferences.class cell:PSLinkCell' in page and 'RSMainMenuAction' in page and 'cell:PSButtonCell' not in page
+for selector in re.findall(r'@"((?:open|test|check)\w+)"', page):
+    assert re.search(r'- \(void\)' + selector + r'\b', page), selector
+assert '当前开发预览' not in page and '关于' not in page
+assert page.index('@"Enabled"') < page.index('NSArray *sections')
+assert 'presentViewController:self.pages' not in page
+assert '复制截图历史调用地址' not in page
+behavior = (root / 'Preferences/RSBehaviorSettings.m').read_text(encoding='utf-8')
+assert 'self.groupIndex == 3' in behavior and 'isHistoryURLPath:path' in behavior
+assert 'cell.textLabel.text = @"复制截图历史调用地址"' in behavior
+history_copy = behavior.split('if ([self isHistoryURLPath:path]) {')[-1].split('return;', 1)[0]
+assert 'UIPasteboard.generalPasteboard.string = @"prefs://root=regionshot_history";' in history_copy
+assert 'presentViewController:alert' in history_copy and '@"已复制"' in history_copy
+makefile = (root / 'Makefile').read_text(encoding='utf-8')
+injection = (root / 'RegionShot.plist').read_text(encoding='utf-8')
+assert 'LongCaptureMode' not in source and 'LongShot/' not in makefile
+assert '长截图' not in (root / 'Selection/RSMenuSettings.m').read_text(encoding='utf-8')
+assert 'longCaptureHandler' not in (root / 'Selection/RSSelectionToolbar.m').read_text(encoding='utf-8')
+assert 'choiceValues.count > index ? choiceValues[index] : @(index)' in behavior
+assert '[value unsignedIntegerValue]' not in behavior
+ai_settings = (root / 'AI/RSAISettingsController.m').read_text(encoding='utf-8')
+chat = (root / 'AI/RSChatController.m').read_text(encoding='utf-8')
+assert '@"AIQuickPhrases"' in ai_settings and '@"短语"' in ai_settings
+for action in ('choosePhoto:', 'chooseFile:', 'openCamera:', 'showPhrases:'):
+    assert action in chat
+assert 'RSAIQuickPhrases()' in chat
+assert 'constraintEqualToConstant:260' in chat and 'MAX(220, size.height + 156' in chat
+assert 'RSInstallMaterialBackground(button, 16)' in chat
+assert 'bringSubviewToFront:button.imageView' in chat and 'bringSubviewToFront:button.titleLabel' in chat
+assert '+ (void)minimizeForLock' in chat and 'AIMinimizeOnLock' in chat
+lock_action = (root / 'Trigger.xm').read_text(encoding='utf-8').split('CFSTR("com.apple.springboard.lockcomplete")', 1)[1].split('return;', 1)[0]
+assert lock_action.index('[RSChatCameraController closeForLock]') < lock_action.index('[RSChatController minimizeForLock]')
+assert 'if ([chat hasContent]) [chat minimize]; else [chat close];' in chat
+assert 'RSAICreatePhrasesController()' in behavior
+assert '@[@"打开对话", @"复制对话调用地址", @"对话设置", @"服务配置", @"人设", @"弹出式窗口"]' in ai_settings
+assert 'prefs://root=regionshot_aiwindow' in ai_settings
+camera = (root / 'AI/RSChatCameraController.m').read_text(encoding='utf-8')
+assert '+ (void)closeForLock { [RSActiveCamera close]; }' in camera
+assert '[self.output connectionWithMediaType:AVMediaTypeVideo]' in camera
+assert '[self updateVideoOrientation];' in camera
+assert 'RSActiveOrientation(self.host.windowScene)' in camera
+assert 'name:@"com.moxuan.regionshot.orientation.target"' in camera
+assert '[NSNotificationCenter.defaultCenter removeObserver:self]' in camera
+assert 'UIInterfaceOrientationLandscapeLeft) videoOrientation = AVCaptureVideoOrientationLandscapeLeft' in camera
+assert 'UIInterfaceOrientationLandscapeRight) videoOrientation = AVCaptureVideoOrientationLandscapeRight' in camera
+assert 'com.apple.UIKit' not in injection
+print('Verified original preference keys/defaults/ranges and root settings destinations')

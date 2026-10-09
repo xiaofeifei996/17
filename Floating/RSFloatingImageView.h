@@ -1,0 +1,30 @@
+#import <UIKit/UIKit.h>
+
+typedef NS_ENUM(NSInteger, RSFloatingAction) {
+    RSFloatingActionCopy = 0,
+    RSFloatingActionSave = 1,
+    RSFloatingActionShare = 2,
+    RSFloatingActionMarkup = 3,
+    RSFloatingActionCloseAll = 4,
+    RSFloatingActionAI = 5,
+    RSFloatingActionCloseCurrent = 6,
+    RSFloatingActionHistory = 7,
+};
+
+NS_ASSUME_NONNULL_BEGIN
+
+@class RSFloatingImageView;
+@protocol RSFloatingImageViewDelegate <NSObject>
+- (void)floatingImageViewDidActivate:(RSFloatingImageView *)snap;
+- (void)floatingImageViewDidRequestRemoval:(RSFloatingImageView *)snap;
+- (void)floatingImageView:(RSFloatingImageView *)snap didRequestAction:(RSFloatingAction)action;
+@end
+
+@interface RSFloatingImageView : UIView
+@property (nonatomic, weak) id<RSFloatingImageViewDelegate> actionDelegate;
+@property (nonatomic, readonly) UIImage *croppedImage;
+@property (nonatomic, strong, nullable) UIImage *image;
+- (instancetype)initWithCroppedImage:(UIImage *)image;
+- (void)setShadowVisible:(BOOL)visible;
+@end
+NS_ASSUME_NONNULL_END

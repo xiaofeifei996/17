@@ -1,0 +1,11 @@
+#import <UIKit/UIKit.h>
+@interface RSKATokenView : UICollectionView
+@property(copy) void (^onSelectionChanged)(void);
+@property(copy) void (^onLayoutChanged)(void);
+@property(copy) void (^onGutterLongPress)(void);
+@property(readonly) BOOL hasSelection;
+@property(readonly, copy) NSString *selectedText;
+@property BOOL usesSelectionOrder;
+- (instancetype)initWithPieces:(NSArray<NSString *> *)pieces;
+- (void)clearSelection;
+@end
