@@ -279,6 +279,8 @@ static UIView *QQRPFindAvatar(UIView *start) {
     return nil;
 }
 
+static void QQRPUpdateButtonFrame(UIView *cell);
+
 // 确保 cell 上存在按钮（仅当原版双击手势存在时创建），并做全部过滤
 static void QQRPEsureButton(UIView *cell) {
     if (!cell) return;
