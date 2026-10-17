@@ -89,6 +89,8 @@ static BOOL QQRPIsSelfRecord(id record) {
     return NO;
 }
 
+static BOOL QQRPLooksLikeRecord2(id obj);
+
 // 复刻原版 QQRPRepeatRecord 的转发部分（消息 ID 装数组 -> forwardMsg 回当前会话）
 static void QQRPForwardRecord(id record) {
     if (!QQRPLooksLikeRecord2(record)) return;
