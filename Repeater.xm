@@ -256,6 +256,23 @@ static UIView *QQRPContentAnchor(UIView *view) {
     return nil;
 }
 
+// 在候选锚点里取"最贴近内容"的（右边缘最靠里者），避免锚点比可见气泡宽导致按钮偏远
+static CGRect QQRPRBestAnchorFrame(UIView *cell, BOOL *ok) {
+    NSArray *names = @[@"BubbleView", @"Bubble", @"TextContentView",
+                       @"TextContent", @"YYLabel", @"TTextLabel"];
+    CGRect best = CGRectZero;
+    CGFloat bestMaxX = CGFLOAT_MAX;
+    for (NSString *name in names) {
+        UIView *v = QQRPFindSubviewNamed(cell, name, 6);
+        if (!v) continue;
+        CGRect f = [cell convertRect:v.bounds fromView:v];
+        if (f.size.width < 1 || f.size.height < 1) continue;
+        if (CGRectGetMaxX(f) < bestMaxX) { bestMaxX = CGRectGetMaxX(f); best = f; }
+    }
+    if (ok) *ok = (bestMaxX < CGFLOAT_MAX);
+    return best;
+}
+
 // 依据气泡位置把按钮放到消息旁
 static void QQRPUpdateButtonFrame(UIView *cell) {
     UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
@@ -263,14 +280,11 @@ static void QQRPUpdateButtonFrame(UIView *cell) {
     CGFloat w = cell.bounds.size.width, h = cell.bounds.size.height;
     if (w < 50 || h < 30) { btn.hidden = YES; return; }
 
-    CGRect anchorFrame = CGRectZero;
     BOOL haveAnchor = NO;
-    UIView *anchor = QQRPContentAnchor(cell);
-    if (anchor) {
-        anchorFrame = [cell convertRect:anchor.bounds fromView:anchor];
-        // 锚点可能是气泡内的文本视图：向四周外扩近似气泡真实边缘
-        anchorFrame = CGRectInset(anchorFrame, -10.0, -4.0);
-        if (anchorFrame.size.width > 1 && anchorFrame.size.height > 1) haveAnchor = YES;
+    CGRect anchorFrame = QQRPRBestAnchorFrame(cell, &haveAnchor);
+    if (haveAnchor) {
+        // 轻微外扩补偿文本到气泡边缘的内边距（上下 4pt、左右 8pt）
+        anchorFrame = CGRectInset(anchorFrame, -8.0, -4.0);
     }
 
     CGFloat size = 30.0;
