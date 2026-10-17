@@ -373,9 +373,8 @@ static void QQRPUpdateButtonFrame(UIView *cell) {
 
     // 内容右缘 = 本条消息内所有文本/图片视图的最大 maxX（排除名称行与按钮），
     // 对照 QQPlusOneUI 实测：按钮圆心 = 气泡右缘内约 4pt、顶边上方 13pt
-    UIView *avatar = QQRPFindAvatar(cell);
     CGFloat avatarMinY = 0;
-    if (avatar) avatarMinY = [cell convertRect:avatar.bounds fromView:avatar].minY;
+    if (avatar) avatarMinY = CGRectGetMinY([cell convertRect:avatar.bounds fromView:avatar]);
     CGFloat contentMaxX = haveAnchor ? CGRectGetMaxX(anchorFrame) : 0;
     NSMutableArray<UIView *> *queue2 = [NSMutableArray arrayWithObject:cell];
     int scanned2 = 0;
