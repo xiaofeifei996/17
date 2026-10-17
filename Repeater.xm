@@ -41,6 +41,17 @@ static __weak id gKernelMsgService = nil;
 
 static BOOL QQRPEnabled(void) { return QQCKEnabled(QQCKRepeaterKey) ? YES : NO; }
 
+// 诊断日志：设备日志中过滤 "QQCK+1" 即可查看（Console.app / idevicesyslog）
+#define QQRP_LOG(fmt, ...) NSLog(@"[QQCK+1] " fmt, ##__VA_ARGS__)
+static int gQQRPDebugCount = 0;
+static inline void QQRPDebugOnce(NSString *fmt, ...) {
+    if (gQQRPDebugCount >= 40) return;
+    gQQRPDebugCount++;
+    va_list args; va_start(args, fmt);
+    NSLog(@"[QQCK+1][%d] %@", gQQRPDebugCount, [[NSString alloc] initWithFormat:fmt arguments:args]);
+    va_end(args);
+}
+
 #pragma mark - 消息记录判定与查找
 
 static BOOL QQRPLooksLikeRecord(id obj) {
@@ -77,16 +88,14 @@ static id QQRPObjectIvar(id obj, NSString *name) {
     return result;
 }
 
-// 优先走 getter，再回落同名 ivar
+// 与原版一致：KVC valueForKey: + @try，失败回落同名 ivar
 static id QQRPValueForKey(id obj, NSString *name) {
     if (!obj || name.length == 0) return nil;
-    SEL sel = NSSelectorFromString(name);
-    if ([obj respondsToSelector:sel]) {
-        NSMethodSignature *sig = [obj methodSignatureForSelector:sel];
-        if (sig && sig.numberOfArguments >= 2 &&
-            strcmp([sig getArgumentTypeAtIndex:2], "@") == 0)
-            return ((id (*)(id, SEL))objc_msgSend)(obj, sel);
-    }
+    @try {
+        id v = [obj valueForKey:name];
+        if (v == nil || [v isKindOfClass:[NSObject class]] || [v isKindOfClass:[NSURL class]])
+            return v;
+    } @catch (NSException *e) { }
     return QQRPObjectIvar(obj, name);
 }
 
@@ -115,6 +124,13 @@ static id QQRPFindRecordDeep(id obj, unsigned depth, NSMutableSet<NSValue *> *vi
     });
     for (NSString *name in knownNames) {
         id found = QQRPFindRecordDeep(QQRPValueForKey(obj, name), depth - 1, visited);
+        if (found) return found;
+    }
+
+    // 部分内核对象通过 readData 暴露底层数据（与原版一致）
+    if ([obj respondsToSelector:@selector(readData)]) {
+        id v = ((id (*)(id, SEL))objc_msgSend)(obj, @selector(readData));
+        id found = QQRPFindRecordDeep(v, depth - 1, visited);
         if (found) return found;
     }
 
@@ -281,7 +297,9 @@ static UIView *QQRPContentAnchor(UIView *view) {
 - (void)plusOneTapped:(UIButton *)sender {
     UIView *cell = objc_getAssociatedObject(sender, &kQQRPButtonKey);
     if (!cell) cell = sender.superview;
-    QQRPRepeatRecord(QQRPRecordForCell(cell));
+    id rec = QQRPRecordForCell(cell);
+    QQRP_LOG(@"+1 点击 rec=%@ cell=%@", rec ? NSStringFromClass(rec.class) : @"(未找到)", NSStringFromClass(cell.class));
+    QQRPRepeatRecord(rec);
 }
 @end
 
@@ -361,7 +379,12 @@ static void QQRPEsureButton(UIView *cell) {
         objc_setAssociatedObject(cell, &kQQRPButtonKey, btn, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     id rec = QQRPRecordForCell(cell);
-    if (!QQRPLooksLikeRecord(rec)) { btn.hidden = YES; return; }
+    if (!QQRPLooksLikeRecord(rec)) {
+        QQRPDebugOnce(@"按钮暂缓：%@ 未找到消息记录", NSStringFromClass(cell.class));
+        btn.hidden = YES;
+        return;
+    }
+    QQRPDebugOnce(@"按钮已创建：%@ rec=%@", NSStringFromClass(cell.class), NSStringFromClass(rec.class));
     QQRPUpdateButtonFrame(cell);
 }
 
@@ -384,9 +407,16 @@ static void QQRPAddLayoutHook(Class cls, SEL sel, int kind) {
     free(list);
     if (!owned) return;
 
+    // 安全检查：只挂返回 void 的方法（block IMP 签名须匹配）
+    char *retType = method_copyReturnType(class_getInstanceMethod(cls, sel));
+    BOOL voidRet = retType && retType[0] == 'v';
+    free(retType);
+    if (!voidRet) return;
+
     NSString *key = [NSString stringWithFormat:@"%p/%@", cls, NSStringFromSelector(sel)];
     if ([gInstalledHooks containsObject:key]) return;
     [gInstalledHooks addObject:key];
+    QQRP_LOG(@"hook %@/%@ kind=%d", NSStringFromClass(cls), NSStringFromSelector(sel), kind);
 
     Method m = class_getInstanceMethod(cls, sel);
     if (!m) return;
@@ -395,7 +425,7 @@ static void QQRPAddLayoutHook(Class cls, SEL sel, int kind) {
     if (kind == 0) { // layoutViewWithViewModel: —— 绑定 ViewModel 并刷新按钮
         id blk = ^(id self, id vm) {
             ((void (*)(id, SEL, id))orig)(self, sel, vm);
-            if (QQRPEnabled()) QQRPBindCell(self, vm);
+            if (QQRPEnabled()) { QQRPBindCell(self, vm); QQRPEsureButton(self); }
         };
         method_setImplementation(m, imp_implementationWithBlock(blk));
     } else if (kind == 1) { // layoutSubviews —— 确保按钮存在并定位
@@ -431,6 +461,9 @@ static void QQRPScanUI(int unused) {
     gLastRuntimeClassCount = classCount;
 
     Class base = NSClassFromString(@"NTBaseAIO.NTAIOBaseCellView");
+    QQRP_LOG(@"扫描开始 base=%@ 类总数=%d 已装钩子=%lu",
+             base ? NSStringFromClass(base) : @"(未找到)", classCount,
+             (unsigned long)gInstalledHooks.count);
     Class *classes = (Class *)malloc(sizeof(Class) * classCount);
     int n = objc_getClassList(classes, classCount);
     for (int i = 0; i < n; i++) {
@@ -440,6 +473,7 @@ static void QQRPScanUI(int unused) {
             QQRPInstallOwnHooks(classes[i]);
     }
     free(classes);
+    QQRP_LOG(@"扫描完成 已装钩子=%lu", (unsigned long)gInstalledHooks.count);
 }
 
 static void QQRPInstallInheritedLayout(const char *name) {
@@ -478,6 +512,7 @@ static void hook_viewDidAppear(id self, SEL _cmd, BOOL animated) {
     double now = [NSDate timeIntervalSinceReferenceDate];
     if (now - gLastChatScan < 1.5) return;
     gLastChatScan = now;
+    QQRP_LOG(@"聊天页 %@，0.2s 后扫描", name);
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)),
                    dispatch_get_main_queue(), ^{ QQRPScanUI(0); });
 }
@@ -498,6 +533,7 @@ static void QQRepeaterInit(void) {
         }
         MSHookMessageEx(objc_getClass("UIViewController"), @selector(viewDidAppear:),
                         (IMP)hook_viewDidAppear, (IMP *)&orig_viewDidAppear);
+        QQRP_LOG(@"构造完成 kernel=%d", kernel != nil);
 
         [[NSNotificationCenter defaultCenter]
             addObserverForName:QQCKSettingsChangedNotification object:nil
