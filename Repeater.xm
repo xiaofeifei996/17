@@ -298,7 +298,7 @@ static UIView *QQRPContentAnchor(UIView *view) {
     UIView *cell = objc_getAssociatedObject(sender, &kQQRPButtonKey);
     if (!cell) cell = sender.superview;
     id rec = QQRPRecordForCell(cell);
-    QQRP_LOG(@"+1 点击 rec=%@ cell=%@", rec ? NSStringFromClass(rec.class) : @"(未找到)", NSStringFromClass(cell.class));
+    QQRP_LOG(@"+1 点击 rec=%@ cell=%@", rec ? NSStringFromClass([rec class]) : @"(未找到)", NSStringFromClass([cell class]));
     QQRPRepeatRecord(rec);
 }
 @end
@@ -380,11 +380,11 @@ static void QQRPEsureButton(UIView *cell) {
     }
     id rec = QQRPRecordForCell(cell);
     if (!QQRPLooksLikeRecord(rec)) {
-        QQRPDebugOnce(@"按钮暂缓：%@ 未找到消息记录", NSStringFromClass(cell.class));
+        QQRPDebugOnce(@"按钮暂缓：%@ 未找到消息记录", NSStringFromClass([cell class]));
         btn.hidden = YES;
         return;
     }
-    QQRPDebugOnce(@"按钮已创建：%@ rec=%@", NSStringFromClass(cell.class), NSStringFromClass(rec.class));
+    QQRPDebugOnce(@"按钮已创建：%@ rec=%@", NSStringFromClass([cell class]), NSStringFromClass([rec class]));
     QQRPUpdateButtonFrame(cell);
 }
 
