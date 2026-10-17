@@ -45,7 +45,7 @@ static BOOL QQRPEnabled(void) { return QQCKEnabled(QQCKRepeaterKey) ? YES : NO; 
 #define QQRP_LOG(fmt, ...) NSLog(@"[QQCK+1] " fmt, ##__VA_ARGS__)
 static int gQQRPDebugCount = 0;
 static inline void QQRPDebugOnce(NSString *fmt, ...) {
-    if (gQQRPDebugCount >= 40) return;
+    if (gQQRPDebugCount >= 150) return;
     gQQRPDebugCount++;
     va_list args; va_start(args, fmt);
     NSLog(@"[QQCK+1][%d] %@", gQQRPDebugCount, [[NSString alloc] initWithFormat:fmt arguments:args]);
@@ -165,6 +165,25 @@ static id QQRPFindRecord(id obj) {
     return QQRPFindRecordDeep(obj, 6, [NSMutableSet set]);
 }
 
+// 浅层查找：只走直接属性链。用于判断"这个 ViewModel 是不是消息级"，
+// 避免外层容器（聊天区）的 ViewModel 因深度搜索偶然命中记录而错误创建按钮
+static id QQRPShallowRecord(id obj) {
+    if (!obj) return nil;
+    if (QQRPLooksLikeRecord(obj)) return obj;
+    static NSArray *chain = nil;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{
+        chain = @[@"record", @"msgRecord", @"_record", @"msg", @"message", @"msgData",
+                  @"messageModel", @"viewModel", @"cellViewModel", @"contentViewModel",
+                  @"contentVM", @"cellModel", @"dataModel", @"model"];
+    });
+    for (NSString *name in chain) {
+        id v = QQRPValueForKey(obj, name);
+        if (QQRPLooksLikeRecord(v)) return v;
+    }
+    return nil;
+}
+
 static id QQRPDirectRecordFromCell(UIView *view) {
     for (UIView *v = view; v; v = v.superview) {
         id rec = objc_getAssociatedObject(v, &kQQRPRecordKey);
@@ -189,10 +208,16 @@ static id QQRPRecordForCell(UIView *view) {
 static void QQRPBindCell(UIView *cell, id viewModel) {
     if (!QQRPEnabled() || !cell) return;
     objc_setAssociatedObject(cell, &kQQRPModelKey, viewModel, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    id rec = QQRPFindRecord(viewModel);
-    if (!QQRPLooksLikeRecord(rec)) rec = QQRPDirectRecordFromCell(cell);
+    id rec = QQRPShallowRecord(viewModel);
+    if (!QQRPLooksLikeRecord(rec) &&
+        [NSStringFromClass([viewModel class]) containsString:@"MessageCellViewModel"])
+        rec = QQRPFindRecord(viewModel); // 消息级 VM 才允许深度搜索兜底
     if (QQRPLooksLikeRecord(rec))
         objc_setAssociatedObject(cell, &kQQRPRecordKey, rec, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    QQRPDebugOnce(@"绑定 %@ vm=%@ rec=%@",
+                  NSStringFromClass([cell class]),
+                  viewModel ? NSStringFromClass([viewModel class]) : @"(nil)",
+                  QQRPLooksLikeRecord(rec) ? NSStringFromClass([rec class]) : @"未找到");
 }
 
 static void QQRPClearCell(UIView *cell) {
@@ -303,17 +328,10 @@ static UIView *QQRPContentAnchor(UIView *view) {
 }
 @end
 
-// 附近（祖先/子孙）已有按钮则不再创建，避免嵌套 cell 上出现重复按钮
+// 祖先视图已有按钮则不再创建（仅按绑定的记录判断是否创建，见 EsureButton）
 static BOOL QQRPCellHasNearbyButton(UIView *cell) {
     for (UIView *v = cell.superview; v; v = v.superview)
         if (objc_getAssociatedObject(v, &kQQRPButtonKey)) return YES;
-    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:cell];
-    while (queue.count) {
-        UIView *v = queue.firstObject;
-        [queue removeObjectAtIndex:0];
-        if (v != cell && objc_getAssociatedObject(v, &kQQRPButtonKey)) return YES;
-        [queue addObjectsFromArray:v.subviews];
-    }
     return NO;
 }
 
@@ -356,6 +374,8 @@ static void QQRPEsureButton(UIView *cell) {
     if (!QQRPEnabled() || !cell) return;
     UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
     if (!btn) {
+        // 创建门禁：本 cell 必须已直接绑定消息记录（消息 cell 才有）
+        if (!QQRPLooksLikeRecord(objc_getAssociatedObject(cell, &kQQRPRecordKey))) return;
         if (QQRPCellHasNearbyButton(cell)) return;
         btn = [UIButton buttonWithType:UIButtonTypeSystem];
         btn.translatesAutoresizingMaskIntoConstraints = YES;
@@ -377,14 +397,13 @@ static void QQRPEsureButton(UIView *cell) {
         [cell addSubview:btn];
         objc_setAssociatedObject(btn, &kQQRPButtonKey, cell, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         objc_setAssociatedObject(cell, &kQQRPButtonKey, btn, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        QQRP_LOG(@"按钮已创建 cell=%@ rec=%@", NSStringFromClass([cell class]),
+                 NSStringFromClass([objc_getAssociatedObject(cell, &kQQRPRecordKey) class]));
     }
-    id rec = QQRPRecordForCell(cell);
-    if (!QQRPLooksLikeRecord(rec)) {
-        QQRPDebugOnce(@"按钮暂缓：%@ 未找到消息记录", NSStringFromClass([cell class]));
-        btn.hidden = YES;
-        return;
-    }
-    QQRPDebugOnce(@"按钮已创建：%@ rec=%@", NSStringFromClass([cell class]), NSStringFromClass([rec class]));
+    // 只有本 cell 直接绑定了消息记录（即真正的消息 cell）才创建按钮；
+    // 外层容器即使被深度搜索命中记录也不会在此处关联（BindCell 浅层失败即不落 key）
+    id rec = objc_getAssociatedObject(cell, &kQQRPRecordKey);
+    if (!QQRPLooksLikeRecord(rec)) { btn.hidden = YES; return; }
     QQRPUpdateButtonFrame(cell);
 }
 
