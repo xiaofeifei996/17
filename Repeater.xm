@@ -295,62 +295,71 @@ static void QQRPEsureButton(UIView *cell) {
 
 // 定位：内层锚点（最贴合内容的视图）+ 图片几何兜底 + 骑在气泡右上角（v15 体系）
 // 在候选锚点里取"最贴近内容"的（右边缘最靠里者），避免锚点比可见气泡宽导致按钮偏远
-// 按名字找可用子视图（可见、非透明、有尺寸），限深防环
-static UIView *QQRPFindSubviewNamed(UIView *view, NSString *name, unsigned depth) {
-    if (!view || depth == 0) return nil;
-    if ([NSStringFromClass(view.class) containsString:name] &&
-        !view.isHidden && view.alpha > 0.01 &&
-        view.bounds.size.width > 1 && view.bounds.size.height > 1)
-        return view;
-    for (UIView *sub in view.subviews) {
-        UIView *found = QQRPFindSubviewNamed(sub, name, depth - 1);
-        if (found) return found;
-    }
-    return nil;
-}
-
+// 识别气泡本体：外观特征（有背景色 + 圆角 >= 6 + 尺寸适中 + 名字行以下）
+// 昵称/LV徽章行不满足"圆角背景块"特征，永远不会被误判
 static CGRect QQRPRBestAnchorFrame(UIView *cell, BOOL *ok) {
-    NSArray *names = @[@"BubbleView", @"Bubble", @"TextContentView",
-                       @"TextContent", @"YYLabel", @"TTextLabel", @"ImageView"];
+    CGFloat w = cell.bounds.size.width;
+    CGFloat avatarMinY = -CGFLOAT_MAX, avatarMaxX = 0;
+    BOOL haveAvatar = NO;
+    UIView *avatar = QQRPFindAvatar(cell);
+    if (avatar) {
+        CGRect af = [cell convertRect:avatar.bounds fromView:avatar];
+        avatarMinY = CGRectGetMinY(af);
+        avatarMaxX = CGRectGetMaxX(af);
+        haveAvatar = YES;
+    }
+
+    // 1) 外观识别：背景色 + 圆角 + 名字行以下 + 非满宽
     CGRect best = CGRectZero;
-    CGFloat bestMaxX = CGFLOAT_MAX;
-    for (NSString *name in names) {
-        UIView *v = QQRPFindSubviewNamed(cell, name, 6);
-        if (!v) continue;
-        CGRect f = [cell convertRect:v.bounds fromView:v];
-        if (f.size.width < 1 || f.size.height < 1) continue;
-        if (CGRectGetMaxX(f) < bestMaxX) { bestMaxX = CGRectGetMaxX(f); best = f; }
-    }
-    if (bestMaxX < CGFLOAT_MAX) {
-        if (ok) *ok = YES;
-        return best;
-    }
-    // 几何兜底（图片/表情等无文本锚点的消息）：
-    // 取面积最大的可见内容子视图（排除近似满宽的容器）作为气泡
     CGFloat bestArea = 0;
     NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:cell];
-    while (queue.count) {
+    int scanned = 0;
+    while (queue.count && scanned < 300) {
         UIView *v = queue.firstObject;
         [queue removeObjectAtIndex:0];
-        for (UIView *sub in v.subviews) {
-            if (sub.isHidden || sub.alpha < 0.01) continue;
-            if ([sub isKindOfClass:[UIButton class]]) continue;
-            CGFloat a = sub.bounds.size.width * sub.bounds.size.height;
-            if (sub.bounds.size.width > 30 && sub.bounds.size.height > 30 &&
-                sub.bounds.size.width < cell.bounds.size.width * 0.92 &&
-                a > bestArea) {
-                bestArea = a;
-                best = [cell convertRect:sub.bounds fromView:sub];
+        scanned++;
+        if ([v isKindOfClass:[UIButton class]]) continue;
+        if (v.isHidden || v.alpha < 0.01) continue;
+        CGRect f = [cell convertRect:v.bounds fromView:v];
+        CGFloat bw = f.size.width, bh = f.size.height;
+        if (bw >= 50 && bh >= 34 && bw < w * 0.95 && CGRectGetMaxX(f) < w * 0.98) {
+            BOOL belowName = !haveAvatar || CGRectGetMinY(f) > avatarMinY + 20;
+            BOOL rightOfAvatar = !haveAvatar || CGRectGetMinX(f) >= avatarMaxX - 12;
+            if (v.layer.cornerRadius >= 6 && v.layer.backgroundColor != nil &&
+                belowName && rightOfAvatar) {
+                CGFloat a = bw * bh;
+                if (a > bestArea) { bestArea = a; best = f; }
             }
-            [queue addObject:sub];
         }
+        [queue addObjectsFromArray:v.subviews];
+    }
+    if (bestArea > 0) { if (ok) *ok = YES; return best; }
+
+    // 2) 兜底：名字行以下、头像右侧面积最大的内容视图（图片/表情等无背景气泡）
+    bestArea = 0;
+    queue = [NSMutableArray arrayWithObject:cell];
+    scanned = 0;
+    while (queue.count && scanned < 300) {
+        UIView *v = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+        scanned++;
+        if ([v isKindOfClass:[UIButton class]]) continue;
+        if (v.isHidden || v.alpha < 0.01) continue;
+        CGRect f = [cell convertRect:v.bounds fromView:v];
+        CGFloat bw = f.size.width, bh = f.size.height;
+        BOOL belowName = !haveAvatar || CGRectGetMinY(f) > avatarMinY + 20;
+        BOOL rightOfAvatar = !haveAvatar || CGRectGetMinX(f) >= avatarMaxX - 12;
+        if (bw > 30 && bh > 30 && bw < w * 0.95 && belowName && rightOfAvatar) {
+            CGFloat a = bw * bh;
+            if (a > bestArea) { bestArea = a; best = f; }
+        }
+        [queue addObjectsFromArray:v.subviews];
     }
     if (ok) *ok = (bestArea > 0);
     return best;
 }
 
-
-// 依据气泡位置把按钮放到消息旁（骑在气泡右上角）
+// 依据气泡位置把按钮放到气泡右上角（骑在角上）
 static void QQRPUpdateButtonFrame(UIView *cell) {
     UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
     if (!btn) return;
@@ -365,43 +374,17 @@ static void QQRPUpdateButtonFrame(UIView *cell) {
     }
 
     BOOL haveAnchor = NO;
-    CGRect anchorFrame = QQRPRBestAnchorFrame(cell, &haveAnchor);
-    if (haveAnchor) {
-        // 仅用其纵向位置（横向改用内容右缘，见下）
-        anchorFrame = CGRectInset(anchorFrame, 0.0, -4.0);
-    }
-
-    // 内容右缘 = 本条消息内所有文本/图片视图的最大 maxX（排除名称行与按钮），
-    // 对照 QQPlusOneUI 实测：按钮圆心 = 气泡右缘内约 4pt、顶边上方 13pt
-    CGFloat avatarMinY = 0;
-    if (avatar) avatarMinY = CGRectGetMinY([cell convertRect:avatar.bounds fromView:avatar]);
-    CGFloat contentMaxX = haveAnchor ? CGRectGetMaxX(anchorFrame) : 0;
-    NSMutableArray<UIView *> *queue2 = [NSMutableArray arrayWithObject:cell];
-    int scanned2 = 0;
-    while (queue2.count && scanned2 < 200) {
-        UIView *v = queue2.firstObject;
-        [queue2 removeObjectAtIndex:0];
-        scanned2++;
-        if (v == btn || [v isKindOfClass:[UIButton class]]) continue;
-        if (v.isHidden || v.alpha < 0.01) continue;
-        CGRect f = [cell convertRect:v.bounds fromView:v];
-        if (f.size.width < 10 || f.size.height < 10) continue;
-        if (CGRectGetMaxX(f) > w * 0.97) continue;
-        NSString *cn = NSStringFromClass(v.class).lowercaseString;
-        if (![cn containsString:@"label"] && ![cn containsString:@"imageview"]) continue;
-        if (avatar && CGRectGetMinY(f) < avatarMinY + 25) continue; // 排除名称行
-        if (CGRectGetMaxX(f) > contentMaxX) contentMaxX = CGRectGetMaxX(f);
-    }
+    CGRect bubble = QQRPRBestAnchorFrame(cell, &haveAnchor);
 
     CGFloat size = 24.0;
     CGFloat x, y;
     if (haveAnchor) {
-        // 按钮骑在气泡右上角（QQPlusOneUI 实测：圆心 = 气泡右缘内 4pt、顶边上方 13pt）
-        x = contentMaxX + 6.0 - size / 2.0 - 4.0;
-        y = CGRectGetMinY(anchorFrame) - size / 2.0 - 6.0;
+        // 按钮骑在气泡右上角：右缘对齐气泡右缘（外露 2pt），纵向跨在气泡顶边上
+        x = CGRectGetMaxX(bubble) - size + 2.0;
+        y = CGRectGetMinY(bubble) - size / 2.0;
     } else {
-        x = w - size - 8.0;
-        y = h / 2.0 - size / 2.0;
+        btn.hidden = YES; // 找不到气泡宁可不显示，避免乱跑
+        return;
     }
     x = MIN(MAX(x, 2.0), w - size - 2.0);
     y = MIN(MAX(y, 2.0), h - size - 2.0);
