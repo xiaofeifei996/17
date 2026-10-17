@@ -28,9 +28,9 @@ extern NSString * const QQCKSettingsChangedNotification;
 
 #pragma mark - 全局状态（与原版同名/同义）
 
-static NSString * const kQQRPRecordKey = @"qqck.repeater.record";  // cell 缓存的 OCMsgRecord
-static NSString * const kQQRPModelKey  = @"qqck.repeater.model";   // cell 缓存的 cellViewModel
-static NSString * const kQQRPButtonKey = @"qqck.repeater.button";  // cell 上的 "+1" 按钮
+static char kQQRPRecordKey;  // cell 缓存的 OCMsgRecord（关联对象 key）
+static char kQQRPModelKey;   // cell 缓存的 cellViewModel
+static char kQQRPButtonKey;  // cell 上的 "+1" 按钮
 
 static double gLastRepeatTime = 0;
 static NSString *gLastRepeatIdentity = nil;
@@ -151,9 +151,9 @@ static id QQRPFindRecord(id obj) {
 
 static id QQRPDirectRecordFromCell(UIView *view) {
     for (UIView *v = view; v; v = v.superview) {
-        id rec = objc_getAssociatedObject(v, kQQRPRecordKey);
+        id rec = objc_getAssociatedObject(v, &kQQRPRecordKey);
         if (QQRPLooksLikeRecord(rec)) return rec;
-        id found = QQRPFindRecord(objc_getAssociatedObject(v, kQQRPModelKey));
+        id found = QQRPFindRecord(objc_getAssociatedObject(v, &kQQRPModelKey));
         if (QQRPLooksLikeRecord(found)) return found;
     }
     return nil;
@@ -161,29 +161,29 @@ static id QQRPDirectRecordFromCell(UIView *view) {
 
 static id QQRPRecordForCell(UIView *view) {
     if (!QQRPEnabled() || !view) return nil;
-    id rec = objc_getAssociatedObject(view, kQQRPRecordKey);
+    id rec = objc_getAssociatedObject(view, &kQQRPRecordKey);
     if (QQRPLooksLikeRecord(rec)) return rec;
-    rec = QQRPFindRecord(objc_getAssociatedObject(view, kQQRPModelKey));
+    rec = QQRPFindRecord(objc_getAssociatedObject(view, &kQQRPModelKey));
     if (!QQRPLooksLikeRecord(rec)) rec = QQRPDirectRecordFromCell(view);
     if (QQRPLooksLikeRecord(rec))
-        objc_setAssociatedObject(view, kQQRPRecordKey, rec, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(view, &kQQRPRecordKey, rec, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     return rec;
 }
 
 static void QQRPBindCell(UIView *cell, id viewModel) {
     if (!QQRPEnabled() || !cell) return;
-    objc_setAssociatedObject(cell, kQQRPModelKey, viewModel, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(cell, &kQQRPModelKey, viewModel, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     id rec = QQRPFindRecord(viewModel);
     if (!QQRPLooksLikeRecord(rec)) rec = QQRPDirectRecordFromCell(cell);
     if (QQRPLooksLikeRecord(rec))
-        objc_setAssociatedObject(cell, kQQRPRecordKey, rec, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(cell, &kQQRPRecordKey, rec, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 static void QQRPClearCell(UIView *cell) {
     if (!cell) return;
-    objc_setAssociatedObject(cell, kQQRPRecordKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    objc_setAssociatedObject(cell, kQQRPModelKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    UIButton *btn = objc_getAssociatedObject(cell, kQQRPButtonKey);
+    objc_setAssociatedObject(cell, &kQQRPRecordKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(cell, &kQQRPModelKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
     btn.hidden = YES;
 }
 
@@ -279,7 +279,7 @@ static UIView *QQRPContentAnchor(UIView *view) {
 }
 
 - (void)plusOneTapped:(UIButton *)sender {
-    UIView *cell = objc_getAssociatedObject(sender, kQQRPButtonKey);
+    UIView *cell = objc_getAssociatedObject(sender, &kQQRPButtonKey);
     if (!cell) cell = sender.superview;
     QQRPRepeatRecord(QQRPRecordForCell(cell));
 }
@@ -288,12 +288,12 @@ static UIView *QQRPContentAnchor(UIView *view) {
 // 附近（祖先/子孙）已有按钮则不再创建，避免嵌套 cell 上出现重复按钮
 static BOOL QQRPCellHasNearbyButton(UIView *cell) {
     for (UIView *v = cell.superview; v; v = v.superview)
-        if (objc_getAssociatedObject(v, kQQRPButtonKey)) return YES;
+        if (objc_getAssociatedObject(v, &kQQRPButtonKey)) return YES;
     NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:cell];
     while (queue.count) {
         UIView *v = queue.firstObject;
         [queue removeObjectAtIndex:0];
-        if (v != cell && objc_getAssociatedObject(v, kQQRPButtonKey)) return YES;
+        if (v != cell && objc_getAssociatedObject(v, &kQQRPButtonKey)) return YES;
         [queue addObjectsFromArray:v.subviews];
     }
     return NO;
@@ -301,7 +301,7 @@ static BOOL QQRPCellHasNearbyButton(UIView *cell) {
 
 // 依据气泡位置把按钮放到消息旁
 static void QQRPUpdateButtonFrame(UIView *cell) {
-    UIButton *btn = objc_getAssociatedObject(cell, kQQRPButtonKey);
+    UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
     if (!btn) return;
     CGFloat w = cell.bounds.size.width, h = cell.bounds.size.height;
     if (w < 50 || h < 30) { btn.hidden = YES; return; }
@@ -336,7 +336,7 @@ static void QQRPUpdateButtonFrame(UIView *cell) {
 // 确保 cell 上存在按钮，并按当前记录刷新显示
 static void QQRPEsureButton(UIView *cell) {
     if (!QQRPEnabled() || !cell) return;
-    UIButton *btn = objc_getAssociatedObject(cell, kQQRPButtonKey);
+    UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
     if (!btn) {
         if (QQRPCellHasNearbyButton(cell)) return;
         btn = [UIButton buttonWithType:UIButtonTypeSystem];
@@ -357,8 +357,8 @@ static void QQRPEsureButton(UIView *cell) {
                 action:@selector(plusOneTapped:)
       forControlEvents:UIControlEventTouchUpInside];
         [cell addSubview:btn];
-        objc_setAssociatedObject(btn, kQQRPButtonKey, cell, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        objc_setAssociatedObject(cell, kQQRPButtonKey, btn, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(btn, &kQQRPButtonKey, cell, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(cell, &kQQRPButtonKey, btn, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     id rec = QQRPRecordForCell(cell);
     if (!QQRPLooksLikeRecord(rec)) { btn.hidden = YES; return; }
