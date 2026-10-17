@@ -225,6 +225,20 @@ static BOOL QQRPCellIsRecallRelated(UIView *cell) {
 }
 @end
 
+// 按名字找可用子视图（可见、非透明、有尺寸），限深防环
+static UIView *QQRPFindSubviewNamed(UIView *view, NSString *name, unsigned depth) {
+    if (!view || depth == 0) return nil;
+    if ([NSStringFromClass(view.class) containsString:name] &&
+        !view.isHidden && view.alpha > 0.01 &&
+        view.bounds.size.width > 1 && view.bounds.size.height > 1)
+        return view;
+    for (UIView *sub in view.subviews) {
+        UIView *found = QQRPFindSubviewNamed(sub, name, depth - 1);
+        if (found) return found;
+    }
+    return nil;
+}
+
 // BFS 查找头像视图（类名含 avatar/headicon/headimage，尺寸 20~70pt）——与 QQPlusOneUI 相同
 static UIView *QQRPFindAvatar(UIView *start) {
     NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:start];
@@ -270,7 +284,7 @@ static void QQRPEsureButton(UIView *cell) {
         btn = [UIButton buttonWithType:UIButtonTypeSystem];
         btn.translatesAutoresizingMaskIntoConstraints = YES;
         [btn setTitle:@"+1" forState:UIControlStateNormal];
-        btn.titleLabel.font = [UIFont systemFontOfSize:9 weight:UIFontWeightRegular];
+        btn.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
         BOOL dark = NO;
         if (@available(iOS 12.0, *))
             dark = cell.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark;
@@ -278,7 +292,7 @@ static void QQRPEsureButton(UIView *cell) {
                              : [UIColor colorWithRed:0.10 green:0.50 blue:0.95 alpha:1.0];
         [btn setTitleColor:blue forState:UIControlStateNormal];
         btn.backgroundColor = [UIColor clearColor]; // 透明背景
-        btn.layer.cornerRadius = 6.5;
+        btn.layer.cornerRadius = 14.0;
         btn.layer.borderWidth = 1.0;
         btn.layer.borderColor = blue.CGColor;
         btn.layer.masksToBounds = YES;
@@ -293,25 +307,65 @@ static void QQRPEsureButton(UIView *cell) {
     QQRPUpdateButtonFrame(cell);
 }
 
-// 定位（QQPlusOneUI 同款算法）：按钮放头像正下方 3pt，水平居中于头像
-// 宽 = clamp(头像宽+8, 40, 55)，高 13；找不到头像则隐藏
+// 定位 v18：头像定左右 + 气泡右上角定位（对齐参考效果）
+// 气泡查找：优先命名视图（Bubble/文本视图/ImageView），兜底取头像右侧面积最大的内容视图
 static void QQRPUpdateButtonFrame(UIView *cell) {
     UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
     if (!btn) return;
     UIView *avatar = QQRPFindAvatar(cell);
     if (!avatar) { btn.hidden = YES; return; }
     CGFloat w = cell.bounds.size.width;
-    CGRect f = [cell convertRect:avatar.bounds fromView:avatar];
+    CGRect af = [cell convertRect:avatar.bounds fromView:avatar];
 
     // 自己发的消息（头像在右）不显示按钮
-    if (w > 50 && CGRectGetMidX(f) > w * 0.5) { btn.hidden = YES; return; }
+    if (w > 50 && CGRectGetMidX(af) > w * 0.5) { btn.hidden = YES; return; }
 
-    CGFloat bw = MIN(MAX(f.size.width + 8.0, 40.0), 55.0);
-    CGFloat bh = 13.0;
-    CGFloat x = CGRectGetMidX(f) - bw / 2.0;
-    CGFloat y = CGRectGetMaxY(f) + 3.0;
-    x = MIN(MAX(x, 2.0), w - bw - 2.0);
-    btn.frame = CGRectMake(x, y, bw, bh);
+    CGFloat avatarRight = CGRectGetMaxX(af);
+
+    // 1) 命名候选：取头像右侧、面积最大的气泡类视图
+    CGRect bubble = CGRectZero;
+    CGFloat bestArea = 0;
+    NSArray *names = @[@"BubbleView", @"Bubble", @"TextContentView",
+                       @"TextContent", @"YYLabel", @"TTextLabel", @"ImageView"];
+    for (NSString *name in names) {
+        UIView *v = QQRPFindSubviewNamed(cell, name, 6);
+        if (!v) continue;
+        CGRect f = [cell convertRect:v.bounds fromView:v];
+        if (f.size.width < 30 || f.size.height < 30) continue;
+        if (CGRectGetMinX(f) < avatarRight - 12) continue;          // 必须在头像右侧
+        if (CGRectGetMaxX(f) > w * 0.98) continue;                  // 排除满宽容器
+        CGFloat a = f.size.width * f.size.height;
+        if (a > bestArea) { bestArea = a; bubble = f; }
+    }
+    // 2) 几何兜底：头像右侧面积最大的可见内容视图（图片/表情等）
+    if (bestArea <= 0) {
+        NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:cell];
+        while (queue.count) {
+            UIView *v = queue.firstObject;
+            [queue removeObjectAtIndex:0];
+            for (UIView *sub in v.subviews) {
+                if (sub.isHidden || sub.alpha < 0.01) continue;
+                if ([sub isKindOfClass:[UIButton class]]) continue;
+                CGRect f = [cell convertRect:sub.bounds fromView:sub];
+                CGFloat a = f.size.width * f.size.height;
+                if (f.size.width > 30 && f.size.height > 30 &&
+                    CGRectGetMinX(f) >= avatarRight - 12 &&
+                    CGRectGetMaxX(f) < w * 0.98 && a > bestArea) {
+                    bestArea = a; bubble = f;
+                }
+                [queue addObject:sub];
+            }
+        }
+    }
+    if (bestArea <= 0) { btn.hidden = YES; return; }
+
+    // 按钮放气泡右上角外侧：略高于气泡顶边、贴右缘
+    CGFloat size = 28.0;
+    CGFloat x = CGRectGetMaxX(bubble) + 6.0;
+    CGFloat y = CGRectGetMinY(bubble) - size / 2.0 - 2.0;
+    x = MIN(MAX(x, 2.0), w - size - 2.0);
+    y = MAX(y, 2.0);
+    btn.frame = CGRectMake(x, y, size, size);
     btn.hidden = NO;
     if (cell.superview) [cell.superview bringSubviewToFront:btn];
     [cell bringSubviewToFront:btn];
