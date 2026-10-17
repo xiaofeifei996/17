@@ -256,144 +256,51 @@ static UIView *QQRPContentAnchor(UIView *view) {
     return nil;
 }
 
-// 在候选锚点里取"最贴近内容"的（右边缘最靠里者），避免锚点比可见气泡宽导致按钮偏远
-static CGRect QQRPRBestAnchorFrame(UIView *cell, BOOL *ok) {
-    NSArray *names = @[@"BubbleView", @"Bubble", @"TextContentView",
-                       @"TextContent", @"YYLabel", @"TTextLabel", @"ImageView"];
-    CGRect best = CGRectZero;
-    CGFloat bestMaxX = CGFLOAT_MAX;
-    for (NSString *name in names) {
-        UIView *v = QQRPFindSubviewNamed(cell, name, 6);
-        if (!v) continue;
-        CGRect f = [cell convertRect:v.bounds fromView:v];
-        if (f.size.width < 1 || f.size.height < 1) continue;
-        if (CGRectGetMaxX(f) < bestMaxX) { bestMaxX = CGRectGetMaxX(f); best = f; }
-    }
-    if (bestMaxX < CGFLOAT_MAX) {
-        if (ok) *ok = YES;
-        return best;
-    }
-    // 几何兜底（图片/表情等无文本锚点的消息）：
-    // 取面积最大的可见内容子视图（排除近似满宽的容器）作为气泡
-    CGFloat bestArea = 0;
-    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:cell];
-    while (queue.count) {
+// BFS 查找头像视图（类名含 avatar/headicon/headimage，尺寸 20~70pt）——与 QQPlusOneUI 相同
+static UIView *QQRPFindAvatar(UIView *start) {
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:start];
+    int scanned = 0;
+    while (queue.count && scanned < 200) {
         UIView *v = queue.firstObject;
         [queue removeObjectAtIndex:0];
-        for (UIView *sub in v.subviews) {
-            if (sub.isHidden || sub.alpha < 0.01) continue;
-            if ([sub isKindOfClass:[UIButton class]]) continue;
-            CGFloat a = sub.bounds.size.width * sub.bounds.size.height;
-            if (sub.bounds.size.width > 30 && sub.bounds.size.height > 30 &&
-                sub.bounds.size.width < cell.bounds.size.width * 0.92 &&
-                a > bestArea) {
-                bestArea = a;
-                best = [cell convertRect:sub.bounds fromView:sub];
-            }
-            [queue addObject:sub];
+        scanned++;
+        if ([v isKindOfClass:[UIButton class]]) continue;
+        if (v.isHidden || v.alpha < 0.01) continue;
+        NSString *cn = NSStringFromClass(v.class).lowercaseString;
+        BOOL isAvatar = [cn containsString:@"avatar"] ||
+                        [cn containsString:@"headicon"] ||
+                        [cn containsString:@"headimage"];
+        if (isAvatar) {
+            CGFloat w = v.bounds.size.width, h = v.bounds.size.height;
+            if (w >= 20 && w <= 70 && h >= 20 && h <= 70) return v;
         }
+        [queue addObjectsFromArray:v.subviews];
     }
-    if (ok) *ok = (bestArea > 0);
-    return best;
+    return nil;
 }
 
-// 依据气泡位置把按钮放到消息旁
+// 定位（QQPlusOneUI 同款算法）：按钮放头像正下方 3pt，水平居中于头像
+// 宽 = clamp(头像宽+8, 40, 55)，高 13；找不到头像则隐藏
 static void QQRPUpdateButtonFrame(UIView *cell) {
     UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
     if (!btn) return;
-    CGFloat w = cell.bounds.size.width, h = cell.bounds.size.height;
-    if (w < 50 || h < 30) { btn.hidden = YES; return; }
+    UIView *avatar = QQRPFindAvatar(cell);
+    if (!avatar) { btn.hidden = YES; return; }
+    CGFloat w = cell.bounds.size.width;
+    CGRect f = [cell convertRect:avatar.bounds fromView:avatar];
 
-    BOOL haveAnchor = NO;
-    CGRect anchorFrame = QQRPRBestAnchorFrame(cell, &haveAnchor);
-    if (haveAnchor) {
-        // 轻微外扩补偿文本到气泡边缘的内边距（上下 4pt、左右 8pt）
-        anchorFrame = CGRectInset(anchorFrame, -8.0, -4.0);
-    }
+    // 自己发的消息（头像在右）不显示按钮
+    if (w > 50 && CGRectGetMidX(f) > w * 0.5) { btn.hidden = YES; return; }
 
-    CGFloat size = 30.0;
-    CGFloat x, y;
-    if (haveAnchor) {
-        // 按钮圆心对准气泡右上角（骑在角上）
-        BOOL selfSide = CGRectGetMidX(anchorFrame) > w * 0.5; // 自己的消息气泡靠右
-        x = selfSide ? (CGRectGetMinX(anchorFrame) - size / 2.0)
-                     : (CGRectGetMaxX(anchorFrame) - size / 2.0);
-        y = CGRectGetMinY(anchorFrame) - size / 2.0;
-    } else {
-        x = w - size - 8.0;
-        y = h / 2.0 - size / 2.0;
-    }
-    x = MIN(MAX(x, 2.0), w - size - 2.0);
-    y = MIN(MAX(y, 2.0), h - size - 2.0);
-    btn.frame = CGRectMake(x, y, size, size);
+    CGFloat bw = MIN(MAX(f.size.width + 8.0, 40.0), 55.0);
+    CGFloat bh = 13.0;
+    CGFloat x = CGRectGetMidX(f) - bw / 2.0;
+    CGFloat y = CGRectGetMaxY(f) + 3.0;
+    x = MIN(MAX(x, 2.0), w - bw - 2.0);
+    btn.frame = CGRectMake(x, y, bw, bh);
     btn.hidden = NO;
     if (cell.superview) [cell.superview bringSubviewToFront:btn];
     [cell bringSubviewToFront:btn];
-}
-
-// 确保 cell 上存在按钮（仅当原版双击手势存在时创建），并定位
-static void QQRPEsureButton(UIView *cell) {
-    if (!cell) return;
-    // 自己发的消息（气泡在右）一律不显示按钮（每次布局都评估，覆盖 cell 复用场景）
-    CGFloat cw0 = cell.bounds.size.width;
-    BOOL suppressNow = NO;
-    if (cw0 > 50) {
-        UIView *probe0 = QQRPContentAnchor(cell);
-        if (probe0) {
-            CGRect pf0 = [cell convertRect:probe0.bounds fromView:probe0];
-            if (CGRectGetMidX(pf0) > cw0 * 0.5) suppressNow = YES;
-        }
-    }
-    UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
-    if (btn && suppressNow) { btn.hidden = YES; return; }
-    if (!btn) {
-        if (!QQRPViewHasOriginalGesture(cell)) return; // 原版手势在的才是消息 cell
-        id target = QQRPOriginalTarget();
-        if (!target) {
-            QQRP_LOG(@"未检测到原版复读模块（QQRepeaterGestureTarget），不显示按钮");
-            return;
-        }
-        // 过滤 1：时间行与撤回相关 cell（防撤回恢复的消息 / 撤回提示行），不是可复读的真实消息
-        if (QQRPCellIsRecallRelated(cell)) return;
-        NSString *cellCls = NSStringFromClass([cell class]);
-        if ([cellCls rangeOfString:@"Time" options:NSCaseInsensitiveSearch].location != NSNotFound) return;
-        // 过滤 2：刚通过 +1 转发的消息不再显示按钮（suppressNow 见上）
-        CGFloat cw = cw0;
-        UIView *probe = QQRPContentAnchor(cell);
-        if (suppressNow) return;
-        btn = [UIButton buttonWithType:UIButtonTypeSystem];
-        btn.translatesAutoresizingMaskIntoConstraints = YES;
-        [btn setTitle:@"+1" forState:UIControlStateNormal];
-        btn.titleLabel.font = [UIFont systemFontOfSize:12 weight:UIFontWeightMedium];
-        BOOL dark = NO;
-        if (@available(iOS 12.0, *))
-            dark = cell.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark;
-        UIColor *blue = dark ? [UIColor colorWithRed:0.40 green:0.65 blue:1.0 alpha:1.0]
-                             : [UIColor colorWithRed:0.10 green:0.50 blue:0.95 alpha:1.0];
-        [btn setTitleColor:blue forState:UIControlStateNormal];
-        btn.backgroundColor = [UIColor clearColor]; // 透明背景
-        btn.layer.cornerRadius = 15.0;
-        btn.layer.borderWidth = 1.0;
-        btn.layer.borderColor = blue.CGColor;
-        btn.layer.masksToBounds = YES;
-        [btn addTarget:[QQRepeaterButtonTarget shared]
-                action:@selector(plusOneTapped:)
-      forControlEvents:UIControlEventTouchUpInside];
-        // 过滤 3：锚点是居中的纯文本小视图（时间戳样式）
-        if (probe) {
-            CGRect pf = [cell convertRect:probe.bounds fromView:probe];
-            BOOL isTextLabel = [NSStringFromClass([probe class]) containsString:@"Label"];
-            if (isTextLabel && cw > 50 && fabs(CGRectGetMidX(pf) - cw * 0.5) < 12.0) {
-                [btn removeFromSuperview];
-                return;
-            }
-        }
-        [cell addSubview:btn];
-        objc_setAssociatedObject(btn, &kQQRPButtonKey, cell, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        objc_setAssociatedObject(cell, &kQQRPButtonKey, btn, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-        QQRP_LOG(@"按钮已创建 cell=%@", NSStringFromClass([cell class]));
-    }
-    QQRPUpdateButtonFrame(cell);
 }
 
 #pragma mark - cell 钩子（与原版相同的类扫描）
