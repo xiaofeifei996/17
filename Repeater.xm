@@ -295,6 +295,20 @@ static void QQRPEsureButton(UIView *cell) {
 
 // 定位：内层锚点（最贴合内容的视图）+ 图片几何兜底 + 骑在气泡右上角（v15 体系）
 // 在候选锚点里取"最贴近内容"的（右边缘最靠里者），避免锚点比可见气泡宽导致按钮偏远
+// 按名字找可用子视图（可见、非透明、有尺寸），限深防环
+static UIView *QQRPFindSubviewNamed(UIView *view, NSString *name, unsigned depth) {
+    if (!view || depth == 0) return nil;
+    if ([NSStringFromClass(view.class) containsString:name] &&
+        !view.isHidden && view.alpha > 0.01 &&
+        view.bounds.size.width > 1 && view.bounds.size.height > 1)
+        return view;
+    for (UIView *sub in view.subviews) {
+        UIView *found = QQRPFindSubviewNamed(sub, name, depth - 1);
+        if (found) return found;
+    }
+    return nil;
+}
+
 static CGRect QQRPRBestAnchorFrame(UIView *cell, BOOL *ok) {
     NSArray *names = @[@"BubbleView", @"Bubble", @"TextContentView",
                        @"TextContent", @"YYLabel", @"TTextLabel", @"ImageView"];
