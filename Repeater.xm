@@ -100,15 +100,21 @@ static UIView *QQRPFindSubviewNamed(UIView *view, NSString *name, unsigned depth
     return nil;
 }
 
-// 气泡定位：content 属性 -> BubbleView
+// 气泡定位：先找气泡类视图（Bubble*），找不到再找气泡内文本视图（TextContent/YYLabel/TTextLabel）
+static UIView *QQRPFindSubviewNamed(UIView *view, NSString *name, unsigned depth);
+
 static UIView *QQRPContentAnchor(UIView *view) {
     if (!view) return nil;
-    @try {
-        id content = [view valueForKey:@"content"];
-        if ([content isKindOfClass:[UIView class]])
-            return QQRPFindSubviewNamed(content, @"BubbleView", 3);
-    } @catch (NSException *e) { }
-    return QQRPFindSubviewNamed(view, @"BubbleView", 3);
+    // 两轮搜索：优先气泡本体，其次气泡内的文本视图（可据此推算气泡边缘）
+    NSArray *passes = @[@[@"BubbleView", @"Bubble"],
+                        @[@"TextContentView", @"TextContent", @"YYLabel", @"TTextLabel"]];
+    for (NSArray *names in passes) {
+        for (NSString *name in names) {
+            UIView *found = QQRPFindSubviewNamed(view, name, 6);
+            if (found) return found;
+        }
+    }
+    return nil;
 }
 
 // 依据气泡位置把按钮放到消息旁
@@ -123,6 +129,8 @@ static void QQRPUpdateButtonFrame(UIView *cell) {
     UIView *anchor = QQRPContentAnchor(cell);
     if (anchor) {
         anchorFrame = [cell convertRect:anchor.bounds fromView:anchor];
+        // 锚点可能是气泡内的文本视图：向四周外扩近似气泡真实边缘
+        anchorFrame = CGRectInset(anchorFrame, -10.0, -4.0);
         if (anchorFrame.size.width > 1 && anchorFrame.size.height > 1) haveAnchor = YES;
     }
 
@@ -166,12 +174,12 @@ static void QQRPEsureButton(UIView *cell) {
         [btn setTitleColor:(dark ? [UIColor colorWithRed:0.45 green:0.70 blue:1.0 alpha:1.0]
                                  : [UIColor colorWithRed:0.05 green:0.45 blue:0.90 alpha:1.0])
                   forState:UIControlStateNormal];
-        btn.backgroundColor = dark ? [UIColor colorWithWhite:1.0 alpha:0.10]
-                                   : [UIColor colorWithWhite:0.0 alpha:0.05];
+        btn.backgroundColor = dark ? [UIColor colorWithWhite:0.17 alpha:1.0]
+                                   : [UIColor whiteColor];
         btn.layer.cornerRadius = 15.0;
         btn.layer.borderWidth = 0.5;
-        btn.layer.borderColor = (dark ? [UIColor colorWithWhite:1.0 alpha:0.15]
-                                      : [UIColor colorWithWhite:0.0 alpha:0.10]).CGColor;
+        btn.layer.borderColor = (dark ? [UIColor colorWithWhite:1.0 alpha:0.25]
+                                      : [UIColor colorWithRed:0.75 green:0.85 blue:0.95 alpha:1.0]).CGColor;
         btn.layer.masksToBounds = YES;
         [btn addTarget:[QQRepeaterButtonTarget shared]
                 action:@selector(plusOneTapped:)
