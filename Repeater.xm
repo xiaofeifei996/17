@@ -259,7 +259,7 @@ static UIView *QQRPContentAnchor(UIView *view) {
 // 在候选锚点里取"最贴近内容"的（右边缘最靠里者），避免锚点比可见气泡宽导致按钮偏远
 static CGRect QQRPRBestAnchorFrame(UIView *cell, BOOL *ok) {
     NSArray *names = @[@"BubbleView", @"Bubble", @"TextContentView",
-                       @"TextContent", @"YYLabel", @"TTextLabel"];
+                       @"TextContent", @"YYLabel", @"TTextLabel", @"ImageView"];
     CGRect best = CGRectZero;
     CGFloat bestMaxX = CGFLOAT_MAX;
     for (NSString *name in names) {
@@ -269,7 +269,31 @@ static CGRect QQRPRBestAnchorFrame(UIView *cell, BOOL *ok) {
         if (f.size.width < 1 || f.size.height < 1) continue;
         if (CGRectGetMaxX(f) < bestMaxX) { bestMaxX = CGRectGetMaxX(f); best = f; }
     }
-    if (ok) *ok = (bestMaxX < CGFLOAT_MAX);
+    if (bestMaxX < CGFLOAT_MAX) {
+        if (ok) *ok = YES;
+        return best;
+    }
+    // 几何兜底（图片/表情等无文本锚点的消息）：
+    // 取面积最大的可见内容子视图（排除近似满宽的容器）作为气泡
+    CGFloat bestArea = 0;
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:cell];
+    while (queue.count) {
+        UIView *v = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+        for (UIView *sub in v.subviews) {
+            if (sub.isHidden || sub.alpha < 0.01) continue;
+            if ([sub isKindOfClass:[UIButton class]]) continue;
+            CGFloat a = sub.bounds.size.width * sub.bounds.size.height;
+            if (sub.bounds.size.width > 30 && sub.bounds.size.height > 30 &&
+                sub.bounds.size.width < cell.bounds.size.width * 0.92 &&
+                a > bestArea) {
+                bestArea = a;
+                best = [cell convertRect:sub.bounds fromView:sub];
+            }
+            [queue addObject:sub];
+        }
+    }
+    if (ok) *ok = (bestArea > 0);
     return best;
 }
 
