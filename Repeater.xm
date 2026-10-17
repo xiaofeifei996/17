@@ -270,7 +270,7 @@ static void QQRPEsureButton(UIView *cell) {
         btn = [UIButton buttonWithType:UIButtonTypeSystem];
         btn.translatesAutoresizingMaskIntoConstraints = YES;
         [btn setTitle:@"+1" forState:UIControlStateNormal];
-        btn.titleLabel.font = [UIFont systemFontOfSize:10 weight:UIFontWeightRegular];
+        btn.titleLabel.font = [UIFont systemFontOfSize:11 weight:UIFontWeightMedium];
         BOOL dark = NO;
         if (@available(iOS 12.0, *))
             dark = cell.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark;
@@ -278,7 +278,7 @@ static void QQRPEsureButton(UIView *cell) {
                              : [UIColor colorWithRed:0.10 green:0.50 blue:0.95 alpha:1.0];
         [btn setTitleColor:blue forState:UIControlStateNormal];
         btn.backgroundColor = [UIColor clearColor]; // 透明背景
-        btn.layer.cornerRadius = 9.0;
+        btn.layer.cornerRadius = 12.0;
         btn.layer.borderWidth = 1.2;
         btn.layer.borderColor = blue.CGColor;
         btn.layer.masksToBounds = YES;
@@ -293,20 +293,83 @@ static void QQRPEsureButton(UIView *cell) {
     QQRPUpdateButtonFrame(cell);
 }
 
-// 定位（QQPlusOneUI 同款）：按钮固定在消息 cell 右上角
-// x = cell宽 - 20，y = 2，尺寸 18x18 圆形（圆角 9 / 描边 1.2 / 字号 10 / 透明底）
-// 头像仅用于判断左右：头像在右 = 自己的消息 = 不显示
+// 定位：内层锚点（最贴合内容的视图）+ 图片几何兜底 + 骑在气泡右上角（v15 体系）
+// 在候选锚点里取"最贴近内容"的（右边缘最靠里者），避免锚点比可见气泡宽导致按钮偏远
+static CGRect QQRPRBestAnchorFrame(UIView *cell, BOOL *ok) {
+    NSArray *names = @[@"BubbleView", @"Bubble", @"TextContentView",
+                       @"TextContent", @"YYLabel", @"TTextLabel", @"ImageView"];
+    CGRect best = CGRectZero;
+    CGFloat bestMaxX = CGFLOAT_MAX;
+    for (NSString *name in names) {
+        UIView *v = QQRPFindSubviewNamed(cell, name, 6);
+        if (!v) continue;
+        CGRect f = [cell convertRect:v.bounds fromView:v];
+        if (f.size.width < 1 || f.size.height < 1) continue;
+        if (CGRectGetMaxX(f) < bestMaxX) { bestMaxX = CGRectGetMaxX(f); best = f; }
+    }
+    if (bestMaxX < CGFLOAT_MAX) {
+        if (ok) *ok = YES;
+        return best;
+    }
+    // 几何兜底（图片/表情等无文本锚点的消息）：
+    // 取面积最大的可见内容子视图（排除近似满宽的容器）作为气泡
+    CGFloat bestArea = 0;
+    NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:cell];
+    while (queue.count) {
+        UIView *v = queue.firstObject;
+        [queue removeObjectAtIndex:0];
+        for (UIView *sub in v.subviews) {
+            if (sub.isHidden || sub.alpha < 0.01) continue;
+            if ([sub isKindOfClass:[UIButton class]]) continue;
+            CGFloat a = sub.bounds.size.width * sub.bounds.size.height;
+            if (sub.bounds.size.width > 30 && sub.bounds.size.height > 30 &&
+                sub.bounds.size.width < cell.bounds.size.width * 0.92 &&
+                a > bestArea) {
+                bestArea = a;
+                best = [cell convertRect:sub.bounds fromView:sub];
+            }
+            [queue addObject:sub];
+        }
+    }
+    if (ok) *ok = (bestArea > 0);
+    return best;
+}
+
+
+// 依据气泡位置把按钮放到消息旁（骑在气泡右上角）
 static void QQRPUpdateButtonFrame(UIView *cell) {
     UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
     if (!btn) return;
-    CGFloat w = cell.bounds.size.width;
-    if (w < 50) { btn.hidden = YES; return; }
+    CGFloat w = cell.bounds.size.width, h = cell.bounds.size.height;
+    if (w < 50 || h < 30) { btn.hidden = YES; return; }
+
+    // 头像定左右：头像在右 = 自己的消息 = 不显示
     UIView *avatar = QQRPFindAvatar(cell);
     if (avatar) {
         CGRect af = [cell convertRect:avatar.bounds fromView:avatar];
-        if (CGRectGetMidX(af) > w * 0.5) { btn.hidden = YES; return; } // 自己的消息
+        if (w > 50 && CGRectGetMidX(af) > w * 0.5) { btn.hidden = YES; return; }
     }
-    btn.frame = CGRectMake(w - 20.0, 2.0, 18.0, 18.0);
+
+    BOOL haveAnchor = NO;
+    CGRect anchorFrame = QQRPRBestAnchorFrame(cell, &haveAnchor);
+    if (haveAnchor) {
+        // 轻微外扩补偿文本到气泡边缘的内边距（左右 8pt、上下 4pt）
+        anchorFrame = CGRectInset(anchorFrame, -8.0, -4.0);
+    }
+
+    CGFloat size = 24.0;
+    CGFloat x, y;
+    if (haveAnchor) {
+        // 按钮圆心对准气泡右上角（骑在角上）
+        x = CGRectGetMaxX(anchorFrame) - size / 2.0;
+        y = CGRectGetMinY(anchorFrame) - size / 2.0;
+    } else {
+        x = w - size - 8.0;
+        y = h / 2.0 - size / 2.0;
+    }
+    x = MIN(MAX(x, 2.0), w - size - 2.0);
+    y = MIN(MAX(y, 2.0), h - size - 2.0);
+    btn.frame = CGRectMake(x, y, size, size);
     btn.hidden = NO;
     if (cell.superview) [cell.superview bringSubviewToFront:btn];
     [cell bringSubviewToFront:btn];
