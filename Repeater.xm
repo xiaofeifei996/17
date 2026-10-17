@@ -150,6 +150,39 @@ static BOOL QQRPLooksLikeRecord2(id obj) {
            [obj respondsToSelector:@selector(peerUid)];
 }
 
+#pragma mark - 撤回消息过滤
+
+// 读取标签文本（text / attributedText.string）
+static NSString *QQRPLabelText(UIView *v) {
+    if (!v) return nil;
+    @try {
+        id t = [v valueForKey:@"text"];
+        if ([t isKindOfClass:[NSString class]]) return t;
+        id at = [v valueForKey:@"attributedText"];
+        if ([at isKindOfClass:[NSAttributedString class]]) return [at string];
+    } @catch (NSException *e) { }
+    return nil;
+}
+
+// 深度扫描子视图文本里是否包含关键词（如"撤回"）
+static BOOL QQRPUITextContains(UIView *view, NSString *keyword, unsigned depth) {
+    if (!view || depth == 0) return NO;
+    NSString *t = QQRPLabelText(view);
+    if ([t containsString:keyword]) return YES;
+    for (UIView *sub in view.subviews)
+        if (QQRPUITextContains(sub, keyword, depth - 1)) return YES;
+    return NO;
+}
+
+// 判断该 cell 是否为撤回相关（防撤回恢复的消息 / 撤回提示行）——不显示按钮
+static BOOL QQRPCellIsRecallRelated(UIView *cell) {
+    NSString *cn = NSStringFromClass([cell class]);
+    for (NSString *kw in @[@"Tip", @"Recall", @"Revok", @"Gray", @"Time", @"Notice"])
+        if ([cn rangeOfString:kw options:NSCaseInsensitiveSearch].location != NSNotFound) return YES;
+    // 文本探测：提示行或防撤回内容通常带"撤回"字样
+    return QQRPUITextContains(cell, @"撤回", 4);
+}
+
 #pragma mark - 按钮
 
 @interface QQRepeaterButtonTarget : NSObject
@@ -281,7 +314,8 @@ static void QQRPEsureButton(UIView *cell) {
             QQRP_LOG(@"未检测到原版复读模块（QQRepeaterGestureTarget），不显示按钮");
             return;
         }
-        // 过滤 1：时间行（如 17:00 / 19:50 的分隔 cell），不是聊天消息
+        // 过滤 1：时间行与撤回相关 cell（防撤回恢复的消息 / 撤回提示行），不是可复读的真实消息
+        if (QQRPCellIsRecallRelated(cell)) return;
         NSString *cellCls = NSStringFromClass([cell class]);
         if ([cellCls rangeOfString:@"Time" options:NSCaseInsensitiveSearch].location != NSNotFound) return;
         // 过滤 2：刚通过 +1 转发的消息不再显示按钮（suppressNow 见上）
