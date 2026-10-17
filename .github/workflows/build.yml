@@ -17,27 +17,25 @@ jobs:
           set -e
           export THEOS=$HOME/theos
           export GIT_TERMINAL_PROMPT=0
+          sudo apt-get install -y -qq libtinfo6 || true
           if [ ! -d "$THEOS/makefiles" ]; then
             git clone --depth 1 --recursive https://github.com/theos/theos.git $THEOS
           fi
-          # 用 sparse fetch 拉取 linux/iphone 工具链（theos 仓库自带的 toolchain 占位目录先移除）
+          # 官方 Linux 工具链 tarball（theos/toolchain 仓库已不存在）
           rm -rf $THEOS/toolchain
           mkdir -p $THEOS/toolchain
-          git -C $THEOS/toolchain init -q
-          git -C $THEOS/toolchain remote add origin https://github.com/theos/toolchain.git
-          git -C $THEOS/toolchain config core.sparseCheckout true
-          printf '/linux/iphone/\n' > $THEOS/toolchain/.git/info/sparse-checkout
-          for br in master main; do
-            git -C $THEOS/toolchain -c protocol.version=2 fetch --depth=1 origin $br && break
-          done
-          git -C $THEOS/toolchain checkout -q --detach FETCH_HEAD
-          # 用 sparse fetch 拉取 iPhoneOS16.5.sdk
+          curl -sL https://github.com/L1ghtmann/llvm-project/releases/latest/download/iOSToolchain-x86_64.tar.xz \
+            | tar -xJ -C $THEOS/toolchain/
+          test -x $THEOS/toolchain/linux/iphone/bin/clang
+          # sparse fetch 拉取 iPhoneOS16.5.sdk
           rm -rf $HOME/sdks-tmp && mkdir -p $HOME/sdks-tmp
           git -C $HOME/sdks-tmp init -q
           git -C $HOME/sdks-tmp remote add origin https://github.com/theos/sdks.git
           git -C $HOME/sdks-tmp config core.sparseCheckout true
           printf '/iPhoneOS16.5.sdk/\n/LICENSE.md\n' > $HOME/sdks-tmp/.git/info/sparse-checkout
-          git -C $HOME/sdks-tmp -c protocol.version=2 fetch --depth=1 origin master
+          for br in master main; do
+            git -C $HOME/sdks-tmp -c protocol.version=2 fetch --depth=1 origin $br && break
+          done
           git -C $HOME/sdks-tmp checkout -q --detach FETCH_HEAD
           mkdir -p $THEOS/sdks
           cp -R $HOME/sdks-tmp/iPhoneOS16.5.sdk $THEOS/sdks/
