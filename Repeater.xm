@@ -279,6 +279,49 @@ static UIView *QQRPFindAvatar(UIView *start) {
     return nil;
 }
 
+// 确保 cell 上存在按钮（仅当原版双击手势存在时创建），并做全部过滤
+static void QQRPEsureButton(UIView *cell) {
+    if (!cell) return;
+    UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
+    if (!btn) {
+        if (!QQRPViewHasOriginalGesture(cell)) return; // 原版手势在的才是消息 cell
+        id target = QQRPOriginalTarget();
+        if (!target) return;                           // 原版复读模块未加载
+        if (QQRPCellIsRecallRelated(cell)) return;     // 撤回相关消息不显示
+        NSString *cellCls = NSStringFromClass([cell class]);
+        if ([cellCls rangeOfString:@"Time" options:NSCaseInsensitiveSearch].location != NSNotFound) return;
+        // 自己的消息（头像在右）不创建
+        UIView *av0 = QQRPFindAvatar(cell);
+        CGFloat cw0 = cell.bounds.size.width;
+        if (av0 && cw0 > 50 &&
+            CGRectGetMidX([cell convertRect:av0.bounds fromView:av0]) > cw0 * 0.5) return;
+
+        btn = [UIButton buttonWithType:UIButtonTypeSystem];
+        btn.translatesAutoresizingMaskIntoConstraints = YES;
+        [btn setTitle:@"+1" forState:UIControlStateNormal];
+        btn.titleLabel.font = [UIFont systemFontOfSize:9 weight:UIFontWeightRegular];
+        BOOL dark = NO;
+        if (@available(iOS 12.0, *))
+            dark = cell.traitCollection.userInterfaceStyle == UIUserInterfaceStyleDark;
+        UIColor *blue = dark ? [UIColor colorWithRed:0.40 green:0.65 blue:1.0 alpha:1.0]
+                             : [UIColor colorWithRed:0.10 green:0.50 blue:0.95 alpha:1.0];
+        [btn setTitleColor:blue forState:UIControlStateNormal];
+        btn.backgroundColor = [UIColor clearColor]; // 透明背景
+        btn.layer.cornerRadius = 6.5;
+        btn.layer.borderWidth = 1.0;
+        btn.layer.borderColor = blue.CGColor;
+        btn.layer.masksToBounds = YES;
+        [btn addTarget:[QQRepeaterButtonTarget shared]
+                action:@selector(plusOneTapped:)
+      forControlEvents:UIControlEventTouchUpInside];
+        [cell addSubview:btn];
+        objc_setAssociatedObject(btn, &kQQRPButtonKey, cell, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(cell, &kQQRPButtonKey, btn, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        QQRP_LOG(@"按钮已创建 cell=%@", NSStringFromClass([cell class]));
+    }
+    QQRPUpdateButtonFrame(cell);
+}
+
 // 定位（QQPlusOneUI 同款算法）：按钮放头像正下方 3pt，水平居中于头像
 // 宽 = clamp(头像宽+8, 40, 55)，高 13；找不到头像则隐藏
 static void QQRPUpdateButtonFrame(UIView *cell) {
