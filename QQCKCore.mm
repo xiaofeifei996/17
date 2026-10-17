@@ -5,8 +5,9 @@
 
 #import <Foundation/Foundation.h>
 
-NSString * const QQCKRepeaterKey = @"QQCK.repeater";
-NSString * const QQCKSettingsChangedNotification = @"QQCK.settingsChanged";
+// 注意：C++ 中 const 全局变量默认内部链接，必须去掉 const 才能导出符号供链接
+NSString *QQCKRepeaterKey = @"QQCK.repeater";
+NSString *QQCKSettingsChangedNotification = @"QQCK.settingsChanged";
 
 BOOL QQCKEnabled(NSString *key) {
     NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
