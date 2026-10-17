@@ -2,7 +2,7 @@ Package: com.xiaofeifei996.qqckrepeaterplusone
 Name: QQCK Repeater +1 Button
 Version: 1.0.0
 Architecture: iphoneos-arm64
-Description: QQ 净化复读模块改造版：消息旁 +1 按钮触发复读（替代双击）。
+Description: QQ 净化复读辅助：消息旁 +1 按钮，点击模拟双击复读（需配合原版 QQ 净化使用）。
 Maintainer: xiaofeifei996
 Author: xiaofeifei996
 Section: Tweaks

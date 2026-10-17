@@ -4,7 +4,7 @@ ARCHS = arm64
 include $(THEOS)/makefiles/common.mk
 
 TWEAK_NAME = QQCKRepeaterPlusOne
-QQCKRepeaterPlusOne_FILES = Repeater.xm QQCKCore.mm
+QQCKRepeaterPlusOne_FILES = Repeater.xm
 QQCKRepeaterPlusOne_CFLAGS = -fobjc-arc -Wno-deprecated-declarations
 QQCKRepeaterPlusOne_FRAMEWORKS = UIKit Foundation
 QQCKRepeaterPlusOne_LIBRARIES = substrate
