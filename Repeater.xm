@@ -367,15 +367,38 @@ static void QQRPUpdateButtonFrame(UIView *cell) {
     BOOL haveAnchor = NO;
     CGRect anchorFrame = QQRPRBestAnchorFrame(cell, &haveAnchor);
     if (haveAnchor) {
-        // 轻微外扩补偿文本到气泡边缘的内边距（左右 8pt、上下 4pt）
-        anchorFrame = CGRectInset(anchorFrame, -8.0, -4.0);
+        // 仅用其纵向位置（横向改用内容右缘，见下）
+        anchorFrame = CGRectInset(anchorFrame, 0.0, -4.0);
+    }
+
+    // 内容右缘 = 本条消息内所有文本/图片视图的最大 maxX（排除名称行与按钮），
+    // 对照 QQPlusOneUI 实测：按钮圆心 = 气泡右缘内约 4pt、顶边上方 13pt
+    UIView *avatar = QQRPFindAvatar(cell);
+    CGFloat avatarMinY = 0;
+    if (avatar) avatarMinY = [cell convertRect:avatar.bounds fromView:avatar].minY;
+    CGFloat contentMaxX = haveAnchor ? CGRectGetMaxX(anchorFrame) : 0;
+    NSMutableArray<UIView *> *queue2 = [NSMutableArray arrayWithObject:cell];
+    int scanned2 = 0;
+    while (queue2.count && scanned2 < 200) {
+        UIView *v = queue2.firstObject;
+        [queue2 removeObjectAtIndex:0];
+        scanned2++;
+        if (v == btn || [v isKindOfClass:[UIButton class]]) continue;
+        if (v.isHidden || v.alpha < 0.01) continue;
+        CGRect f = [cell convertRect:v.bounds fromView:v];
+        if (f.size.width < 10 || f.size.height < 10) continue;
+        if (CGRectGetMaxX(f) > w * 0.97) continue;
+        NSString *cn = NSStringFromClass(v.class).lowercaseString;
+        if (![cn containsString:@"label"] && ![cn containsString:@"imageview"]) continue;
+        if (avatar && CGRectGetMinY(f) < avatarMinY + 25) continue; // 排除名称行
+        if (CGRectGetMaxX(f) > contentMaxX) contentMaxX = CGRectGetMaxX(f);
     }
 
     CGFloat size = 24.0;
     CGFloat x, y;
     if (haveAnchor) {
-        // 按钮骑在气泡右上角（按 QQPlusOneUI 实测：圆心 = 角点往左 13pt、往上 6pt）
-        x = CGRectGetMaxX(anchorFrame) - size / 2.0 - 13.0;
+        // 按钮骑在气泡右上角（QQPlusOneUI 实测：圆心 = 气泡右缘内 4pt、顶边上方 13pt）
+        x = contentMaxX + 6.0 - size / 2.0 - 4.0;
         y = CGRectGetMinY(anchorFrame) - size / 2.0 - 6.0;
     } else {
         x = w - size - 8.0;
