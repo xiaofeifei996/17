@@ -225,20 +225,6 @@ static BOOL QQRPCellIsRecallRelated(UIView *cell) {
 }
 @end
 
-// 按名字找可用子视图（可见、非透明、有尺寸），限深防环
-static UIView *QQRPFindSubviewNamed(UIView *view, NSString *name, unsigned depth) {
-    if (!view || depth == 0) return nil;
-    if ([NSStringFromClass(view.class) containsString:name] &&
-        !view.isHidden && view.alpha > 0.01 &&
-        view.bounds.size.width > 1 && view.bounds.size.height > 1)
-        return view;
-    for (UIView *sub in view.subviews) {
-        UIView *found = QQRPFindSubviewNamed(sub, name, depth - 1);
-        if (found) return found;
-    }
-    return nil;
-}
-
 // BFS 查找头像视图（类名含 avatar/headicon/headimage，尺寸 20~70pt）——与 QQPlusOneUI 相同
 static UIView *QQRPFindAvatar(UIView *start) {
     NSMutableArray<UIView *> *queue = [NSMutableArray arrayWithObject:start];
