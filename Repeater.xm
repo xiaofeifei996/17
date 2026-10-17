@@ -55,6 +55,97 @@ static BOOL QQRPViewHasOriginalGesture(UIView *view) {
 @implementation QQRPFakeTapGesture
 @end
 
+#pragma mark - 自己消息的转发支持
+
+// 原版复读会跳过自己发的消息（shoudldSelfSendMsgWithRecord: 为真时直接返回）。
+// 这里挂一个"透传"钩子：行为完全不变，仅借原版查找记录的过程捕获消息记录，
+// 点击自己消息的 "+1" 时由本插件直接执行转发（复刻原版 forwardMsg 调用）。
+
+static id gLastCapturedRecord = nil;
+static BOOL gSelfCheckHooked = NO;
+static BOOL (*orig_shouldSelfSend)(id, SEL, id);
+static BOOL hook_shouldSelfSend(id self, SEL _cmd, id record);
+
+static void QQRPInstallSelfCheckHook(void) {
+    if (gSelfCheckHooked) return;
+    Class c = objc_getClass("AIODefine.MsgSendTypeUtil");
+    SEL sel = NSSelectorFromString(@"shoudldSelfSendMsgWithRecord:");
+    if (!c || ![c respondsToSelector:sel]) return;
+    MSHookMessageEx(c, sel, (IMP)hook_shouldSelfSend, (IMP *)&orig_shouldSelfSend);
+    gSelfCheckHooked = YES;
+    QQRP_LOG(@"已挂捕获钩子 MsgSendTypeUtil");
+}
+
+static BOOL hook_shouldSelfSend(id self, SEL _cmd, id record) {
+    gLastCapturedRecord = record;
+    return orig_shouldSelfSend(self, _cmd, record);
+}
+
+static BOOL QQRPIsSelfRecord(id record) {
+    Class c = objc_getClass("AIODefine.MsgSendTypeUtil");
+    SEL sel = NSSelectorFromString(@"shoudldSelfSendMsgWithRecord:");
+    if (c && [c respondsToSelector:sel])
+        return ((BOOL (*)(id, SEL, id))objc_msgSend)(c, sel, record) ? YES : NO;
+    return NO;
+}
+
+// 复刻原版 QQRPRepeatRecord 的转发部分（消息 ID 装数组 -> forwardMsg 回当前会话）
+static void QQRPForwardRecord(id record) {
+    if (!QQRPLooksLikeRecord2(record)) return;
+    long long msgId = ((long long (*)(id, SEL))objc_msgSend)(record, @selector(msgId));
+    if (msgId <= 0) return;
+
+    // 与原版一致的 0.65s 防抖
+    static NSString *lastIdentity = nil;
+    static double lastTime = 0;
+    id peerUid = ((id (*)(id, SEL))objc_msgSend)(record, @selector(peerUid));
+    NSString *identity = [NSString stringWithFormat:@"%@/%lld/%lld", peerUid,
+        ((long long (*)(id, SEL))objc_msgSend)(record, @selector(msgSeq)), msgId];
+    double now = [NSDate timeIntervalSinceReferenceDate];
+    @synchronized([NSDate class]) {
+        if (lastIdentity && [lastIdentity isEqualToString:identity] && now - lastTime < 0.65) return;
+        lastIdentity = [identity copy];
+        lastTime = now;
+    }
+
+    id kernel = nil;
+    Class qsl = objc_getClass("QSLManager");
+    SEL gi = NSSelectorFromString(@"getInstance");
+    id inst = (qsl && [qsl respondsToSelector:gi]) ? ((id (*)(id, SEL))objc_msgSend)(qsl, gi) : nil;
+    SEL ms = NSSelectorFromString(@"msgService");
+    kernel = (inst && [inst respondsToSelector:ms]) ? ((id (*)(id, SEL))objc_msgSend)(inst, ms) : nil;
+    if (!kernel) { QQRP_LOG(@"转发失败：未取得消息服务"); return; }
+
+    id contact = nil;
+    SEL ct = @selector(contact);
+    if ([record respondsToSelector:ct]) contact = ((id (*)(id, SEL))objc_msgSend)(record, ct);
+    if (!contact) {
+        Class occ = objc_getClass("OCContact");
+        SEL mk = NSSelectorFromString(@"ContactWithChatType:peerUid:guildId:");
+        if (occ && [occ respondsToSelector:mk])
+            contact = ((id (*)(id, SEL, id, id, id))objc_msgSend)(occ, mk,
+                ((id (*)(id, SEL))objc_msgSend)(record, @selector(chatType)),
+                ((id (*)(id, SEL))objc_msgSend)(record, @selector(peerUid)),
+                ((id (*)(id, SEL))objc_msgSend)(record, @selector(guildId)));
+    }
+    if (!contact) { QQRP_LOG(@"转发失败：未取得会话"); return; }
+
+    SEL fwd = NSSelectorFromString(@"forwardMsg:srcContact:dstContacts:msgAttributeInfos:cb:");
+    if (![kernel respondsToSelector:fwd]) { QQRP_LOG(@"转发失败：接口不存在"); return; }
+    id num = [NSNumber numberWithLongLong:msgId];
+    NSArray *ids = [NSArray arrayWithObjects:&num count:1];
+    NSArray *dsts = [NSArray arrayWithObjects:&contact count:1];
+    ((void (*)(id, SEL, id, id, id, id, id))objc_msgSend)(kernel, fwd, ids, contact, dsts, nil, nil);
+    QQRP_LOG(@"已转发自己的消息 msgId=%lld", msgId);
+}
+
+// 轻量记录判定（原版同款四件套）
+static BOOL QQRPLooksLikeRecord2(id obj) {
+    return obj && [obj respondsToSelector:@selector(msgId)] &&
+           [obj respondsToSelector:@selector(msgSeq)] &&
+           [obj respondsToSelector:@selector(peerUid)];
+}
+
 #pragma mark - 按钮
 
 @interface QQRepeaterButtonTarget : NSObject
@@ -77,12 +168,23 @@ static BOOL QQRPViewHasOriginalGesture(UIView *view) {
         QQRP_LOG(@"+1 点击放弃：原版复读模块未加载");
         return;
     }
-    // 构造模拟手势并直接调用原版 doubleTap: —— 等效于双击该消息
+    QQRPInstallSelfCheckHook();
+    // 构造模拟手势并直接调用原版 doubleTap: —— 等效于双击该消息；
+    // 调用过程中原版会查询 shoudldSelfSendMsgWithRecord:，透传钩子顺带捕获消息记录
+    gLastCapturedRecord = nil;
     QQRPFakeTapGesture *fake = [[QQRPFakeTapGesture alloc] init];
     fake.state = 3; // UIGestureRecognizerStateEnded（原版只处理该状态）
     fake.view = cell;
     ((void (*)(id, SEL, id))objc_msgSend)(target, @selector(doubleTap:), fake);
-    QQRP_LOG(@"已模拟双击 cell=%@", NSStringFromClass([cell class]));
+
+    id rec = gLastCapturedRecord;
+    if (rec && QQRPIsSelfRecord(rec)) {
+        // 原版会跳过自己发的消息，这里由插件直接转发（等效双击效果）
+        QQRPForwardRecord(rec);
+    } else {
+        QQRP_LOG(@"已模拟双击 cell=%@ rec=%@", NSStringFromClass([cell class]),
+                 rec ? NSStringFromClass([rec class]) : @"(未捕获)");
+    }
 }
 @end
 
@@ -232,6 +334,7 @@ static void QQRPScanUI(int unused) {
     if (classCount == gLastRuntimeClassCount) return;
     gLastRuntimeClassCount = classCount;
     if (!objc_getClass("QQRepeaterGestureTarget")) return; // 原版未加载
+    QQRPInstallSelfCheckHook();
 
     Class bases[2] = { objc_getClass("NTBaseAIO.NTAIOBaseCellView"), objc_getClass("NTAIOCellView") };
     QQRP_LOG(@"扫描开始 base1=%@ base2=%@",
