@@ -374,9 +374,9 @@ static void QQRPUpdateButtonFrame(UIView *cell) {
     CGFloat size = 24.0;
     CGFloat x, y;
     if (haveAnchor) {
-        // 按钮圆心对准气泡右上角（骑在角上）
-        x = CGRectGetMaxX(anchorFrame) - size / 2.0;
-        y = CGRectGetMinY(anchorFrame) - size / 2.0;
+        // 按钮骑在气泡右上角（按 QQPlusOneUI 实测：圆心 = 角点往左 13pt、往上 6pt）
+        x = CGRectGetMaxX(anchorFrame) - size / 2.0 - 13.0;
+        y = CGRectGetMinY(anchorFrame) - size / 2.0 - 6.0;
     } else {
         x = w - size - 8.0;
         y = h / 2.0 - size / 2.0;
