@@ -62,6 +62,7 @@ static BOOL QQRPViewHasOriginalGesture(UIView *view) {
 // 点击自己消息的 "+1" 时由本插件直接执行转发（复刻原版 forwardMsg 调用）。
 
 static id gLastCapturedRecord = nil;
+static double gLastForwardTime = 0; // 最近一次 +1 转发成功的时间（用于抑制复读副本的按钮）
 static BOOL gSelfCheckHooked = NO;
 static BOOL (*orig_shouldSelfSend)(id, SEL, id);
 static BOOL hook_shouldSelfSend(id self, SEL _cmd, id record);
@@ -138,6 +139,7 @@ static void QQRPForwardRecord(id record) {
     NSArray *ids = [NSArray arrayWithObjects:&num count:1];
     NSArray *dsts = [NSArray arrayWithObjects:&contact count:1];
     ((void (*)(id, SEL, id, id, id, id, id))objc_msgSend)(kernel, fwd, ids, contact, dsts, nil, nil);
+    gLastForwardTime = [NSDate timeIntervalSinceReferenceDate];
     QQRP_LOG(@"已转发自己的消息 msgId=%lld", msgId);
 }
 
@@ -268,6 +270,18 @@ static void QQRPEsureButton(UIView *cell) {
             QQRP_LOG(@"未检测到原版复读模块（QQRepeaterGestureTarget），不显示按钮");
             return;
         }
+        // 过滤 1：时间行（如 17:00 / 19:50 的分隔 cell），不是聊天消息
+        NSString *cellCls = NSStringFromClass([cell class]);
+        if ([cellCls rangeOfString:@"Time" options:NSCaseInsensitiveSearch].location != NSNotFound) return;
+        // 过滤 2：刚通过 +1 转发的消息（3 秒内新出现的右侧自己消息）不再显示按钮
+        CGFloat cw = cell.bounds.size.width;
+        UIView *probe = QQRPContentAnchor(cell);
+        if (gLastForwardTime > 0 && probe && cw > 50) {
+            CGRect pf = [cell convertRect:probe.bounds fromView:probe];
+            if (CGRectGetMidX(pf) > cw * 0.5 &&
+                [NSDate timeIntervalSinceReferenceDate] - gLastForwardTime < 3.0)
+                return;
+        }
         btn = [UIButton buttonWithType:UIButtonTypeSystem];
         btn.translatesAutoresizingMaskIntoConstraints = YES;
         [btn setTitle:@"+1" forState:UIControlStateNormal];
@@ -288,6 +302,15 @@ static void QQRPEsureButton(UIView *cell) {
         [btn addTarget:[QQRepeaterButtonTarget shared]
                 action:@selector(plusOneTapped:)
       forControlEvents:UIControlEventTouchUpInside];
+        // 过滤 3：锚点是居中的纯文本小视图（时间戳样式）
+        if (probe) {
+            CGRect pf = [cell convertRect:probe.bounds fromView:probe];
+            BOOL isTextLabel = [NSStringFromClass([probe class]) containsString:@"Label"];
+            if (isTextLabel && cw > 50 && fabs(CGRectGetMidX(pf) - cw * 0.5) < 12.0) {
+                [btn removeFromSuperview];
+                return;
+            }
+        }
         [cell addSubview:btn];
         objc_setAssociatedObject(btn, &kQQRPButtonKey, cell, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         objc_setAssociatedObject(cell, &kQQRPButtonKey, btn, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
