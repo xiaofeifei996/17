@@ -1,5 +1,9 @@
 # QQ 净化 · 复读功能改造（双击 → "+1" 按钮）
 
+> **编译产物**：`QQ 净化复读+1按钮.dylib`（Mach-O arm64，88KB）
+> 由 GitHub Actions（Theos + iPhoneOS16.5 SDK）自动编译，构建仓库：`https://github.com/xiaofeifei996/17`
+> arm64 架构在 arm64e（A12+）设备上同样可用。推送任意提交即自动重新构建，产物在 Actions 的 Artifact 中。
+
 ## 一、原 dylib 分析结论
 
 对上传的 `QQ 净化（修复闪退.dylib`（Mach-O arm64e，464KB）逆向分析后，确认：
