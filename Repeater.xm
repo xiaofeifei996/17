@@ -290,10 +290,10 @@ static void QQRPUpdateButtonFrame(UIView *cell) {
     CGFloat size = 30.0;
     CGFloat x, y;
     if (haveAnchor) {
-        // 按钮与气泡右上角平齐：横向贴气泡右侧，纵向对齐气泡顶边
+        // 按钮圆心对准气泡右上角（骑在角上）
         BOOL selfSide = CGRectGetMidX(anchorFrame) > w * 0.5; // 自己的消息气泡靠右
-        x = selfSide ? (CGRectGetMinX(anchorFrame) - size - 5.0)
-                     : (CGRectGetMaxX(anchorFrame) + 5.0);
+        x = selfSide ? (CGRectGetMinX(anchorFrame) - size / 2.0)
+                     : (CGRectGetMaxX(anchorFrame) - size / 2.0);
         y = CGRectGetMinY(anchorFrame) - size / 2.0;
     } else {
         x = w - size - 8.0;
