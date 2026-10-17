@@ -262,17 +262,14 @@ static void QQRPUpdateButtonFrame(UIView *cell) {
 // 确保 cell 上存在按钮（仅当原版双击手势存在时创建），并定位
 static void QQRPEsureButton(UIView *cell) {
     if (!cell) return;
-    // 复读抑制（每次布局都评估，覆盖 cell 复用场景）：
-    // 刚 +1 转发后的短暂时间窗内，右侧（自己发的）消息一律不显示按钮
+    // 自己发的消息（气泡在右）一律不显示按钮（每次布局都评估，覆盖 cell 复用场景）
     CGFloat cw0 = cell.bounds.size.width;
     BOOL suppressNow = NO;
-    if (gLastForwardTime > 0 && cw0 > 50) {
+    if (cw0 > 50) {
         UIView *probe0 = QQRPContentAnchor(cell);
         if (probe0) {
             CGRect pf0 = [cell convertRect:probe0.bounds fromView:probe0];
-            if (CGRectGetMidX(pf0) > cw0 * 0.5 &&
-                [NSDate timeIntervalSinceReferenceDate] - gLastForwardTime < 5.0)
-                suppressNow = YES;
+            if (CGRectGetMidX(pf0) > cw0 * 0.5) suppressNow = YES;
         }
     }
     UIButton *btn = objc_getAssociatedObject(cell, &kQQRPButtonKey);
@@ -301,8 +298,7 @@ static void QQRPEsureButton(UIView *cell) {
         UIColor *blue = dark ? [UIColor colorWithRed:0.40 green:0.65 blue:1.0 alpha:1.0]
                              : [UIColor colorWithRed:0.10 green:0.50 blue:0.95 alpha:1.0];
         [btn setTitleColor:blue forState:UIControlStateNormal];
-        btn.backgroundColor = dark ? [UIColor colorWithWhite:0.16 alpha:1.0]
-                                   : [UIColor whiteColor];
+        btn.backgroundColor = [UIColor clearColor]; // 透明背景
         btn.layer.cornerRadius = 15.0;
         btn.layer.borderWidth = 1.0;
         btn.layer.borderColor = blue.CGColor;
