@@ -351,9 +351,10 @@ static void QQRPAddLayoutHook(Class cls) {
     IMP orig = method_getImplementation(m);
     id blk = ^(id self) {
         ((void (*)(id, SEL))orig)(self, sel);
-        // 原版在 layoutViewWithViewModel:/layoutSubviews 钩子里挂手势；
-        // 本调用位于原实现之后，若原版钩子链在外层，此时手势已存在
+        // 原版手势可能由外层钩子在本调用返回之后才挂上：
+        // 先同步尝试一次，再在下一轮主循环复查（此时手势必定已存在）
         QQRPEsureButton(self);
+        dispatch_async(dispatch_get_main_queue(), ^{ QQRPEsureButton(self); });
     };
     method_setImplementation(m, imp_implementationWithBlock(blk));
 }
