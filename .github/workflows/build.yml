@@ -1,0 +1,60 @@
+name: Build dylib
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Theos (theos + linux toolchain + iOS 16.5 SDK)
+        run: |
+          set -e
+          export THEOS=$HOME/theos
+          git clone --depth 1 --recursive https://github.com/theos/theos.git $THEOS
+          # theos 仓库自带的 toolchain 占位目录需移除后替换为真实工具链
+          rm -rf $THEOS/toolchain
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/toolchain.git $THEOS/toolchain
+          git -C $THEOS/toolchain sparse-checkout set linux/iphone
+          git clone --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git $HOME/sdks-tmp
+          git -C $HOME/sdks-tmp sparse-checkout set iPhoneOS16.5.sdk
+          mkdir -p $THEOS/sdks
+          cp -R $HOME/sdks-tmp/iPhoneOS16.5.sdk $THEOS/sdks/
+          rm -rf $HOME/sdks-tmp
+          echo "THEOS=$THEOS" >> $GITHUB_ENV
+          echo "--- toolchain ---"; ls $THEOS/toolchain/linux/iphone/bin | head
+          echo "--- sdks ---"; ls $THEOS/sdks
+
+      - name: Install ldid (optional)
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ldid || echo "ldid not available, skip"
+
+      - name: Build dylib
+        run: make FINALPACKAGE=1 ARCHS=arm64 TARGET=iphone:clang:16.5:14.0
+
+      - name: Sign dylib (optional)
+        run: |
+          if command -v ldid >/dev/null; then ldid -S .theos/obj/QQCKRepeaterPlusOne.dylib && echo "ldid signed"; fi
+          file .theos/obj/*.dylib
+
+      - name: Try build deb package (optional)
+        run: make package FINALPACKAGE=1 ARCHS=arm64 TARGET=iphone:clang:16.5:14.0 || echo "deb packaging skipped"
+
+      - name: Collect artifacts
+        run: |
+          mkdir -p out
+          cp -v .theos/obj/*.dylib out/ 2>/dev/null || true
+          cp -v packages/*.deb out/ 2>/dev/null || true
+          ls -la out/
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: QQCKRepeaterPlusOne
+          path: out/
+          if-no-files-found: error
