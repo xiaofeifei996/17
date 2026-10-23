@@ -5,7 +5,7 @@ import Combine
 /// Uses Apple's MapKit place suggestions. Results are global suggestions, not a guaranteed
 /// exhaustive national gazetteer; users should verify the province/city/county shown.
 @MainActor
-final class PlaceSearchModel: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
+final class PlaceSearchModel: NSObject, ObservableObject, @preconcurrency MKLocalSearchCompleterDelegate {
     @Published private(set) var results: [MKLocalSearchCompletion] = []
     @Published private(set) var isSearching = false
     @Published private(set) var errorMessage: String?
