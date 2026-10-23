@@ -956,7 +956,7 @@ struct ContentView: View {
 
     @MainActor
     private func selectPlace(_ completion: MKLocalSearchCompletion) async {
-        placeSearch.results = []
+        placeSearch.clearResults()
         placeSearchMessage = "正在解析地点并匹配行政区划…"
         do {
             let request = MKLocalSearch.Request(completion: completion)

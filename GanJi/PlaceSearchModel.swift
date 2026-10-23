@@ -24,6 +24,10 @@ final class PlaceSearchModel: NSObject, ObservableObject, @preconcurrency MKLoca
         )
     }
 
+    func clearResults() {
+        results = []
+    }
+
     func query(_ value: String) {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         pendingQuery = trimmed
