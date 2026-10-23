@@ -983,8 +983,11 @@ struct ContentView: View {
                 let districtMatch = !normalizedDistrict.isEmpty && (oa == normalizedDistrict || option.name == district)
                 return provinceMatch && cityMatch && districtMatch
             }
-            searchText = placeName
             if let match = match {
+                // A selected place is a location choice, not a market-name filter.
+                // Clear the search query immediately so the market list is not hidden
+                // until the user manually taps the clear (×) button.
+                searchText = ""
                 chooseRegion(match)
                 if let lat = placemark.location?.coordinate.latitude,
                    let lon = placemark.location?.coordinate.longitude {
