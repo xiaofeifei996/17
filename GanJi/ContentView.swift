@@ -813,8 +813,8 @@ struct ContentView: View {
         // report a keyboard-reduced GeometryReader height, so use a taller share
         // of the available area and avoid the normal collapsed-sheet height.
         .frame(height: min(
-            screenHeight * (isKeyboardVisible ? 0.72 : (sheetExpanded ? 0.78 : 0.43)),
-            screenHeight - (isKeyboardVisible ? 90 : 175)
+            screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.78 : 0.43)),
+            screenHeight - (isKeyboardVisible ? 130 : 175)
         ))
         // Keep the visible sheet opaque and rounded; extend its solid fill behind the home indicator.
         .background {
