@@ -1,0 +1,59 @@
+name: GanJi
+options:
+  bundleIdPrefix: com.ganji
+  deploymentTarget:
+    iOS: "15.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    MARKETING_VERSION: "1.3.0"
+    CURRENT_PROJECT_VERSION: "27"
+    SWIFT_VERSION: "5.0"
+    CODE_SIGNING_ALLOWED: "NO"
+    CODE_SIGNING_REQUIRED: "NO"
+    CODE_SIGN_IDENTITY: ""
+    TARGETED_DEVICE_FAMILY: "1"
+    ENABLE_USER_SCRIPT_SANDBOXING: "NO"
+targets:
+  GanJi:
+    type: application
+    platform: iOS
+    sources:
+      - path: GanJi
+      - path: Shared
+    dependencies:
+      - target: GanJiWidget
+        embed: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ganji.diary
+    info:
+      path: GanJi/Info.plist
+      properties:
+        CFBundleDisplayName: 赶集日记
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        NSLocationWhenInUseUsageDescription: 用于计算各集市与你的距离
+    scheme:
+      gatherCoverageData: false
+      testTargets: []
+  GanJiWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widget
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.ganji.diary.widget
+    info:
+      path: Widget/Info.plist
+      properties:
+        CFBundleDisplayName: 赶集日记
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension

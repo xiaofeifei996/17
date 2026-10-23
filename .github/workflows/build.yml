@@ -1,0 +1,51 @@
+name: Build GanJi
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Verify schedule and market order
+        run: |
+          swiftc Shared/LunarCalendar.swift Shared/MarketData.swift Tests/ScheduleTests.swift -o /tmp/ganji-tests
+          /tmp/ganji-tests
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild -project GanJi.xcodeproj -scheme GanJi \
+            -configuration Release -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            ONLY_ACTIVE_ARCH=NO | tail -60
+
+      - name: Package IPA
+        run: |
+          set -e
+          APP="build/Build/Products/Release-iphoneos/GanJi.app"
+          ls -la "$APP"
+          ls -la "$APP/PlugIns" || true
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Info.plist"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/PlugIns/GanJiWidget.appex/Info.plist"
+          rm -rf Payload && mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -qry GanJi-unsigned.ipa Payload
+          shasum -a 256 GanJi-unsigned.ipa
+          du -h GanJi-unsigned.ipa
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GanJi-ipa
+          path: GanJi-unsigned.ipa
