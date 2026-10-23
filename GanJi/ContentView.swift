@@ -809,7 +809,13 @@ struct ContentView: View {
             .background(Color(red: 0.96, green: 0.96, blue: 0.96))
         }
         .frame(maxWidth: .infinity)
-        .frame(height: min(screenHeight * (sheetExpanded ? 0.78 : 0.43), screenHeight - 175))
+        // Keep enough market rows visible while the keyboard is open. SwiftUI may
+        // report a keyboard-reduced GeometryReader height, so use a taller share
+        // of the available area and avoid the normal collapsed-sheet height.
+        .frame(height: min(
+            screenHeight * (isKeyboardVisible ? 0.72 : (sheetExpanded ? 0.78 : 0.43)),
+            screenHeight - (isKeyboardVisible ? 90 : 175)
+        ))
         // Keep the visible sheet opaque and rounded; extend its solid fill behind the home indicator.
         .background {
             RoundedRectangle(cornerRadius: 25, style: .continuous)
