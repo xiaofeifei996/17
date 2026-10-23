@@ -15,6 +15,7 @@ struct ContentView: View {
     @State private var selectedFilter: MarketFilter = .all
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var searchText = ""
+    @State private var isKeyboardVisible = false
     @StateObject private var placeSearch = PlaceSearchModel()
     @State private var placeSearchMessage: String?
     @State private var selectedAreaCode: Int = 450881
@@ -99,6 +100,14 @@ struct ContentView: View {
                 .ignoresSafeArea(edges: .bottom)
                 .allowsHitTesting(false)
                 .zIndex(2.5)
+                // When the software keyboard is open, cover the exposed map gap
+                // with the same solid surface used by the search controls.
+                if isKeyboardVisible {
+                    Color(red: 0.96, green: 0.96, blue: 0.96)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                        .zIndex(2.7)
+                }
                 marketSheet(screenHeight: geo.size.height)
                     .frame(maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 116)
@@ -127,6 +136,12 @@ struct ContentView: View {
                 .zIndex(11)
             }
             .background(Color.clear)
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+                isKeyboardVisible = true
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
+                isKeyboardVisible = false
+            }
             .onAppear {
                 locator.start()
                 Task { await refreshMarkets(for: selectedAreaCode) }
