@@ -390,23 +390,15 @@ struct ContentView: View {
                                     Spacer(minLength: 4)
                                     Button { toggleFavorite(market.id) } label: {
                                         Image(systemName: "heart.fill").font(.system(size: 20)).foregroundColor(.pink).frame(width: 42, height: 44)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("取消收藏\(market.name)")
-                                    Image(systemName: "arrow.up.right").foregroundColor(Color.ganjiBlue).frame(width: 32, height: 40)
-                                        .accessibilityHidden(true)
+                                    }.accessibilityLabel("取消收藏\(market.name)")
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    withAnimation { showMainPage = true; homeTab = .region }
+                                    selectedMarketID = market.id
                                 }
                                 .padding(15)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background {
-                                    Button { openFavoriteMarketOnMap(market) } label: {
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .fill(Color(uiColor: .secondarySystemGroupedBackground))
-                                            .contentShape(RoundedRectangle(cornerRadius: 16))
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityLabel("在地图查看\(market.name)")
-                                }
+                                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
                             }
                         }.padding(.horizontal, 16).padding(.bottom, 16)
                     }
@@ -545,34 +537,6 @@ struct ContentView: View {
             .foregroundColor((homeTab == tab || (tab == .region && showMainPage)) ? Color.ganjiBlue : .secondary)
             .frame(maxWidth: .infinity).contentShape(Rectangle())
         }.buttonStyle(.plain)
-    }
-
-    private func openFavoriteMarketOnMap(_ market: Market) {
-        // Ensure the selected favorite exists in the map's data immediately, even if
-        // the current region has a different market list loaded.
-        if !displayedMarkets.contains(where: { $0.id == market.id }) {
-            displayedMarkets.append(market)
-        }
-        selectedAreaDisplayName = market.area.isEmpty ? market.city : market.area
-        searchText = ""
-        withAnimation(.easeInOut(duration: 0.2)) {
-            homeTab = .region
-            showMainPage = true
-        }
-        selectedMarketID = market.id
-
-        // Some saved/legacy favorite records do not contain an area code.
-        // Only switch and refresh the region when a valid code is available;
-        // otherwise center the map directly on the favorite instead of crashing.
-        if let areaCode = market.areaCode {
-            selectedAreaCode = areaCode
-            Task { await refreshMarkets(for: areaCode) }
-        } else {
-            withAnimation(.easeInOut(duration: 0.25)) {
-                region.center = CLLocationCoordinate2D(latitude: market.lat, longitude: market.lon)
-                region.span = MKCoordinateSpan(latitudeDelta: 0.18, longitudeDelta: 0.18)
-            }
-        }
     }
 
     private func toggleFavorite(_ id: String) {
