@@ -133,12 +133,9 @@ struct ContentView: View {
                 if showMainPage && isMarketSheetVisible {
                     marketSheet(screenHeight: geo.size.height)
                         .frame(maxHeight: .infinity, alignment: .bottom)
-                        // The shared Dock is a separate, opaque overlay at zIndex 11.
-                        // Reserve its actual vertical lane here so the unified sheet's
-                        // bottom search control never sits underneath the Dock. While the
-                        // keyboard is visible, let the keyboard's resized layout determine
-                        // the available space instead of adding a second fixed offset.
-                        .padding(.bottom, isKeyboardVisible ? 0 : 50)
+                        // The bottom safe-area inset reserves the Dock's real layout height.
+                        // The sheet therefore ends exactly at the Dock's top edge instead
+                        // of relying on a device-specific hard-coded bottom offset.
                         .zIndex(4)
                 }
                 // Only render the home/favorites content outside the map page. The map
@@ -149,14 +146,11 @@ struct ContentView: View {
                         .background(Color(red: 0.96, green: 0.96, blue: 0.92).ignoresSafeArea())
                         .zIndex(10)
                 }
-                // One persistent Dock shared by every top-level page. Keeping the
-                // same SwiftUI view alive avoids the Dock flashing when switching to Map.
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    sharedDock
-                }
-                .ignoresSafeArea(edges: .bottom)
-                .zIndex(11)
+            }
+            // Reserve the Dock's actual height in the layout. The map remains behind it,
+            // while the nearby-markets sheet is laid out directly above the Dock.
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                sharedDock
             }
             .background(Color.clear)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
