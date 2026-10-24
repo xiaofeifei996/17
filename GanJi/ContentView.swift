@@ -706,23 +706,29 @@ struct ContentView: View {
                     selectedMarketID = market.id
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { sheetExpanded = false }
                 } label: {
-                    VStack(spacing: 3) {
-                        HStack(spacing: 4) {
-                            Circle().fill(market.id == selectedMarketID ? Color.white : Color.ganjiOrange).frame(width: 7, height: 7)
-                            Text(market.name)
-                                .font(.system(size: 12, weight: .semibold))
-                                .lineLimit(1)
+                    VStack(spacing: 0) {
+                        ZStack {
+                            Circle()
+                                .fill(market.id == selectedMarketID ? Color(red: 0.90, green: 0.34, blue: 0.19) : Color(red: 0.16, green: 0.29, blue: 0.23))
+                                .frame(width: market.id == selectedMarketID ? 42 : 34, height: market.id == selectedMarketID ? 42 : 34)
+                            Circle().stroke(Color.white, lineWidth: 2).frame(width: market.id == selectedMarketID ? 42 : 34, height: market.id == selectedMarketID ? 42 : 34)
+                            Image(systemName: market.id == selectedMarketID ? "scope" : "basket.fill")
+                                .font(.system(size: market.id == selectedMarketID ? 17 : 13, weight: .bold))
+                                .foregroundColor(.white)
                         }
-                        .foregroundColor(market.id == selectedMarketID ? .white : Color(red: 0.19, green: 0.24, blue: 0.29))
-                        .padding(.horizontal, 10).padding(.vertical, 7)
-                        .background(market.id == selectedMarketID ? Color.ganjiBlue : Color.white, in: Capsule())
-                        .overlay(Capsule().stroke(Color.white.opacity(0.9), lineWidth: 1))
-                        .shadow(color: .black.opacity(0.13), radius: 6, x: 0, y: 3)
+                        .shadow(color: Color.black.opacity(0.22), radius: 7, x: 0, y: 3)
                         Image(systemName: "triangle.fill")
-                            .font(.system(size: 7))
+                            .font(.system(size: 8, weight: .bold))
                             .rotationEffect(.degrees(180))
-                            .foregroundColor(market.id == selectedMarketID ? Color.ganjiBlue : .white)
-                            .offset(y: -4)
+                            .foregroundColor(market.id == selectedMarketID ? Color(red: 0.90, green: 0.34, blue: 0.19) : Color(red: 0.16, green: 0.29, blue: 0.23))
+                            .offset(y: -2)
+                        Text(market.name)
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .lineLimit(1).padding(.horizontal, 7).padding(.vertical, 4)
+                            .foregroundColor(Color(red: 0.16, green: 0.23, blue: 0.19))
+                            .background(Color(red: 0.99, green: 0.97, blue: 0.89), in: Capsule())
+                            .overlay(Capsule().stroke(Color.white.opacity(0.95), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.12), radius: 4, x: 0, y: 2)
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
@@ -814,88 +820,155 @@ struct ContentView: View {
                 .padding(.leading, 8)
             }
         }
-        .padding(.horizontal, 18)
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 14)
+        .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 26, style: .continuous).stroke(Color.white.opacity(0.95), lineWidth: 1))
+        .shadow(color: Color(red: 0.13, green: 0.20, blue: 0.16).opacity(0.12), radius: 18, x: 0, y: 8)
+        .padding(.horizontal, 12)
         .padding(.top, 8)
-        .padding(.bottom, 12)
-        .background(.regularMaterial)
-        .background(Color(red: 0.78, green: 0.84, blue: 0.72).opacity(0.48))
     }
 
+    // Region discovery is intentionally a floating map HUD rather than a large
+    // opaque bottom sheet. The map remains the primary canvas and market cards
+    // form a horizontal browse rail above the persistent search and Dock.
     private func marketSheet(screenHeight: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Capsule().fill(Color(red: 0.76, green: 0.78, blue: 0.72)).frame(width: 34, height: 4)
-                Spacer()
-                Text("MARKET RADAR")
-                    .font(.system(size: 9, weight: .bold, design: .rounded))
-                    .tracking(2.2)
-                    .foregroundColor(Color(red: 0.43, green: 0.48, blue: 0.39))
-                Spacer()
-                Button {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) { sheetExpanded.toggle() }
-                } label: {
-                    Image(systemName: sheetExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(Color(red: 0.19, green: 0.28, blue: 0.21))
-                        .frame(width: 32, height: 32)
-                        .background(Color(red: 0.91, green: 0.92, blue: 0.84), in: Circle())
-                }
-                .accessibilityLabel(sheetExpanded ? "收起集市列表" : "展开集市列表")
-            }
-            .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 13)
-
-            HStack(alignment: .bottom, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(selectedFilter == .all ? "发现附近圩日" : "筛选 · \(selectedFilter.rawValue)")
-                        .font(.system(size: 25, weight: .heavy, design: .rounded))
-                        .foregroundColor(Color(red: 0.13, green: 0.20, blue: 0.15))
-                    Text("按距离探索今天的岭南市集")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color(red: 0.47, green: 0.51, blue: 0.45))
+                    HStack(spacing: 7) {
+                        Text("FIELD NOTES")
+                            .font(.system(size: 9, weight: .black, design: .rounded))
+                            .tracking(2.0)
+                            .foregroundColor(Color(red: 0.97, green: 0.70, blue: 0.35))
+                        Capsule().fill(Color.white.opacity(0.22)).frame(width: 24, height: 1)
+                        Text("圩日地图")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(Color(red: 0.48, green: 0.52, blue: 0.45))
+                    }
+                    Text("附近圩日")
+                        .font(.system(size: 25, weight: .black, design: .rounded))
+                        .foregroundColor(Color(red: 0.15, green: 0.22, blue: 0.18))
+                    Text(loadingMarkets ? "正在更新集市" : "\(filteredMarkets.count) 个目的地 · 找一场附近的热闹")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(Color(red: 0.45, green: 0.49, blue: 0.43))
                 }
                 Spacer(minLength: 4)
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("\(filteredMarkets.count)")
-                        .font(.system(size: 24, weight: .bold, design: .rounded).monospacedDigit())
-                        .foregroundColor(Color(red: 0.79, green: 0.36, blue: 0.19))
-                    Text(loadingMarkets ? "加载中" : (marketLoadError == nil ? "个圩点" : "暂不可用"))
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.secondary)
+                Button {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) { sheetExpanded.toggle() }
+                } label: {
+                    VStack(spacing: 4) {
+                        Image(systemName: sheetExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.right.and.arrow.down.left")
+                            .font(.system(size: 13, weight: .bold))
+                        Text(sheetExpanded ? "收起" : "展开")
+                            .font(.system(size: 10, weight: .bold))
+                    }
+                    .foregroundColor(Color(red: 0.13, green: 0.22, blue: 0.18))
+                    .frame(width: 54, height: 54)
+                    .background(Color(red: 0.98, green: 0.72, blue: 0.36), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(sheetExpanded ? "收起集市列表" : "展开集市列表")
             }
-            .padding(.horizontal, 22).padding(.bottom, 16)
 
-            Rectangle().fill(Color(red: 0.89, green: 0.89, blue: 0.83)).frame(height: 1).padding(.horizontal, 22)
-
-            ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 10) {
-                    if filteredMarkets.isEmpty {
-                        VStack(spacing: 12) {
-                            Image(systemName: "sun.horizon.fill").font(.system(size: 30)).foregroundColor(Color(red: 0.78, green: 0.39, blue: 0.20))
-                            Text("这片区域暂时没有圩点").font(.system(size: 15, weight: .semibold))
-                            Text("试试切换地区或搜索附近地点").font(.system(size: 12)).foregroundColor(.secondary)
-                        }.frame(maxWidth: .infinity).padding(.vertical, 38)
-                    } else {
+            if filteredMarkets.isEmpty {
+                HStack(spacing: 12) {
+                    Image(systemName: "map")
+                        .font(.system(size: 22, weight: .medium))
+                        .foregroundColor(Color(red: 0.98, green: 0.72, blue: 0.36))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("暂时没有找到圩日").font(.system(size: 14, weight: .bold)).foregroundColor(Color(red: 0.15, green: 0.22, blue: 0.18))
+                        Text("尝试切换地区或调整日期筛选").font(.system(size: 11)).foregroundColor(Color(red: 0.45, green: 0.49, blue: 0.43))
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(15)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(red: 0.93, green: 0.92, blue: 0.84), in: RoundedRectangle(cornerRadius: 18))
+            } else if sheetExpanded {
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 8) {
                         ForEach(filteredMarkets) { row in
                             MarketListRow(row: row, distanceText: distanceText(for: row), selected: selectedMarketID == row.market.id, isFavorite: favorites.contains(row.market.id), toggleFavorite: { toggleFavorite(row.market.id) }) {
                                 selectedMarketID = row.market.id
                             }
                         }
                     }
+                    .padding(.bottom, 4)
                 }
-                .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 18)
+                .frame(maxHeight: min(screenHeight * 0.42, 340))
+                .scrollContentBackground(.hidden)
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 10) {
+                        ForEach(filteredMarkets) { row in
+                            Button {
+                                selectedMarketID = row.market.id
+                                withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                                    region.center = CLLocationCoordinate2D(latitude: row.market.lat, longitude: row.market.lon)
+                                }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 9) {
+                                    HStack(alignment: .top, spacing: 8) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(row.market.name)
+                                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                                .foregroundColor(Color(red: 0.13, green: 0.20, blue: 0.17))
+                                                .lineLimit(1)
+                                            Text(row.market.area)
+                                                .font(.system(size: 11, weight: .medium))
+                                                .foregroundColor(Color(red: 0.47, green: 0.52, blue: 0.48))
+                                                .lineLimit(1)
+                                        }
+                                        Spacer(minLength: 0)
+                                        Button { toggleFavorite(row.market.id) } label: {
+                                            Image(systemName: favorites.contains(row.market.id) ? "heart.fill" : "heart")
+                                                .font(.system(size: 16, weight: .semibold))
+                                                .foregroundColor(favorites.contains(row.market.id) ? Color(red: 0.91, green: 0.20, blue: 0.32) : Color(red: 0.58, green: 0.62, blue: 0.59))
+                                                .frame(width: 28, height: 28)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                    Spacer(minLength: 0)
+                                    HStack(spacing: 6) {
+                                        Text(row.market.displaySchedule)
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundColor(Color(red: 0.16, green: 0.42, blue: 0.29))
+                                            .padding(.horizontal, 8).padding(.vertical, 5)
+                                            .background(Color(red: 0.90, green: 0.95, blue: 0.88), in: Capsule())
+                                        Spacer(minLength: 0)
+                                        Text(distanceText(for: row))
+                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                                            .foregroundColor(Color(red: 0.44, green: 0.49, blue: 0.46))
+                                    }
+                                }
+                                .padding(13)
+                                .frame(width: 238, height: 104, alignment: .leading)
+                                .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                .overlay(alignment: .leading) {
+                                    RoundedRectangle(cornerRadius: 2).fill(selectedMarketID == row.market.id ? Color(red: 0.96, green: 0.55, blue: 0.25) : Color(red: 0.73, green: 0.79, blue: 0.67)).frame(width: 4).padding(.vertical, 14)
+                                }
+                                .overlay(RoundedRectangle(cornerRadius: 18).stroke(selectedMarketID == row.market.id ? Color(red: 0.98, green: 0.72, blue: 0.36) : Color.white.opacity(0.18), lineWidth: selectedMarketID == row.market.id ? 1.5 : 1))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .frame(height: 108)
             }
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: min(screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.76 : 0.48)), max(220, screenHeight - (isKeyboardVisible ? 100 : 230))))
-        .background(Color(red: 0.97, green: 0.96, blue: 0.91))
-        .clipShape(TopRoundedShape(radius: 30))
-        .overlay(alignment: .top) { TopRoundedShape(radius: 30).stroke(Color.white.opacity(0.85), lineWidth: 1) }
-        .shadow(color: Color(red: 0.15, green: 0.22, blue: 0.15).opacity(0.16), radius: 22, x: 0, y: -7)
-        .gesture(DragGesture(minimumDistance: 12).onEnded { value in
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.88)) {
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.95), lineWidth: 1))
+        .shadow(color: Color(red: 0.13, green: 0.20, blue: 0.16).opacity(0.18), radius: 22, x: 0, y: 8)
+        .padding(.horizontal, 12)
+        .gesture(DragGesture(minimumDistance: 18).onEnded { value in
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
                 if value.translation.height < -35 { sheetExpanded = true }
-                if value.translation.height > 35 { sheetExpanded = false }
+                if value.translation.height > 45 { sheetExpanded = false }
             }
         })
     }
