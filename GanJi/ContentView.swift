@@ -567,136 +567,153 @@ struct ContentView: View {
         }
     }
 
-    // Compact location + search bar, styled like a single horizontal navigation control.
+    // Destination search: a dedicated location header, prominent input, and structured results.
+    // Keep the existing search state, region picker, result selection, and keyboard behavior.
     private var mapSearchAndDock: some View {
         VStack(spacing: 0) {
-            VStack(spacing: 0) {
-                HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "location.circle.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("当前服务地区")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(Color(red: 0.48, green: 0.53, blue: 0.61))
+                        Text(homeRegionDisplayName.split(separator: "·").last.map(String.init)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? homeRegionDisplayName)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(red: 0.14, green: 0.19, blue: 0.27))
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
                     Button { showRegionPicker = true } label: {
-                        HStack(spacing: 7) {
-                            Image(systemName: "location.fill")
-                                .font(.system(size: 21, weight: .semibold))
-                                .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
-                            Text(homeRegionDisplayName.split(separator: "·").last.map(String.init)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? homeRegionDisplayName)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(Color(red: 0.20, green: 0.25, blue: 0.32))
-                                .lineLimit(1)
-                                .fixedSize(horizontal: true, vertical: false)
-                            Image(systemName: "chevron.down")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(Color(red: 0.56, green: 0.62, blue: 0.71))
+                        HStack(spacing: 5) {
+                            Text("切换地区")
+                                .font(.system(size: 12, weight: .semibold))
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 10, weight: .bold))
                         }
-                        .padding(.leading, 12)
-                        .frame(height: 44)
-                        .contentShape(Rectangle())
+                        .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 8)
+                        .background(Color(red: 0.92, green: 0.95, blue: 1.0))
+                        .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel("切换地区，当前地区：\(homeRegionDisplayName)")
-
-                    HStack(spacing: 11) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 19, weight: .medium))
-                            .foregroundColor(Color(red: 0.56, green: 0.62, blue: 0.71))
-                        TextField("搜索地点", text: $searchText)
-                            .focused($isPlaceSearchFocused)
-                            // Search focus hides the market sheet; its expansion state is preserved.
-                            .font(.system(size: 16))
-                            .submitLabel(.search)
-                            .onChange(of: searchText) { value in
-                                placeSearch.query(value)
-                                placeSearchMessage = nil
-                                if value.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
-                                    Task { await loadNationalRegions() }
-                                }
-                            }
-                        if !searchText.isEmpty {
-                            Button { searchText = "" } label: {
-                                Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
-                            }
-                            .accessibilityLabel("清除搜索")
-                        }
-                    }
-                    .padding(.horizontal, 13)
-                    .frame(height: 44)
-                    .background(Color(red: 0.93, green: 0.95, blue: 0.98).opacity(1.0))
-                    .clipShape(Capsule())
-                    .overlay(Capsule().stroke(Color(red: 0.87, green: 0.89, blue: 0.93), lineWidth: 1))
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                // Fully opaque capsule: map pixels must never show through the
-                // location/search control while the keyboard animates.
-                .background(Color.white, in: Capsule())
-                .overlay(Capsule().stroke(Color(red: 0.82, green: 0.86, blue: 0.91), lineWidth: 1))
+
+                HStack(spacing: 11) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(red: 0.16, green: 0.39, blue: 0.91))
+                    TextField("输入城市、区县或具体地点", text: $searchText)
+                        .focused($isPlaceSearchFocused)
+                        .font(.system(size: 15, weight: .medium))
+                        .submitLabel(.search)
+                        .onChange(of: searchText) { value in
+                            placeSearch.query(value)
+                            placeSearchMessage = nil
+                            if value.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
+                                Task { await loadNationalRegions() }
+                            }
+                        }
+                    if !searchText.isEmpty {
+                        Button { searchText = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(Color(red: 0.58, green: 0.62, blue: 0.69))
+                        }
+                        .accessibilityLabel("清除搜索")
+                    }
+                }
+                .padding(.horizontal, 15)
+                .frame(height: 50)
+                .background(Color(red: 0.95, green: 0.96, blue: 0.98))
+                .clipShape(RoundedRectangle(cornerRadius: 15))
+                .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.87, green: 0.89, blue: 0.93), lineWidth: 1))
 
                 if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    // Keep suggestions scrollable when the iOS keyboard covers the lower part
-                    // of the screen. A visible scroll indicator helps users discover more results.
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("搜索结果")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(Color(red: 0.14, green: 0.19, blue: 0.27))
+                        Spacer()
+                        Text("选择地点以查看当地圩日")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(red: 0.53, green: 0.57, blue: 0.64))
+                    }
+                    .padding(.horizontal, 3)
+                    .padding(.top, 1)
+
                     ScrollView(.vertical, showsIndicators: true) {
-                        LazyVStack(spacing: 0) {
+                        LazyVStack(spacing: 8) {
                             ForEach(Array(placeSearch.results.prefix(12).enumerated()), id: \.offset) { entry in
                                 let completion = entry.element
                                 Button {
                                     Task { await selectPlace(completion) }
                                 } label: {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(completion.title)
-                                            .font(.system(size: 15, weight: .medium))
-                                            .foregroundColor(.primary)
-                                            .frame(maxWidth: .infinity, alignment: .leading)
-                                        if !completion.subtitle.isEmpty {
-                                            Text(completion.subtitle)
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .lineLimit(2)
+                                    HStack(spacing: 12) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(Color(red: 0.91, green: 0.95, blue: 1.0))
+                                                .frame(width: 42, height: 42)
+                                            Image(systemName: "mappin.and.ellipse")
+                                                .font(.system(size: 17, weight: .semibold))
+                                                .foregroundColor(Color(red: 0.13, green: 0.40, blue: 0.94))
                                         }
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(completion.title)
+                                                .font(.system(size: 14, weight: .semibold))
+                                                .foregroundColor(Color(red: 0.13, green: 0.17, blue: 0.24))
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .lineLimit(1)
+                                            if !completion.subtitle.isEmpty {
+                                                Text(completion.subtitle)
+                                                    .font(.system(size: 11))
+                                                    .foregroundColor(Color(red: 0.48, green: 0.53, blue: 0.61))
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                    .lineLimit(2)
+                                            }
+                                        }
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(Color(red: 0.64, green: 0.68, blue: 0.74))
                                     }
-                                    .padding(.horizontal, 14)
+                                    .padding(.horizontal, 11)
                                     .padding(.vertical, 10)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color(red: 0.98, green: 0.985, blue: 1.0))
+                                    .clipShape(RoundedRectangle(cornerRadius: 15))
+                                    .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.91, green: 0.93, blue: 0.96), lineWidth: 1))
                                     .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
-                                Divider()
                             }
                         }
+                        .padding(.bottom, 2)
                     }
-                    .frame(maxHeight: isKeyboardVisible ? 300 : 420)
-                    .padding(.horizontal, 12)
-                    .background(Color.white)
+                    .frame(maxHeight: isKeyboardVisible ? 240 : 340)
                 }
                 if let message = placeSearchMessage {
                     Text(message)
                         .font(.system(size: 12))
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 3)
+                        .padding(.vertical, 4)
                 }
             }
-            // Keep the entire search area opaque even when the field is focused
-            // and suggestions have not arrived yet. This prevents the map from
-            // showing through around the search capsule while the keyboard is open.
-            .background(
-                Color.white,
-                in: RoundedRectangle(cornerRadius: 22)
-            )
+            .padding(14)
+            .background(Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 22))
-            .overlay {
-                if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    RoundedRectangle(cornerRadius: 22).stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1)
-                }
-            }
-            .padding(.horizontal, 16)
+            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color(red: 0.87, green: 0.90, blue: 0.94), lineWidth: 1))
+            .shadow(color: Color.black.opacity(0.08), radius: 16, x: 0, y: 5)
+            .padding(.horizontal, 14)
             .padding(.top, 10)
             .padding(.bottom, 5)
         }
-        // Keep this view at its intrinsic content height. The opaque white capsule
-        // above protects the search control; the suggestions list has its own white
-        // surface. Avoid a tall bottom background here because keyboard resizing can
-        // stretch it over the map and produce a large blank white block.
         .fixedSize(horizontal: false, vertical: true)
-
     }
 
     private var mapLayer: some View {
