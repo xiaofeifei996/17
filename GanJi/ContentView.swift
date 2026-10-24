@@ -684,7 +684,7 @@ struct ContentView: View {
             .padding(.top, 10)
             .padding(.bottom, 5)
         }
-        .background(Color(red: 0.96, green: 0.96, blue: 0.96).ignoresSafeArea(edges: .bottom))
+        .background(Color.clear.ignoresSafeArea(edges: .bottom))
         // Keep the existing keyboard-aware positioning.
         .offset(y: isKeyboardVisible ? 44 : 0)
     }
