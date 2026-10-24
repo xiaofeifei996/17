@@ -38,3 +38,10 @@ Please run the repository's GitHub Actions workflow and test on device; this pac
 - Keeps `MarketStore.upcoming` as the schedule calculation source and sorts markets by distance within each date group, with stable name ordering as a fallback.
 - Updated shared brand colors and market rows to a black / white / gray visual system while retaining the existing region selection, map, search, lunar calendar, and favorites persistence code paths.
 - Validation performed in this environment: `ScheduleTests.swift` compiled and passed. An iOS app build requires Xcode/iOS SDK and was not run in this environment.
+
+## UI redesign (v111 — editorial grayscale timeline)
+
+- Reworked the home page with a restrained editorial hierarchy, a black typographic hero, fine rules, and spacious white market cards on a soft neutral canvas.
+- Replaced dense stacked rows with a subtle vertical timeline, clearer market names, repeat schedule details, distance labels, and dedicated bookmark actions.
+- Kept the existing API-backed market source, `MarketStore.upcoming` schedule calculations, date-group ordering, distance-first sorting within each day, region selection, MapKit search, lunar calendar, and favorites persistence.
+- No mock market records were introduced. Schedule tests were recompiled and passed in this environment; a full iOS build still requires Xcode/iOS SDK and device verification.
