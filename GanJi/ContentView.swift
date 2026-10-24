@@ -822,75 +822,76 @@ struct ContentView: View {
     }
 
     private func marketSheet(screenHeight: CGFloat) -> some View {
-        VStack(spacing: 0) {
-            Capsule().fill(Color(red: 0.79, green: 0.82, blue: 0.87)).frame(width: 42, height: 5).padding(.top, 10).padding(.bottom, 12)
-            HStack(alignment: .firstTextBaseline) {
-                Text(selectedFilter == .all ? "附近圩日" : "\(selectedFilter.rawValue)开圩")
-                    .font(.system(size: 21, weight: .black, design: .rounded))
-                    .foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18))
-                Text(loadingMarkets ? "正在加载…" : (marketLoadError ?? "\(filteredMarkets.count) 个集市"))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(marketLoadError == nil ? .secondary : .orange)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Capsule().fill(Color(red: 0.76, green: 0.78, blue: 0.72)).frame(width: 34, height: 4)
+                Spacer()
+                Text("MARKET RADAR")
+                    .font(.system(size: 9, weight: .bold, design: .rounded))
+                    .tracking(2.2)
+                    .foregroundColor(Color(red: 0.43, green: 0.48, blue: 0.39))
                 Spacer()
                 Button {
                     withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) { sheetExpanded.toggle() }
                 } label: {
-                    Image(systemName: sheetExpanded ? "chevron.down" : "chevron.up")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
-                        .frame(width: 34, height: 34)
-                        .background(Color(red: 0.96, green: 0.88, blue: 0.78), in: RoundedRectangle(cornerRadius: 12))
+                    Image(systemName: sheetExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(red: 0.19, green: 0.28, blue: 0.21))
+                        .frame(width: 32, height: 32)
+                        .background(Color(red: 0.91, green: 0.92, blue: 0.84), in: Circle())
+                }
+                .accessibilityLabel(sheetExpanded ? "收起集市列表" : "展开集市列表")
+            }
+            .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 13)
+
+            HStack(alignment: .bottom, spacing: 10) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(selectedFilter == .all ? "发现附近圩日" : "筛选 · \(selectedFilter.rawValue)")
+                        .font(.system(size: 25, weight: .heavy, design: .rounded))
+                        .foregroundColor(Color(red: 0.13, green: 0.20, blue: 0.15))
+                    Text("按距离探索今天的岭南市集")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(red: 0.47, green: 0.51, blue: 0.45))
+                }
+                Spacer(minLength: 4)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(filteredMarkets.count)")
+                        .font(.system(size: 24, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundColor(Color(red: 0.79, green: 0.36, blue: 0.19))
+                    Text(loadingMarkets ? "加载中" : (marketLoadError == nil ? "个圩点" : "暂不可用"))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.secondary)
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 22).padding(.bottom, 16)
+
+            Rectangle().fill(Color(red: 0.89, green: 0.89, blue: 0.83)).frame(height: 1).padding(.horizontal, 22)
+
             ScrollView(showsIndicators: false) {
-                LazyVStack(spacing: 0) {
+                LazyVStack(spacing: 10) {
                     if filteredMarkets.isEmpty {
-                        VStack(spacing: 8) {
-                            Image(systemName: "map").font(.system(size: 28)).foregroundColor(.secondary)
-                            Text("没有找到符合条件的集市").font(.system(size: 14)).foregroundColor(.secondary)
-                        }
-                        .frame(maxWidth: .infinity).padding(.vertical, 35)
+                        VStack(spacing: 12) {
+                            Image(systemName: "sun.horizon.fill").font(.system(size: 30)).foregroundColor(Color(red: 0.78, green: 0.39, blue: 0.20))
+                            Text("这片区域暂时没有圩点").font(.system(size: 15, weight: .semibold))
+                            Text("试试切换地区或搜索附近地点").font(.system(size: 12)).foregroundColor(.secondary)
+                        }.frame(maxWidth: .infinity).padding(.vertical, 38)
                     } else {
                         ForEach(filteredMarkets) { row in
                             MarketListRow(row: row, distanceText: distanceText(for: row), selected: selectedMarketID == row.market.id, isFavorite: favorites.contains(row.market.id), toggleFavorite: { toggleFavorite(row.market.id) }) {
                                 selectedMarketID = row.market.id
                             }
-                            Divider().overlay(Color.black.opacity(0.025)).padding(.leading, 20)
                         }
                     }
                 }
-                .padding(.bottom, 12)
+                .padding(.horizontal, 14).padding(.top, 12).padding(.bottom, 18)
             }
-            .padding(.top, 3)
-            // Prevent iOS ScrollView from drawing any default/translucent scroll surface.
-            // Omitted scrollContentBackground: deployment target is iOS 15.
-            .background(Color(uiColor: .systemBackground))
         }
         .frame(maxWidth: .infinity)
-        // Keep enough market rows visible while the keyboard is open. SwiftUI may
-        // report a keyboard-reduced GeometryReader height, so use a taller share
-        // of the available area and avoid the normal collapsed-sheet height.
-        // Use predictable sheet heights. The expanded panel must stop above the
-        // fixed search lane and Dock instead of growing behind them on short screens.
-        .frame(height: min(
-            screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.76 : 0.48)),
-            max(220, screenHeight - (isKeyboardVisible ? 100 : 230))
-        ))
-        // Solid white iOS-style panel: no map texture should bleed through the market rows.
-        .background {
-            TopRoundedShape(radius: 25)
-                .fill(Color(uiColor: .systemBackground))
-                .ignoresSafeArea(edges: .bottom)
-        }
-        // Only the two upper corners are rounded. Square lower corners let the
-        // opaque sheet join the bottom search/control area without exposing the map.
-        .clipShape(TopRoundedShape(radius: 25))
-        .overlay(alignment: .top) {
-            TopRoundedShape(radius: 25)
-                .stroke(Color.white.opacity(0.7), lineWidth: 1)
-        }
-        .shadow(color: .black.opacity(0.12), radius: 18, x: 0, y: -5)
+        .frame(height: min(screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.76 : 0.48)), max(220, screenHeight - (isKeyboardVisible ? 100 : 230))))
+        .background(Color(red: 0.97, green: 0.96, blue: 0.91))
+        .clipShape(TopRoundedShape(radius: 30))
+        .overlay(alignment: .top) { TopRoundedShape(radius: 30).stroke(Color.white.opacity(0.85), lineWidth: 1) }
+        .shadow(color: Color(red: 0.15, green: 0.22, blue: 0.15).opacity(0.16), radius: 22, x: 0, y: -7)
         .gesture(DragGesture(minimumDistance: 12).onEnded { value in
             withAnimation(.spring(response: 0.35, dampingFraction: 0.88)) {
                 if value.translation.height < -35 { sheetExpanded = true }
@@ -1175,24 +1176,43 @@ private struct MarketListRow: View {
     let action: () -> Void
 
     var body: some View {
-        HStack(alignment: .center, spacing: 0) {
+        HStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(selected ? Color(red: 0.80, green: 0.38, blue: 0.20) : Color(red: 0.77, green: 0.79, blue: 0.69))
+                .frame(width: 4)
+                .padding(.vertical, 12)
             Button(action: action) {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 7) {
-                        HStack(spacing: 7) {
-                            Text(row.market.name).font(.system(size: 17, weight: .semibold)).foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.23)).lineLimit(1)
-                            Text(row.market.size).font(.system(size: 10, weight: .medium)).foregroundColor(Color.ganjiBlue).padding(.horizontal, 7).padding(.vertical, 4).background(Color.ganjiBlue.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
-                            Text(row.dayLabel).font(.system(size: 10, weight: .semibold)).foregroundColor(Color.ganjiGreen).padding(.horizontal, 7).padding(.vertical, 4).background(Color.ganjiGreen.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
-                        }
-                        Text(row.market.repeatType == 6 ? "属相  \(row.animals)" : "圩日  \(row.animals)").font(.system(size: 12)).foregroundColor(Color(red: 0.42, green: 0.49, blue: 0.59)).lineLimit(1)
+                VStack(alignment: .leading, spacing: 9) {
+                    HStack(spacing: 6) {
+                        Text(row.market.size.uppercased())
+                            .font(.system(size: 9, weight: .heavy, design: .rounded))
+                            .tracking(0.8)
+                            .foregroundColor(Color(red: 0.75, green: 0.35, blue: 0.18))
+                        Text("·") .foregroundColor(.secondary)
+                        Text(row.dayLabel)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(Color(red: 0.24, green: 0.45, blue: 0.30))
+                        Spacer(minLength: 2)
+                        Text(distanceText)
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundColor(Color(red: 0.44, green: 0.49, blue: 0.42))
                     }
-                    Spacer(minLength: 4)
-                    VStack(alignment: .trailing, spacing: 5) {
-                        Text(distanceText).font(.system(size: 13, weight: .medium)).foregroundColor(Color(red: 0.42, green: 0.49, blue: 0.59)).lineLimit(1)
-                        Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(Color(red: 0.62, green: 0.68, blue: 0.75))
+                    HStack(alignment: .center, spacing: 6) {
+                        Text(row.market.name)
+                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .foregroundColor(Color(red: 0.13, green: 0.20, blue: 0.15))
+                            .lineLimit(1)
+                        Spacer(minLength: 2)
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(Color(red: 0.59, green: 0.62, blue: 0.53))
                     }
+                    Text((row.market.repeatType == 6 ? "属相  " : "圩日  ") + row.animals)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(red: 0.48, green: 0.52, blue: 0.44))
+                        .lineLimit(1)
                 }
-                .padding(.leading, 20).padding(.trailing, 8).padding(.vertical, 17)
+                .padding(.leading, 12).padding(.trailing, 8).padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
@@ -1200,20 +1220,19 @@ private struct MarketListRow: View {
             if showFavoriteButton {
                 Button(action: toggleFavorite) {
                     Image(systemName: isFavorite ? "heart.fill" : "heart")
-                        .font(.system(size: 21, weight: .medium))
-                        .foregroundColor(isFavorite ? .pink : Color.secondary)
-                        .frame(maxHeight: .infinity, alignment: .center)
-                        .frame(width: 56)
-                        .contentShape(Rectangle())
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(isFavorite ? Color(red: 0.82, green: 0.27, blue: 0.25) : Color(red: 0.67, green: 0.69, blue: 0.61))
+                        .frame(width: 38, height: 38)
+                        .background(isFavorite ? Color(red: 0.98, green: 0.89, blue: 0.85) : Color(red: 0.94, green: 0.94, blue: 0.89), in: Circle())
                 }
                 .buttonStyle(.plain)
+                .padding(.trailing, 10)
                 .accessibilityLabel(isFavorite ? "取消收藏" : "收藏圩日")
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        // Each row gets a fully opaque fill as well, including non-selected rows.
-        .background(selected ? Color(red: 0.95, green: 0.97, blue: 1.0) : Color.white)
-        .clipShape(Rectangle())
+        .background(selected ? Color(red: 0.93, green: 0.93, blue: 0.85) : Color.white.opacity(0.82))
+        .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(Color(red: 0.88, green: 0.88, blue: 0.81), lineWidth: 0.8))
     }
 }
 
