@@ -390,11 +390,23 @@ struct ContentView: View {
                                     Spacer(minLength: 4)
                                     Button { toggleFavorite(market.id) } label: {
                                         Image(systemName: "heart.fill").font(.system(size: 20)).foregroundColor(.pink).frame(width: 42, height: 44)
-                                    }.accessibilityLabel("取消收藏\(market.name)")
-                                    Button { withAnimation { showMainPage = true; homeTab = .region }; selectedMarketID = market.id } label: {
-                                        Image(systemName: "arrow.up.right").foregroundColor(Color.ganjiBlue).frame(width: 32, height: 40)
-                                    }.accessibilityLabel("在地图查看\(market.name)")
-                                }.padding(15).background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("取消收藏\(market.name)")
+                                    Image(systemName: "arrow.up.right").foregroundColor(Color.ganjiBlue).frame(width: 32, height: 40)
+                                        .accessibilityHidden(true)
+                                }
+                                .padding(15)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background {
+                                    Button { openFavoriteMarketOnMap(market) } label: {
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .fill(Color(uiColor: .secondarySystemGroupedBackground))
+                                            .contentShape(RoundedRectangle(cornerRadius: 16))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("在地图查看\(market.name)")
+                                }
                             }
                         }.padding(.horizontal, 16).padding(.bottom, 16)
                     }
