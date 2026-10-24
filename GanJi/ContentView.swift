@@ -154,7 +154,7 @@ struct ContentView: View {
                 } else {
                     homePage
                         .padding(.bottom, 58)
-                        .background(Color(red: 0.955, green: 0.949, blue: 0.918).ignoresSafeArea())
+                        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
                         .zIndex(10)
                 }
                 // One persistent Dock shared by every top-level page. Keeping the
@@ -328,195 +328,179 @@ struct ContentView: View {
 
     private var homePage: some View {
         VStack(spacing: 0) {
-            HStack {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    Text(homeTab == .region ? "探索地区" : (homeTab == .favorites ? "收藏清单" : "赶集日历"))
-                        .font(.system(size: 30, weight: .black, design: .rounded))
-                        .tracking(-0.8)
-                        .foregroundColor(Color(red: 0.12, green: 0.20, blue: 0.17))
-                    Text(homeTab == .region ? "EXPLORE" : (homeTab == .favorites ? "SAVED" : "MARKET DAYS"))
-                        .font(.system(size: 9, weight: .heavy, design: .rounded))
-                        .tracking(1.5)
-                        .foregroundColor(Color(red: 0.30, green: 0.48, blue: 0.37))
+            // Editorial header: a different information hierarchy from the original card/list screen.
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(Date.now.formatted(.dateTime.month(.wide).day().weekday(.wide)))
+                        .font(.system(size: 12, weight: .semibold, design: .rounded))
+                        .tracking(1.1)
+                        .foregroundColor(Color(red: 0.56, green: 0.31, blue: 0.19))
+                    Text(homeTab == .favorites ? "收藏簿" : (homeTab == .region ? "探索地区" : "圩日手账"))
+                        .font(.system(size: 32, weight: .black, design: .rounded))
+                        .foregroundColor(Color(red: 0.15, green: 0.19, blue: 0.17))
+                    Text(homeTab == .favorites ? "把常去的圩日收进来" : (homeTab == .region ? "选择你的赶集目的地" : "把附近的热闹记下来"))
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundColor(Color(red: 0.43, green: 0.45, blue: 0.40))
                 }
-                Spacer()
+                Spacer(minLength: 0)
+                ZStack {
+                    Circle().fill(Color(red: 0.87, green: 0.34, blue: 0.19)).frame(width: 48, height: 48)
+                    Image(systemName: homeTab == .favorites ? "bookmark.fill" : "sun.max.fill")
+                        .font(.system(size: 19, weight: .bold)).foregroundColor(.white)
+                }.padding(.top, 7)
             }
-            .padding(.horizontal, 22).padding(.top, 24).padding(.bottom, 22)
+            .padding(.horizontal, 22).padding(.top, 18).padding(.bottom, 18)
+
             if homeTab == .home {
-                VStack(spacing: 0) {
-                    ScrollView(showsIndicators: false) {
-                        LazyVStack(alignment: .leading, spacing: 24) {
-                            ForEach(0..<3, id: \.self) { offset in
-                                let rows = homeMarkets(for: offset)
-                                VStack(alignment: .leading, spacing: 11) {
-                                    HStack(spacing: 8) {
-                                        Capsule().fill(Color(red: 0.24, green: 0.48, blue: 0.34)).frame(width: 5, height: 23)
-                                        Text(["今天开圩", "明天开圩", "后天开圩"][offset]).font(.system(size: 20, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.12, green: 0.20, blue: 0.17))
-                                        Text(String(format: "%02d 个圩场", rows.count)).font(.system(size: 11, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.36, green: 0.45, blue: 0.38))
-                                    }
-                                    .padding(.horizontal, 16)
-                                    if rows.isEmpty {
-                                        Text("这一天暂无开圩集市").font(.system(size: 13)).foregroundColor(.secondary)
-                                            .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 14)
-                                            .background(Color(red: 0.995, green: 0.989, blue: 0.962), in: RoundedRectangle(cornerRadius: 14))
-                                            .padding(.horizontal, 16)
-                                    } else {
-                                        VStack(spacing: 1) {
-                                            ForEach(rows) { row in
-                                                MarketListRow(row: row, distanceText: distanceText(for: row), selected: selectedMarketID == row.market.id, isFavorite: favorites.contains(row.market.id), showFavoriteButton: false, toggleFavorite: { toggleFavorite(row.market.id) }) {
-                                                    selectedMarketID = row.market.id
-                                                    withAnimation { showMainPage = true }
-                                                }
-                                            }
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 22) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "magnifyingglass").font(.system(size: 15, weight: .semibold))
+                            TextField("搜索圩名或地区", text: $searchText)
+                                .font(.system(size: 15, weight: .medium))
+                                .onChange(of: searchText) { value in
+                                    placeSearch.query(value)
+                                }
+                            if !searchText.isEmpty {
+                                Button { searchText = "" } label: { Image(systemName: "xmark.circle.fill").foregroundColor(.secondary) }
+                            }
+                        }
+                        .padding(.horizontal, 16).frame(height: 48)
+                        .background(Color(red: 0.94, green: 0.92, blue: 0.86), in: RoundedRectangle(cornerRadius: 15))
+                        HStack(alignment: .center) {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text("MARKET NOTES").font(.system(size: 10, weight: .heavy, design: .rounded)).tracking(1.8).foregroundColor(.white.opacity(0.72))
+                                Text("今天去哪赶圩？").font(.system(size: 21, weight: .bold, design: .rounded)).foregroundColor(.white)
+                                Text("按开圩日期整理你的行程").font(.system(size: 12, weight: .medium)).foregroundColor(.white.opacity(0.8))
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "basket.fill").font(.system(size: 36, weight: .medium)).foregroundColor(Color(red: 0.98, green: 0.75, blue: 0.38))
+                        }
+                        .padding(20).background(Color(red: 0.19, green: 0.29, blue: 0.24), in: RoundedRectangle(cornerRadius: 22))
+                        ForEach(0..<3, id: \.self) { offset in
+                            let rows = homeMarkets(for: offset)
+                            VStack(alignment: .leading, spacing: 12) {
+                                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                    Text(["今日安排", "明日预告", "后日预告"][offset])
+                                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                                        .foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18))
+                                    Text(String(format: "%02d", rows.count)).font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundColor(Color(red: 0.75, green: 0.31, blue: 0.17))
+                                    Spacer()
+                                    Text(["TODAY", "TOMORROW", "UP NEXT"][offset]).font(.system(size: 9, weight: .heavy, design: .rounded)).tracking(1.1).foregroundColor(Color(red: 0.55, green: 0.56, blue: 0.49))
+                                }
+                                if rows.isEmpty {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "sun.horizon").font(.system(size: 21)).foregroundColor(Color(red: 0.75, green: 0.31, blue: 0.17))
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text("暂时没有安排").font(.system(size: 14, weight: .semibold))
+                                            Text("收藏圩日后，会在这里按日期出现").font(.system(size: 12)).foregroundColor(.secondary)
                                         }
-                                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                                        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Color(red: 0.22, green: 0.34, blue: 0.25).opacity(0.07), lineWidth: 1))
-                                        .padding(.horizontal, 16)
+                                        Spacer()
+                                    }.padding(15).background(Color.white.opacity(0.72), in: RoundedRectangle(cornerRadius: 16))
+                                } else {
+                                    VStack(spacing: 0) {
+                                        ForEach(rows) { row in
+                                            Button {
+                                                selectedMarketID = row.market.id
+                                                withAnimation { showMainPage = true; homeTab = .region }
+                                            } label: {
+                                                HStack(spacing: 13) {
+                                                    VStack(spacing: 2) {
+                                                        Text(row.market.repeatType == 6 ? "属相" : "圩日").font(.system(size: 9, weight: .bold))
+                                                        Text(row.market.repeatType == 6 ? "集" : row.market.displaySchedule.components(separatedBy: "、").first ?? "—")
+                                                            .font(.system(size: 12, weight: .black, design: .rounded)).lineLimit(1).minimumScaleFactor(0.7)
+                                                    }
+                                                    .foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                                                    .frame(width: 48, height: 48)
+                                                    .background(Color(red: 0.97, green: 0.88, blue: 0.78), in: RoundedRectangle(cornerRadius: 13))
+                                                    VStack(alignment: .leading, spacing: 5) {
+                                                        Text(row.market.name).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18)).lineLimit(1)
+                                                        Text([row.market.city, row.market.area].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 11, weight: .medium)).foregroundColor(Color(red: 0.48, green: 0.49, blue: 0.43)).lineLimit(1)
+                                                    }
+                                                    Spacer(minLength: 4)
+                                                    Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .bold)).foregroundColor(Color(red: 0.70, green: 0.33, blue: 0.19))
+                                                }
+                                                .padding(.vertical, 12).padding(.horizontal, 12).contentShape(Rectangle())
+                                            }.buttonStyle(.plain)
+                                            if row.id != rows.last?.id { Divider().overlay(Color(red: 0.88, green: 0.85, blue: 0.78)).padding(.leading, 72) }
+                                        }
                                     }
+                                    .padding(.horizontal, 4)
+                                    .background(Color.white.opacity(0.78), in: RoundedRectangle(cornerRadius: 18))
                                 }
                             }
                         }
-                        .padding(.top, 4).padding(.bottom, 18)
                     }
+                    .padding(.horizontal, 18).padding(.bottom, 26)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                HStack {
-                    Text("已收藏的圩场").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.12, green: 0.20, blue: 0.17))
-                    Spacer()
-                    Text("\(favorites.count) 个").font(.system(size: 13)).foregroundColor(.secondary)
-                }.padding(.horizontal, 22).padding(.bottom, 10)
-                let saved = favoriteMarkets
+            } else if homeTab == .favorites {
+                let saved = favoriteMarkets.filter { favorites.contains($0.id) }
                 if saved.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "heart").font(.system(size: 42)).foregroundColor(.secondary.opacity(0.7))
-                        Text("还没有收藏圩日").font(.system(size: 17, weight: .semibold))
-                        Text("进入“地区”页面，在集市列表中点击心形按钮即可收藏。")
-                            .font(.system(size: 14)).foregroundColor(.secondary).multilineTextAlignment(.center)
+                    VStack(spacing: 15) {
+                        ZStack { Circle().fill(Color(red: 0.94, green: 0.85, blue: 0.75)).frame(width: 94, height: 94); Image(systemName: "bookmark").font(.system(size: 32, weight: .medium)).foregroundColor(Color(red: 0.68, green: 0.29, blue: 0.16)) }
+                        Text("这里还空着").font(.system(size: 20, weight: .bold, design: .rounded))
+                        Text("在地区地图里找到常去的圩，\n点一下收藏，就能建立自己的赶圩清单。")
+                            .font(.system(size: 13)).foregroundColor(.secondary).multilineTextAlignment(.center).lineSpacing(4)
                         Button { withAnimation { showMainPage = true; homeTab = .region } } label: {
-                            Text("去地区页面添加收藏").font(.system(size: 15, weight: .semibold)).foregroundColor(.white)
-                                .padding(.horizontal, 22).padding(.vertical, 12).background(Color.ganjiBlue, in: Capsule())
-                        }.padding(.top, 4)
+                            HStack(spacing: 8) { Text("去发现圩日"); Image(systemName: "arrow.right") }
+                                .font(.system(size: 14, weight: .bold)).foregroundColor(.white).padding(.horizontal, 20).frame(height: 46)
+                                .background(Color(red: 0.19, green: 0.29, blue: 0.24), in: Capsule())
+                        }
                     }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(28)
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 10) {
+                    ScrollView(showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("已收藏 · \(saved.count) 个地点").font(.system(size: 13, weight: .semibold)).foregroundColor(.secondary).padding(.bottom, 4)
                             ForEach(saved) { market in
-                                HStack(spacing: 12) {
+                                HStack(spacing: 13) {
+                                    RoundedRectangle(cornerRadius: 12).fill(Color(red: 0.88, green: 0.40, blue: 0.23)).frame(width: 5)
                                     VStack(alignment: .leading, spacing: 6) {
-                                        Text(market.name).font(.system(size: 17, weight: .semibold)).foregroundColor(.primary)
-                                        Text([market.province, market.city, market.area].filter { !$0.isEmpty }.joined(separator: " · "))
-                                            .font(.system(size: 12)).foregroundColor(.secondary).lineLimit(1)
-                                        Text(market.repeatType == 6 ? "属相：\(market.repeatValue.joined(separator: "、"))" : "圩日：\(market.displaySchedule)")
-                                            .font(.system(size: 13)).foregroundColor(.secondary)
+                                        Text(market.name).font(.system(size: 17, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18))
+                                        Text([market.province, market.city, market.area].filter { !$0.isEmpty }.joined(separator: " / ")).font(.system(size: 11, weight: .medium)).foregroundColor(.secondary).lineLimit(1)
+                                        Label(market.repeatType == 6 ? "属相：\(market.repeatValue.joined(separator: "、"))" : "开圩：\(market.displaySchedule)", systemImage: "calendar").font(.system(size: 12, weight: .medium)).foregroundColor(Color(red: 0.64, green: 0.31, blue: 0.18))
                                     }
-                                    Spacer(minLength: 4)
-                                    Button { toggleFavorite(market.id) } label: {
-                                        Image(systemName: "heart.fill").font(.system(size: 20)).foregroundColor(.pink).frame(width: 42, height: 44)
-                                    }.accessibilityLabel("取消收藏\(market.name)")
+                                    Spacer(minLength: 0)
+                                    Button { toggleFavorite(market.id) } label: { Image(systemName: "bookmark.fill").font(.system(size: 17)).foregroundColor(Color(red: 0.75, green: 0.31, blue: 0.17)).frame(width: 40, height: 48) }.accessibilityLabel("取消收藏\(market.name)")
                                 }
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    withAnimation { showMainPage = true; homeTab = .region }
-                                    selectedMarketID = market.id
-                                }
-                                .padding(15)
-                                .background(Color(red: 0.995, green: 0.989, blue: 0.962), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                                .padding(14).frame(minHeight: 94).background(Color.white.opacity(0.82), in: RoundedRectangle(cornerRadius: 17))
+                                .contentShape(Rectangle()).onTapGesture { withAnimation { showMainPage = true; homeTab = .region }; selectedMarketID = market.id }
                             }
-                        }.padding(.horizontal, 16).padding(.bottom, 16)
+                        }.padding(.horizontal, 18).padding(.bottom, 24)
                     }
                 }
-            }
-            // Region search is a first-class tab alongside Home and Favorites.
-            if homeTab == .region {
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        homeRegionExpanded.toggle()
-                        if homeRegionExpanded { alignPickerToSelectedRegion() }
-                    }
-                } label: {
-                HStack(spacing: 11) {
-                    Image(systemName: "mappin.and.ellipse")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color.ganjiBlue)
-                        .frame(width: 38, height: 38)
-                        .background(Color.ganjiBlue.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("当前赶集地区")
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(.secondary)
-                        Text(homeRegionDisplayName)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.primary)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 4)
-                    Text("切换")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Color.ganjiBlue)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 9)
-                .background(Color(red: 0.88, green: 0.92, blue: 0.84), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 19, style: .continuous).stroke(Color(red: 0.30, green: 0.48, blue: 0.37).opacity(0.16), lineWidth: 1))
-                .contentShape(RoundedRectangle(cornerRadius: 15))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("选择省份、城市和区县，当前地区：\(homeRegionDisplayName)")
-            .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 8)
-            .background(Color(red: 0.955, green: 0.949, blue: 0.918))
-
-            if homeRegionExpanded {
-                VStack(spacing: 8) {
-                    HStack(spacing: 0) {
-                        pickerColumn(title: "省份", selection: $selectedPickerProvinceCode, options: pickerProvinces)
-                        pickerColumn(title: "城市", selection: $selectedPickerCityCode, options: pickerCities)
-                        pickerColumn(title: "区县", selection: $selectedPickerCountyCode, options: pickerCounties)
-                    }
-                    .frame(height: 154)
-                    Text(regionLoadMessage)
-                        .font(.system(size: 10))
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.center)
-                    HStack(spacing: 10) {
-                        Button("收起") {
-                            withAnimation(.easeInOut(duration: 0.2)) { homeRegionExpanded = false }
+            } else {
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Button {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { homeRegionExpanded.toggle(); if homeRegionExpanded { alignPickerToSelectedRegion() } }
+                        } label: {
+                            HStack(spacing: 14) {
+                                ZStack { RoundedRectangle(cornerRadius: 15).fill(Color(red: 0.19, green: 0.29, blue: 0.24)).frame(width: 52, height: 52); Image(systemName: "map.fill").font(.system(size: 20)).foregroundColor(Color(red: 0.98, green: 0.75, blue: 0.38)) }
+                                VStack(alignment: .leading, spacing: 5) { Text("当前探索区域").font(.system(size: 11, weight: .semibold)).foregroundColor(.secondary); Text(homeRegionDisplayName).font(.system(size: 15, weight: .bold)).foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18)).lineLimit(2) }
+                                Spacer(minLength: 0)
+                                Image(systemName: "slider.horizontal.3").font(.system(size: 18, weight: .semibold)).foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                            }.padding(16).background(Color.white.opacity(0.8), in: RoundedRectangle(cornerRadius: 19))
+                        }.buttonStyle(.plain)
+                        if homeRegionExpanded {
+                            VStack(spacing: 12) {
+                                HStack { Text("省份"); Spacer(); Text("城市"); Spacer(); Text("区县") }.font(.system(size: 11, weight: .bold)).foregroundColor(.secondary)
+                                HStack(spacing: 0) { pickerColumn(title: "省份", selection: $selectedPickerProvinceCode, options: pickerProvinces); pickerColumn(title: "城市", selection: $selectedPickerCityCode, options: pickerCities); pickerColumn(title: "区县", selection: $selectedPickerCountyCode, options: pickerCounties) }.frame(height: 160)
+                                Text(regionLoadMessage).font(.system(size: 10)).foregroundColor(.secondary).lineLimit(2).multilineTextAlignment(.center)
+                                Button { if let option = pickerCounties.first(where: { $0.code == selectedPickerCountyCode }) ?? pickerCities.first(where: { $0.code == selectedPickerCityCode }) ?? pickerProvinces.first(where: { $0.code == selectedPickerProvinceCode }) { chooseRegion(option) }; withAnimation { homeRegionExpanded = false } } label: { Text("应用这个地区").font(.system(size: 14, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 46).background(Color(red: 0.19, green: 0.29, blue: 0.24), in: RoundedRectangle(cornerRadius: 13)) }
+                            }.padding(16).background(Color.white.opacity(0.8), in: RoundedRectangle(cornerRadius: 19))
                         }
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity).frame(height: 38)
-                        .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 10))
-
-                        Button("确定地区") {
-                            if let option = pickerCounties.first(where: { $0.code == selectedPickerCountyCode })
-                                ?? pickerCities.first(where: { $0.code == selectedPickerCityCode })
-                                ?? pickerProvinces.first(where: { $0.code == selectedPickerProvinceCode }) {
-                                chooseRegion(option)
-                            }
-                            withAnimation(.easeInOut(duration: 0.2)) { homeRegionExpanded = false }
-                        }
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity).frame(height: 38)
-                        .background(Color.ganjiBlue, in: RoundedRectangle(cornerRadius: 10))
-                    }
+                        HStack(spacing: 10) {
+                            Image(systemName: "info.circle.fill").foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                            Text("地图中可以查看集市位置，点选标记查看圩日详情。")
+                                .font(.system(size: 12, weight: .medium)).foregroundColor(.secondary)
+                        }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(Color(red: 0.94, green: 0.92, blue: 0.86), in: RoundedRectangle(cornerRadius: 15))
+                    }.padding(.horizontal, 18).padding(.bottom, 24)
                 }
-                .padding(12)
-                .background(Color(red: 0.995, green: 0.989, blue: 0.962), in: RoundedRectangle(cornerRadius: 14))
-                .padding(.horizontal, 16)
-                .padding(.bottom, 8)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
-
-            }
-
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(red: 0.97, green: 0.96, blue: 0.92).ignoresSafeArea())
+        .foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18))
     }
 
     private var homeRegionDisplayName: String {
@@ -532,15 +516,14 @@ struct ContentView: View {
             dockItem("heart.fill", title: "收藏", tab: .favorites)
             dockItem("mappin.and.ellipse", title: "地区", tab: .region)
         }
-        .padding(.top, 10)
-        // Raise the Dock contents so the iPhone home indicator cannot overlap them.
+        .padding(.top, 9)
         .padding(.bottom, 28)
         // Keep the bottom navigation readable over the map; only the map canvas
         // itself is transparent to the system, not the Dock surface.
         // Use a stable system surface instead of material that blends map colors into the Dock.
-        .background(Color(uiColor: .systemBackground))
+        .background(Color(red: 0.15, green: 0.22, blue: 0.18))
         .overlay(alignment: .top) {
-            Rectangle().fill(Color(uiColor: .separator).opacity(0.22)).frame(height: 0.5)
+            Rectangle().fill(Color(red: 0.87, green: 0.64, blue: 0.35).opacity(0.9)).frame(height: 2)
         }
     }
 
@@ -563,7 +546,7 @@ struct ContentView: View {
                 Image(systemName: symbol).font(.system(size: 19, weight: .semibold))
                 Text(title).font(.system(size: 11, weight: .medium))
             }
-            .foregroundColor((homeTab == tab || (tab == .region && showMainPage)) ? Color.ganjiBlue : .secondary)
+            .foregroundColor((homeTab == tab || (tab == .region && showMainPage)) ? Color(red: 0.98, green: 0.75, blue: 0.38) : Color.white.opacity(0.62))
             .frame(maxWidth: .infinity).contentShape(Rectangle())
         }.buttonStyle(.plain)
     }
@@ -842,9 +825,9 @@ struct ContentView: View {
         VStack(spacing: 0) {
             Capsule().fill(Color(red: 0.79, green: 0.82, blue: 0.87)).frame(width: 42, height: 5).padding(.top, 10).padding(.bottom, 12)
             HStack(alignment: .firstTextBaseline) {
-                Text(selectedFilter == .all ? "附近集市" : "\(selectedFilter.rawValue)赶集")
-                    .font(.system(size: 19, weight: .bold))
-                    .foregroundColor(Color(red: 0.12, green: 0.17, blue: 0.23))
+                Text(selectedFilter == .all ? "附近圩日" : "\(selectedFilter.rawValue)开圩")
+                    .font(.system(size: 21, weight: .black, design: .rounded))
+                    .foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18))
                 Text(loadingMarkets ? "正在加载…" : (marketLoadError ?? "\(filteredMarkets.count) 个集市"))
                     .font(.system(size: 12, weight: .medium))
                     .foregroundColor(marketLoadError == nil ? .secondary : .orange)
@@ -854,9 +837,9 @@ struct ContentView: View {
                 } label: {
                     Image(systemName: sheetExpanded ? "chevron.down" : "chevron.up")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(Color.ganjiBlue)
-                        .frame(width: 32, height: 32)
-                        .background(Color.ganjiBlue.opacity(0.08), in: Circle())
+                        .foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                        .frame(width: 34, height: 34)
+                        .background(Color(red: 0.96, green: 0.88, blue: 0.78), in: RoundedRectangle(cornerRadius: 12))
                 }
             }
             .padding(.horizontal, 20)
@@ -907,7 +890,7 @@ struct ContentView: View {
             TopRoundedShape(radius: 25)
                 .stroke(Color.white.opacity(0.7), lineWidth: 1)
         }
-        .shadow(color: Color(red: 0.12, green: 0.20, blue: 0.17).opacity(0.13), radius: 28, x: 0, y: -8)
+        .shadow(color: .black.opacity(0.12), radius: 18, x: 0, y: -5)
         .gesture(DragGesture(minimumDistance: 12).onEnded { value in
             withAnimation(.spring(response: 0.35, dampingFraction: 0.88)) {
                 if value.translation.height < -35 { sheetExpanded = true }
