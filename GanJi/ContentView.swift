@@ -691,12 +691,11 @@ struct ContentView: View {
                         .padding(.vertical, 6)
                 }
             }
-            // The outer wrapper stays clear; the location/search capsule above
-            // supplies its own background, and result rows get a white surface.
+            // Keep the entire search area opaque even when the field is focused
+            // and suggestions have not arrived yet. This prevents the map from
+            // showing through around the search capsule while the keyboard is open.
             .background(
-                (!placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    ? Color(uiColor: .systemBackground)
-                    : Color.clear,
+                Color(uiColor: .systemBackground),
                 in: RoundedRectangle(cornerRadius: 22)
             )
             .clipShape(RoundedRectangle(cornerRadius: 22))
@@ -709,7 +708,13 @@ struct ContentView: View {
             .padding(.top, 10)
             .padding(.bottom, 5)
         }
-        .background(Color.clear.ignoresSafeArea(edges: .bottom))
+        .background {
+            if isPlaceSearchFocused || isKeyboardVisible {
+                Color(uiColor: .systemBackground).ignoresSafeArea(edges: .bottom)
+            } else {
+                Color.clear.ignoresSafeArea(edges: .bottom)
+            }
+        }
         // Keep the search control fixed in its own lane above the bottom navigation.
         // Only shift it slightly when the keyboard is shown; never let it overlap list rows.
         // Keep the existing keyboard-aware positioning.

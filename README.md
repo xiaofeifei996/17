@@ -14,3 +14,8 @@ Upload the project to GitHub and run the existing Actions workflow. This source 
 ## v91 search behavior fix
 - Tapping/focusing the place search field no longer hides the nearby-markets panel.
 - Search suggestions and place selection behavior remain unchanged; selecting a result can still dismiss the keyboard and restore the panel as before.
+
+
+## v92 Search background fix
+- Keep the search panel background opaque while the search field is focused or the keyboard is visible.
+- Keep the search control wrapper on a solid system background so the map does not show through around the search capsule.
