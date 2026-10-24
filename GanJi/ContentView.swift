@@ -136,14 +136,20 @@ struct ContentView: View {
                 .ignoresSafeArea(edges: .bottom)
                 .allowsHitTesting(false)
                 .zIndex(2.5)
-                // When the software keyboard is open, cover the exposed map gap
-                // with the same solid surface used by the search controls.
+                // When the software keyboard is open, keep the bottom control lane opaque.
                 if isKeyboardVisible {
-                    // Do not paint an opaque gray layer behind the active keyboard/search UI.
-                    Color.clear
-                        .ignoresSafeArea()
-                        .allowsHitTesting(false)
-                        .zIndex(2.7)
+                    // When search is focused, SwiftUI resizes the available geometry for the keyboard.
+                    // Keep an opaque bottom surface behind the search control and Dock so the map
+                    // cannot show through the surrounding area. Limit it to the bottom control lane
+                    // rather than covering the map or the visible upper part of the market sheet.
+                    VStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        Color(uiColor: .systemBackground)
+                            .frame(height: 360)
+                    }
+                    .ignoresSafeArea(edges: .bottom)
+                    .allowsHitTesting(false)
+                    .zIndex(2.7)
                 }
                 if isMarketSheetVisible {
                     marketSheet(screenHeight: geo.size.height)
