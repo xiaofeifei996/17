@@ -541,7 +541,6 @@ struct ContentView: View {
         if !displayedMarkets.contains(where: { $0.id == market.id }) {
             displayedMarkets.append(market)
         }
-        selectedAreaCode = market.areaCode
         selectedAreaDisplayName = market.area.isEmpty ? market.city : market.area
         searchText = ""
         withAnimation(.easeInOut(duration: 0.2)) {
@@ -549,7 +548,19 @@ struct ContentView: View {
             showMainPage = true
         }
         selectedMarketID = market.id
-        Task { await refreshMarkets(for: market.areaCode) }
+
+        // Some saved/legacy favorite records do not contain an area code.
+        // Only switch and refresh the region when a valid code is available;
+        // otherwise center the map directly on the favorite instead of crashing.
+        if let areaCode = market.areaCode {
+            selectedAreaCode = areaCode
+            Task { await refreshMarkets(for: areaCode) }
+        } else {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                region.center = CLLocationCoordinate2D(latitude: market.lat, longitude: market.lon)
+                region.span = MKCoordinateSpan(latitudeDelta: 0.18, longitudeDelta: 0.18)
+            }
+        }
     }
 
     private func toggleFavorite(_ id: String) {
