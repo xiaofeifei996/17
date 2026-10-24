@@ -150,7 +150,11 @@ struct ContentView: View {
             // Reserve the Dock's actual height in the layout. The map remains behind it,
             // while the nearby-markets sheet is laid out directly above the Dock.
             .safeAreaInset(edge: .bottom, spacing: 0) {
+                // Keep the Dock attached to the physical bottom edge when the
+                // software keyboard appears; keyboard avoidance applies to the
+                // searchable content, not to the persistent navigation bar.
                 sharedDock
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
             }
             .background(Color.clear)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
