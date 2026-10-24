@@ -898,7 +898,6 @@ struct ContentView: View {
                     .padding(.bottom, 4)
                 }
                 .frame(maxHeight: min(screenHeight * 0.42, 340))
-                .scrollContentBackground(.hidden)
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(spacing: 10) {
