@@ -131,27 +131,14 @@ struct ContentView: View {
                 // so no market rows appear in the narrow strip above the keyboard.
                 // Keep isMarketSheetVisible unchanged: when search focus ends, the panel
                 // returns to its previous expanded/collapsed state automatically.
-                if isMarketSheetVisible && !isPlaceSearchFocused {
+                if isMarketSheetVisible && showMainPage {
                     marketSheet(screenHeight: geo.size.height)
-                        .frame(maxHeight: .infinity, alignment: .bottom)
-                        // Reserve a dedicated lane for the fixed search control above the Dock.
-                        // The sheet must end before that lane so its last row is never obscured.
-                        // With the keyboard open, let the panel use the area down to
-                        // the search lane. The previous fixed 150pt reservation was still
-                        // applied after SwiftUI reduced the available height for the keyboard,
-                        // leaving a large empty map strip and hiding market rows.
-                        .padding(.bottom, isKeyboardVisible ? 0 : 150)
+                        .frame(maxHeight: isKeyboardVisible ? geo.size.height * 0.62 : .infinity, alignment: .bottom)
+                        // Search and nearby market browsing share one panel above the persistent Dock.
+                        .padding(.bottom, isKeyboardVisible ? 0 : 66)
                         .zIndex(3)
                 }
-                // Only render the map Dock while the map page is active.
-                // The home/favorites page has its own Dock; rendering both at once
-                // causes overlapping hit targets and a brief visual flash during tab changes.
-                if showMainPage {
-                    mapSearchAndDock
-                        .frame(maxHeight: .infinity, alignment: .bottom)
-                        .padding(.bottom, 58)
-                        .zIndex(4)
-                } else {
+                if !showMainPage {
                     homePage
                         .padding(.bottom, 58)
                         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
@@ -851,7 +838,89 @@ struct ContentView: View {
     // opaque bottom sheet. The map remains the primary canvas and market cards
     // form a horizontal browse rail above the persistent search and Dock.
     private func marketSheet(screenHeight: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
+            // Unified destination search + nearby market panel.
+            HStack(spacing: 10) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Color(red: 0.18, green: 0.39, blue: 0.28))
+                TextField("搜索地点，或查找附近圩日", text: $searchText)
+                    .focused($isPlaceSearchFocused)
+                    .font(.system(size: 14, weight: .medium))
+                    .submitLabel(.search)
+                    .onChange(of: searchText) { value in
+                        placeSearch.query(value)
+                        placeSearchMessage = nil
+                        if value.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
+                            Task { await loadNationalRegions() }
+                        }
+                    }
+                if !searchText.isEmpty {
+                    Button {
+                        searchText = ""
+                        placeSearch.clearResults()
+                        placeSearchMessage = nil
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(Color(red: 0.54, green: 0.59, blue: 0.53))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("清除搜索")
+                }
+                Rectangle().fill(Color(red: 0.85, green: 0.87, blue: 0.81)).frame(width: 1, height: 24)
+                Button { showRegionPicker = true } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(Color(red: 0.17, green: 0.34, blue: 0.23))
+                        .frame(width: 28, height: 32)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("切换地区，当前地区：\(homeRegionDisplayName)")
+            }
+            .padding(.horizontal, 13)
+            .frame(height: 48)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 15, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.87, green: 0.88, blue: 0.82), lineWidth: 1))
+
+            if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                if !placeSearch.results.isEmpty {
+                    Text("搜索地点 · 选择后查看当地圩日")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(red: 0.30, green: 0.38, blue: 0.29))
+                    ScrollView(.vertical, showsIndicators: true) {
+                        LazyVStack(spacing: 6) {
+                            ForEach(Array(placeSearch.results.prefix(8).enumerated()), id: \.offset) { entry in
+                                let completion = entry.element
+                                Button { Task { await selectPlace(completion) } } label: {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "mappin.circle.fill")
+                                            .font(.system(size: 25))
+                                            .foregroundColor(Color(red: 0.27, green: 0.46, blue: 0.30))
+                                        VStack(alignment: .leading, spacing: 3) {
+                                            Text(completion.title).font(.system(size: 13, weight: .semibold)).foregroundColor(Color(red: 0.17, green: 0.23, blue: 0.17)).lineLimit(1)
+                                            if !completion.subtitle.isEmpty { Text(completion.subtitle).font(.system(size: 10)).foregroundColor(.secondary).lineLimit(2) }
+                                        }
+                                        Spacer(minLength: 0)
+                                        Image(systemName: "arrow.up.left").font(.system(size: 11, weight: .bold)).foregroundColor(.secondary)
+                                    }
+                                    .padding(.horizontal, 9).padding(.vertical, 7)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color.white.opacity(0.78), in: RoundedRectangle(cornerRadius: 12))
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .frame(maxHeight: isKeyboardVisible ? 150 : 220)
+                } else if let message = placeSearchMessage {
+                    Text(message).font(.system(size: 11)).foregroundColor(.secondary)
+                } else {
+                    Text("输入地点名称，搜索城市、区县或具体位置")
+                        .font(.system(size: 11)).foregroundColor(.secondary)
+                }
+            }
+
+            if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 7) {
@@ -974,8 +1043,9 @@ struct ContentView: View {
                 }
                 .frame(height: 108)
             }
+            }
         }
-        .padding(16)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.95), lineWidth: 1))
