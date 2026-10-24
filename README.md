@@ -1,13 +1,8 @@
-# GanJi v110 — Homepage Uses Region Search
-
-Based on v109 vertical nearby-market list.
+# GanJi v111 — Remove Homepage Search
 
 Changes:
-- Homepage search now searches the same administrative-region dataset used by the Region picker.
-- Results include province, city and county/district entries, with county matches ranked first.
-- Selecting a result reuses `chooseRegion(_:)`, then opens the Region/map experience for that area.
-- Homepage search no longer uses MapKit place autocomplete; the map destination search keeps its existing place-search behavior.
-- Preserves existing region loading, region selection, market refresh, routing, favorites and the vertical nearby-market list.
-- Uses APIs compatible with the iOS 15 deployment target.
+- Removed the search field and inline region search results from the homepage.
+- Kept region selection/search on the dedicated region page and destination search on the map/search panel.
+- Preserved existing market lists, navigation, events, state, and data fields outside the removed homepage search UI.
 
-Validation: ZIP integrity and source-level checks completed. An Xcode/macOS build and iPhone runtime test were not available in this environment.
+Validation: ZIP integrity checked. Xcode compilation and iPhone runtime validation have not been performed in this environment.
