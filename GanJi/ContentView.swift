@@ -351,6 +351,76 @@ struct ContentView: View {
                             Image(systemName: "basket.fill").font(.system(size: 36, weight: .medium)).foregroundColor(Color(red: 0.98, green: 0.75, blue: 0.38))
                         }
                         .padding(20).background(Color(red: 0.19, green: 0.29, blue: 0.24), in: RoundedRectangle(cornerRadius: 22))
+
+                        // Homepage place search: use the same MapKit suggestions and subtitle
+                        // as the Region map search, then resolve the full administrative area
+                        // before requesting the market API by area code.
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 10) {
+                                Image(systemName: "magnifyingglass")
+                                    .foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                                TextField("先搜索地名：城市、县、镇或村", text: $searchText)
+                                    .focused($isPlaceSearchFocused)
+                                    .font(.system(size: 14, weight: .medium))
+                                    .submitLabel(.search)
+                                    .onChange(of: searchText) { value in
+                                        placeSearch.query(value)
+                                        placeSearchMessage = nil
+                                    }
+                                if !searchText.isEmpty {
+                                    Button {
+                                        searchText = ""
+                                        placeSearch.clearResults()
+                                        placeSearchMessage = nil
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 14).frame(height: 48)
+                            .background(Color.white, in: RoundedRectangle(cornerRadius: 14))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(red: 0.88, green: 0.86, blue: 0.80), lineWidth: 1))
+
+                            if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                Text("选择正确的地址，下面的小字用于区分市县镇")
+                                    .font(.system(size: 11, weight: .medium)).foregroundColor(.secondary)
+                                VStack(spacing: 0) {
+                                    ForEach(Array(placeSearch.results.prefix(8).enumerated()), id: \.offset) { entry in
+                                        let completion = entry.element
+                                        Button {
+                                            Task {
+                                                await selectPlace(completion)
+                                                withAnimation { showMainPage = true; homeTab = .region }
+                                            }
+                                        } label: {
+                                            HStack(spacing: 10) {
+                                                Image(systemName: "mappin.and.ellipse")
+                                                    .font(.system(size: 16, weight: .semibold))
+                                                    .foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                                                    .frame(width: 30)
+                                                VStack(alignment: .leading, spacing: 3) {
+                                                    Text(completion.title).font(.system(size: 14, weight: .semibold)).foregroundColor(.primary).lineLimit(1)
+                                                    if !completion.subtitle.isEmpty {
+                                                        Text(completion.subtitle).font(.system(size: 11)).foregroundColor(.secondary).lineLimit(2)
+                                                    }
+                                                }
+                                                Spacer(minLength: 0)
+                                                Image(systemName: "chevron.right").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)
+                                            }
+                                            .padding(.vertical, 10).padding(.horizontal, 10)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                            .contentShape(Rectangle())
+                                        }.buttonStyle(.plain)
+                                        if entry.offset < min(placeSearch.results.count, 8) - 1 { Divider().padding(.leading, 50) }
+                                    }
+                                }
+                                .padding(.horizontal, 8)
+                                .background(Color.white.opacity(0.86), in: RoundedRectangle(cornerRadius: 14))
+                            }
+                            if let message = placeSearchMessage {
+                                Text(message).font(.system(size: 11)).foregroundColor(.secondary)
+                            }
+                        }
                         ForEach(0..<3, id: \.self) { offset in
                             let rows = homeMarkets(for: offset)
                             VStack(alignment: .leading, spacing: 12) {
@@ -1207,6 +1277,7 @@ struct ContentView: View {
                 // until the user manually taps the clear (×) button.
                 searchText = ""
                 chooseRegion(match)
+                withAnimation { showMainPage = true; homeTab = .region }
                 if let lat = placemark.location?.coordinate.latitude,
                    let lon = placemark.location?.coordinate.longitude {
                     region.center = CLLocationCoordinate2D(latitude: lat, longitude: lon)
