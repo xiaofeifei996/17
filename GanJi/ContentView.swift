@@ -528,7 +528,7 @@ struct ContentView: View {
         // Keep the bottom navigation readable over the map; only the map canvas
         // itself is transparent to the system, not the Dock surface.
         // Use a stable system surface instead of material that blends map colors into the Dock.
-        .background(Color(uiColor: .systemBackground).opacity(0.98))
+        .background(Color(uiColor: .systemBackground))
         .overlay(alignment: .top) {
             Rectangle().fill(Color(uiColor: .separator).opacity(0.22)).frame(height: 0.5)
         }
@@ -606,7 +606,7 @@ struct ContentView: View {
                             .foregroundColor(Color(red: 0.56, green: 0.62, blue: 0.71))
                         TextField("搜索地点", text: $searchText)
                             .focused($isPlaceSearchFocused)
-                            // Focusing the search field must not dismiss the nearby-markets panel.
+                            // Search focus hides the market sheet; its expansion state is preserved.
                             .font(.system(size: 16))
                             .submitLabel(.search)
                             .onChange(of: searchText) { value in
@@ -631,9 +631,8 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                // Restore a solid, lightly translucent surface for the full
-                // location/search control. The map behind it remains visible
-                // everywhere outside this rounded container.
+                // Fully opaque capsule: map pixels must never show through the
+                // location/search control while the keyboard animates.
                 .background(Color.white, in: Capsule())
                 .overlay(Capsule().stroke(Color(red: 0.82, green: 0.86, blue: 0.91), lineWidth: 1))
 
@@ -879,9 +878,11 @@ struct ContentView: View {
         // Keep enough market rows visible while the keyboard is open. SwiftUI may
         // report a keyboard-reduced GeometryReader height, so use a taller share
         // of the available area and avoid the normal collapsed-sheet height.
+        // Use predictable sheet heights. The expanded panel must stop above the
+        // fixed search lane and Dock instead of growing behind them on short screens.
         .frame(height: min(
-            screenHeight * (isKeyboardVisible ? 0.94 : (sheetExpanded ? 0.86 : 0.52)),
-            screenHeight - (isKeyboardVisible ? 110 : 220)
+            screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.76 : 0.48)),
+            max(220, screenHeight - (isKeyboardVisible ? 100 : 230))
         ))
         // Solid white iOS-style panel: no map texture should bleed through the market rows.
         .background {
