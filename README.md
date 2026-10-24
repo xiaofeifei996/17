@@ -1,21 +1,11 @@
-# GanJi v90 — iOS native bottom layout refinement
+# GanJi v93 - Opaque search area fix
 
-Based on the previous GanJi v89 source.
+This revision fixes the search-area surroundings becoming transparent when the location search TextField receives focus.
 
-## Layout changes
-- Extends the solid system-background surface behind the fixed location/search capsule and bottom Dock.
-- Removes the exposed map-texture strip between the market sheet and the bottom controls.
-- Keeps the existing market sheet height/drag behavior, search, region picker, map annotations, market data, and favorites logic unchanged.
+Changes in `GanJi/ContentView.swift`:
+- The outer search capsule uses solid white instead of system background opacity.
+- The search/suggestions container uses solid white.
+- The whole search-and-dock region always paints an opaque white backing extending through the bottom safe area; it no longer switches to a clear background when focus changes.
+- Existing search, suggestion, nearby market panel, favorites, and region selection logic is preserved.
 
-## Build
-Upload the project to GitHub and run the existing Actions workflow. This source has not been compiled with Xcode in this environment.
-
-
-## v91 search behavior fix
-- Tapping/focusing the place search field no longer hides the nearby-markets panel.
-- Search suggestions and place selection behavior remain unchanged; selecting a result can still dismiss the keyboard and restore the panel as before.
-
-
-## v92 Search background fix
-- Keep the search panel background opaque while the search field is focused or the keyboard is visible.
-- Keep the search control wrapper on a solid system background so the map does not show through around the search capsule.
+Compile with the project's existing GitHub Actions workflow. Xcode compilation was not run in this environment.

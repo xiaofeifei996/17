@@ -635,7 +635,7 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, 13)
                     .frame(height: 44)
-                    .background(Color(red: 0.93, green: 0.95, blue: 0.98))
+                    .background(Color(red: 0.93, green: 0.95, blue: 0.98).opacity(1.0))
                     .clipShape(Capsule())
                     .overlay(Capsule().stroke(Color(red: 0.87, green: 0.89, blue: 0.93), lineWidth: 1))
                 }
@@ -644,7 +644,7 @@ struct ContentView: View {
                 // Restore a solid, lightly translucent surface for the full
                 // location/search control. The map behind it remains visible
                 // everywhere outside this rounded container.
-                .background(Color(uiColor: .systemBackground).opacity(0.99), in: Capsule())
+                .background(Color.white, in: Capsule())
                 .overlay(Capsule().stroke(Color(red: 0.82, green: 0.86, blue: 0.91), lineWidth: 1))
 
                 if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -695,7 +695,7 @@ struct ContentView: View {
             // and suggestions have not arrived yet. This prevents the map from
             // showing through around the search capsule while the keyboard is open.
             .background(
-                Color(uiColor: .systemBackground),
+                Color.white,
                 in: RoundedRectangle(cornerRadius: 22)
             )
             .clipShape(RoundedRectangle(cornerRadius: 22))
@@ -708,13 +708,10 @@ struct ContentView: View {
             .padding(.top, 10)
             .padding(.bottom, 5)
         }
-        .background {
-            if isPlaceSearchFocused || isKeyboardVisible {
-                Color(uiColor: .systemBackground).ignoresSafeArea(edges: .bottom)
-            } else {
-                Color.clear.ignoresSafeArea(edges: .bottom)
-            }
-        }
+        // Keep a fully opaque backing behind the whole search-and-dock region.
+        // Do not switch to Color.clear on focus: SwiftUI's keyboard/focus relayout
+        // can otherwise expose the map around the search capsule.
+        .background(Color.white.ignoresSafeArea(edges: .bottom))
         // Keep the search control fixed in its own lane above the bottom navigation.
         // Only shift it slightly when the keyboard is shown; never let it overlap list rows.
         // Keep the existing keyboard-aware positioning.
