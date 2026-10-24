@@ -535,6 +535,23 @@ struct ContentView: View {
         }.buttonStyle(.plain)
     }
 
+    private func openFavoriteMarketOnMap(_ market: Market) {
+        // Ensure the selected favorite exists in the map's data immediately, even if
+        // the current region has a different market list loaded.
+        if !displayedMarkets.contains(where: { $0.id == market.id }) {
+            displayedMarkets.append(market)
+        }
+        selectedAreaCode = market.areaCode
+        selectedAreaDisplayName = market.area.isEmpty ? market.city : market.area
+        searchText = ""
+        withAnimation(.easeInOut(duration: 0.2)) {
+            homeTab = .region
+            showMainPage = true
+        }
+        selectedMarketID = market.id
+        Task { await refreshMarkets(for: market.areaCode) }
+    }
+
     private func toggleFavorite(_ id: String) {
         if favorites.contains(id) {
             favorites.remove(id)
