@@ -530,7 +530,12 @@ struct ContentView: View {
         .padding(.top, 10)
         // Raise the Dock contents so the iPhone home indicator cannot overlap them.
         .padding(.bottom, 28)
-        .background(Color.clear)
+        // Keep the bottom navigation readable over the map; only the map canvas
+        // itself is transparent to the system, not the Dock surface.
+        .background(.regularMaterial)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Color.white.opacity(0.28)).frame(height: 0.5)
+        }
     }
 
     private func dockItem(_ symbol: String, title: String, tab: HomeTab) -> some View {
@@ -634,6 +639,11 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
+                // Restore a solid, lightly translucent surface for the full
+                // location/search control. The map behind it remains visible
+                // everywhere outside this rounded container.
+                .background(Color(uiColor: .systemBackground).opacity(0.96), in: Capsule())
+                .overlay(Capsule().stroke(Color(red: 0.82, green: 0.86, blue: 0.91), lineWidth: 1))
 
                 if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     // Keep suggestions scrollable when the iOS keyboard covers the lower part
@@ -679,11 +689,11 @@ struct ContentView: View {
                         .padding(.vertical, 6)
                 }
             }
-            // Keep the surrounding search dock transparent; only the search field and
-            // actual result rows retain opaque surfaces for legibility.
+            // The outer wrapper stays clear; the location/search capsule above
+            // supplies its own background, and result rows get a white surface.
             .background(
                 (!placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    ? Color.white
+                    ? Color(uiColor: .systemBackground)
                     : Color.clear,
                 in: RoundedRectangle(cornerRadius: 22)
             )
