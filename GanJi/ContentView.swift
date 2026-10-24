@@ -835,8 +835,8 @@ struct ContentView: View {
     }
 
     // Region discovery is intentionally a floating map HUD rather than a large
-    // opaque bottom sheet. The map remains the primary canvas and market cards
-    // form a horizontal browse rail above the persistent search and Dock.
+    // opaque bottom sheet. The map remains the primary canvas and market rows
+    // form a vertical list above the persistent search and Dock.
     private func marketSheet(screenHeight: CGFloat) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             // Unified destination search + nearby market panel.
@@ -985,63 +985,27 @@ struct ContentView: View {
                 }
                 .frame(maxHeight: min(screenHeight * 0.42, 340))
             } else {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(spacing: 10) {
+                // Compact nearby-market list uses vertical scrolling; no horizontal carousel.
+                ScrollView(.vertical, showsIndicators: false) {
+                    LazyVStack(spacing: 8) {
                         ForEach(filteredMarkets) { row in
-                            Button {
+                            MarketListRow(
+                                row: row,
+                                distanceText: distanceText(for: row),
+                                selected: selectedMarketID == row.market.id,
+                                isFavorite: favorites.contains(row.market.id),
+                                toggleFavorite: { toggleFavorite(row.market.id) }
+                            ) {
                                 selectedMarketID = row.market.id
                                 withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
                                     region.center = CLLocationCoordinate2D(latitude: row.market.lat, longitude: row.market.lon)
                                 }
-                            } label: {
-                                VStack(alignment: .leading, spacing: 9) {
-                                    HStack(alignment: .top, spacing: 8) {
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(row.market.name)
-                                                .font(.system(size: 15, weight: .bold, design: .rounded))
-                                                .foregroundColor(Color(red: 0.13, green: 0.20, blue: 0.17))
-                                                .lineLimit(1)
-                                            Text(row.market.area)
-                                                .font(.system(size: 11, weight: .medium))
-                                                .foregroundColor(Color(red: 0.47, green: 0.52, blue: 0.48))
-                                                .lineLimit(1)
-                                        }
-                                        Spacer(minLength: 0)
-                                        Button { toggleFavorite(row.market.id) } label: {
-                                            Image(systemName: favorites.contains(row.market.id) ? "heart.fill" : "heart")
-                                                .font(.system(size: 16, weight: .semibold))
-                                                .foregroundColor(favorites.contains(row.market.id) ? Color(red: 0.91, green: 0.20, blue: 0.32) : Color(red: 0.58, green: 0.62, blue: 0.59))
-                                                .frame(width: 28, height: 28)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                    Spacer(minLength: 0)
-                                    HStack(spacing: 6) {
-                                        Text(row.market.displaySchedule)
-                                            .font(.system(size: 10, weight: .bold))
-                                            .foregroundColor(Color(red: 0.16, green: 0.42, blue: 0.29))
-                                            .padding(.horizontal, 8).padding(.vertical, 5)
-                                            .background(Color(red: 0.90, green: 0.95, blue: 0.88), in: Capsule())
-                                        Spacer(minLength: 0)
-                                        Text(distanceText(for: row))
-                                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                                            .foregroundColor(Color(red: 0.44, green: 0.49, blue: 0.46))
-                                    }
-                                }
-                                .padding(13)
-                                .frame(width: 238, height: 104, alignment: .leading)
-                                .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                                .overlay(alignment: .leading) {
-                                    RoundedRectangle(cornerRadius: 2).fill(selectedMarketID == row.market.id ? Color(red: 0.96, green: 0.55, blue: 0.25) : Color(red: 0.73, green: 0.79, blue: 0.67)).frame(width: 4).padding(.vertical, 14)
-                                }
-                                .overlay(RoundedRectangle(cornerRadius: 18).stroke(selectedMarketID == row.market.id ? Color(red: 0.98, green: 0.72, blue: 0.36) : Color.white.opacity(0.18), lineWidth: selectedMarketID == row.market.id ? 1.5 : 1))
                             }
-                            .buttonStyle(.plain)
                         }
                     }
-                    .padding(.vertical, 2)
+                    .padding(.bottom, 2)
                 }
-                .frame(height: 108)
+                .frame(maxHeight: min(screenHeight * 0.26, 210))
             }
             }
         }
