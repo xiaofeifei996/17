@@ -126,7 +126,8 @@ struct ContentView: View {
                 // beneath the rounded market sheet on devices with a home indicator.
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    Color(red: 0.96, green: 0.96, blue: 0.96)
+                    // Transparent bottom cover: let the underlying map show through.
+                    Color.clear
                         .frame(height: 130)
                 }
                 .ignoresSafeArea(edges: .bottom)
@@ -135,7 +136,8 @@ struct ContentView: View {
                 // When the software keyboard is open, cover the exposed map gap
                 // with the same solid surface used by the search controls.
                 if isKeyboardVisible {
-                    Color(red: 0.96, green: 0.96, blue: 0.96)
+                    // Do not paint an opaque gray layer behind the active keyboard/search UI.
+                    Color.clear
                         .ignoresSafeArea()
                         .allowsHitTesting(false)
                         .zIndex(2.7)
@@ -528,7 +530,7 @@ struct ContentView: View {
         .padding(.top, 10)
         // Raise the Dock contents so the iPhone home indicator cannot overlap them.
         .padding(.bottom, 28)
-        .background(Color(uiColor: .systemGroupedBackground))
+        .background(Color.clear)
     }
 
     private func dockItem(_ symbol: String, title: String, tab: HomeTab) -> some View {

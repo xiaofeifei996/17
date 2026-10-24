@@ -68,3 +68,11 @@
 - Fixed the Swift key path in the place suggestion list (`\.offset`).
 - Moved `PlaceSearchModel` into `GanJi/ContentView.swift` so XcodeGen compiles it even if a previously generated project did not register the new source file.
 - Re-run GitHub Actions after uploading the complete ZIP contents. This source fix has not been confirmed by a successful remote build yet.
+
+
+## v86 搜索区域灰色背景透明化
+- 将地图页底部 130pt 的灰色遮罩改为透明，避免遮住地图。
+- 将键盘弹出时覆盖全屏的灰色背景改为透明。
+- 将共享底部 Dock 的系统分组灰底改为透明。
+- 搜索输入框自身的浅蓝色胶囊背景保留，确保文字可读。
+- iOS 系统键盘本身的灰色外观由系统控制，此修改只处理 App 内部背景。
