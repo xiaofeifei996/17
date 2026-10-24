@@ -487,7 +487,8 @@ struct ContentView: View {
             dockItem("mappin.and.ellipse", title: "地区", tab: .region)
         }
         .padding(.top, 10)
-        .padding(.bottom, 8)
+        // Raise the Dock contents so the iPhone home indicator cannot overlap them.
+        .padding(.bottom, 28)
         .background(Color(uiColor: .systemGroupedBackground))
     }
 
@@ -620,6 +621,7 @@ struct ContentView: View {
                         }
                     }
                     .frame(maxHeight: isKeyboardVisible ? 300 : 420)
+                    .scrollBounceBehavior(.basedOnSize)
                     .padding(.horizontal, 12)
                 }
                 if let message = placeSearchMessage {
