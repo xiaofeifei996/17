@@ -147,6 +147,12 @@ struct ContentView: View {
                         .zIndex(10)
                 }
             }
+            // Ignore keyboard-driven safe-area changes at the ROOT content container.
+            // Applying this only to the Dock overlay is too late: GeometryReader itself
+            // is already shortened when the keyboard appears, so its bottom-aligned
+            // overlays still get laid out above the keyboard. The keyboard should cover
+            // the bottom-anchored Dock rather than push the Dock upward.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
             // Overlay the Dock instead of using safeAreaInset: safeAreaInset participates
             // in keyboard avoidance and can move the Dock above the software keyboard.
             // This root container ignores keyboard safe-area changes so its bottom edge
