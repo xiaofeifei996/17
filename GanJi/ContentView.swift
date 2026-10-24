@@ -997,7 +997,6 @@ struct ContentView: View {
             let province = placemark.administrativeArea ?? ""
             let city = placemark.locality ?? ""
             let district = placemark.subAdministrativeArea ?? placemark.subLocality ?? ""
-            let placeName = item.name ?? completion.title
             let countyOptions = regionOptions.filter { $0.kind == .county }
             let normalizedProvince = province.replacingOccurrences(of: "省", with: "").replacingOccurrences(of: "市", with: "")
             let normalizedCity = city.replacingOccurrences(of: "市", with: "")
