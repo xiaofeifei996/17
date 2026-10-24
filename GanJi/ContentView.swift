@@ -532,7 +532,7 @@ struct ContentView: View {
         }
     }
 
-    // Compact location + search bar, styled like a single horizontal navigation control.
+    // Compact location + search bar. The full-width dock background is opaque so the map never shows at the sides.
     private var mapSearchAndDock: some View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -639,7 +639,7 @@ struct ContentView: View {
             .padding(.top, 10)
             .padding(.bottom, 5)
         }
-        .background(Color.clear.ignoresSafeArea(edges: .bottom))
+        .background(Color(red: 0.96, green: 0.96, blue: 0.96).ignoresSafeArea(edges: .bottom))
         // Keep the existing keyboard-aware positioning.
         .offset(y: isKeyboardVisible ? 44 : 0)
     }
