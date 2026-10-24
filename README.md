@@ -45,3 +45,9 @@ Please run the repository's GitHub Actions workflow and test on device; this pac
 - Changed location/search controls to dark floating capsules and updated the bottom Dock to match the new night-map theme.
 - This intentionally departs from the supplied screenshot's ivory sheet, blue-gray distances, bright pink hearts, and white/blue search capsule.
 - Existing functionality is preserved in source; compile and device testing are still required.
+
+
+## v112 — Region page rebuilt
+- Reworked the Region tab's identity and selected-area control into a location-exploration panel with English micro-label, mint location glyph, dark gradient card, and a distinct expanded picker surface.
+- Updated the region selector and confirm/collapse actions to match the night-map theme. This is a structural component redesign rather than a recolor of the reference screenshot.
+- Existing region data selection and chooseRegion flow retained. Build and device verification remain necessary.
