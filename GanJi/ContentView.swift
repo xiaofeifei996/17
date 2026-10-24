@@ -102,6 +102,8 @@ struct ContentView: View {
         // The home page shows only favorited markets, grouped by their next opening day.
         // Use the persisted favorite market records so favorites remain available even when
         // the currently loaded API list does not contain them.
+        // Home intentionally spans every region. The selected area is only a filter
+        // for the map/region browser and must never hide a saved market from this list.
         let savedFavorites = favoriteMarkets.filter { favorites.contains($0.id) }
         let upcoming = MarketStore.upcoming(from: today, markets: savedFavorites)
             .filter { $0.daysAhead == offset }
@@ -320,11 +322,56 @@ struct ContentView: View {
 
     private var homePage: some View {
         VStack(spacing: 0) {
-            HStack {
-                Text(homeTab == .region ? "地区搜索" : (homeTab == .favorites ? "我的收藏" : "赶集日记")).font(.system(size: 25, weight: .bold))
-                Spacer()
+            if homeTab == .home {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(alignment: .center, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("赶集日记")
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundColor(.primary)
+                            Text(Date.now.formatted(.dateTime.month(.abbreviated).day().weekday(.wide)))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "calendar.badge.clock")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundColor(Color.ganjiBlue)
+                            .frame(width: 48, height: 48)
+                            .background(Color.ganjiBlue.opacity(0.10), in: RoundedRectangle(cornerRadius: 16))
+                    }
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                        TextField("搜索圩市名称或地区", text: $searchText)
+                            .font(.system(size: 15))
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                        if !searchText.isEmpty {
+                            Button { searchText = "" } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                            }
+                            .accessibilityLabel("清除搜索")
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: 46)
+                    .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(uiColor: .separator).opacity(0.18), lineWidth: 1))
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
+                .padding(.bottom, 14)
+            } else {
+                HStack {
+                    Text(homeTab == .region ? "地区搜索" : "我的收藏")
+                        .font(.system(size: 27, weight: .bold, design: .rounded))
+                    Spacer()
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 18)
+                .padding(.bottom, 16)
             }
-            .padding(.horizontal, 22).padding(.top, 18).padding(.bottom, 16)
             if homeTab == .home {
                 VStack(spacing: 0) {
                     ScrollView(showsIndicators: false) {
@@ -333,9 +380,9 @@ struct ContentView: View {
                                 let rows = homeMarkets(for: offset)
                                 VStack(alignment: .leading, spacing: 7) {
                                     HStack(spacing: 8) {
-                                        RoundedRectangle(cornerRadius: 2).fill(Color.ganjiBlue).frame(width: 4, height: 19)
-                                        Text(["今日圩日", "明日圩日", "后日圩日"][offset]).font(.system(size: 18, weight: .bold))
-                                        Text("\(rows.count) 个集市").font(.system(size: 12, weight: .medium)).foregroundColor(.secondary)
+                                        RoundedRectangle(cornerRadius: 2).fill(Color.ganjiBlue).frame(width: 4, height: 21)
+                                        Text(["今日圩日", "明日圩日", "后日圩日"][offset]).font(.system(size: 19, weight: .bold, design: .rounded))
+                                        Text("\(rows.count) 个").font(.system(size: 12, weight: .medium)).foregroundColor(.secondary)
                                     }
                                     .padding(.horizontal, 16)
                                     if rows.isEmpty {
