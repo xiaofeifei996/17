@@ -16,5 +16,8 @@ Please run the repository's GitHub Actions workflow and test on device; this pac
 - Keyboard-visible layout does not receive this additional fixed offset.
 
 
-## UI redesign
-This revision replaces the original map-led interface with an editorial, card-based market discovery experience: warm paper background, dark green feature panel, date chips, searchable market cards, saved list, and a dedicated market detail sheet. Existing market data models, API, location support, assets, and widget sources are retained.
+## UI redesign (v103)
+- Reworked home header and added a warm green daily hero panel.
+- Shifted accent colors to a natural market-inspired palette.
+- Updated market row typography, selection fills, and panel surfaces.
+- Preserved MarketAPI endpoint, MapKit place suggestions, lunar market schedule logic, filters, favorites, region lookup, and widget targets.
