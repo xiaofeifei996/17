@@ -620,7 +620,6 @@ struct ContentView: View {
                         }
                     }
                     .frame(maxHeight: isKeyboardVisible ? 300 : 420)
-                    .scrollBounceBehavior(.basedOnSize)
                     .padding(.horizontal, 12)
                 }
                 if let message = placeSearchMessage {
