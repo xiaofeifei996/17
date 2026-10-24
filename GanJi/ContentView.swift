@@ -894,6 +894,10 @@ struct ContentView: View {
             // Prevent iOS ScrollView from drawing any default/translucent scroll surface.
             // Omitted scrollContentBackground: deployment target is iOS 15.
             .background(Color(red: 0.98, green: 0.98, blue: 0.95))
+            // This list must consume only the space left after the fixed search lane.
+            // Without a flexible frame, its content can push the search control below
+            // the sheet's clipped bottom edge on compact/keyboard-resized layouts.
+            .frame(maxHeight: .infinity)
             // Search and market rows share this same sheet and opaque background.
             // A subtle divider creates hierarchy without creating a second floating panel.
             Rectangle()
