@@ -138,7 +138,7 @@ struct ContentView: View {
                         // bottom search control never sits underneath the Dock. While the
                         // keyboard is visible, let the keyboard's resized layout determine
                         // the available space instead of adding a second fixed offset.
-                        .padding(.bottom, isKeyboardVisible ? 0 : 60)
+                        .padding(.bottom, isKeyboardVisible ? 0 : 50)
                         .zIndex(4)
                 }
                 // Only render the home/favorites content outside the map page. The map
