@@ -588,33 +588,39 @@ struct ContentView: View {
                 .padding(.vertical, 8)
 
                 if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    VStack(spacing: 0) {
-                        ForEach(Array(placeSearch.results.prefix(8).enumerated()), id: \.offset) { entry in
-                            let completion = entry.element
-                            Button {
-                                Task { await selectPlace(completion) }
-                            } label: {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(completion.title)
-                                        .font(.system(size: 15, weight: .medium))
-                                        .foregroundColor(.primary)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                    if !completion.subtitle.isEmpty {
-                                        Text(completion.subtitle)
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
+                    // Keep suggestions scrollable when the iOS keyboard covers the lower part
+                    // of the screen. A visible scroll indicator helps users discover more results.
+                    ScrollView(.vertical, showsIndicators: true) {
+                        LazyVStack(spacing: 0) {
+                            ForEach(Array(placeSearch.results.prefix(12).enumerated()), id: \.offset) { entry in
+                                let completion = entry.element
+                                Button {
+                                    Task { await selectPlace(completion) }
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(completion.title)
+                                            .font(.system(size: 15, weight: .medium))
+                                            .foregroundColor(.primary)
                                             .frame(maxWidth: .infinity, alignment: .leading)
-                                            .lineLimit(2)
+                                        if !completion.subtitle.isEmpty {
+                                            Text(completion.subtitle)
+                                                .font(.system(size: 12))
+                                                .foregroundColor(.secondary)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .lineLimit(2)
+                                        }
                                     }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 10)
+                                    .contentShape(Rectangle())
                                 }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 10)
-                                .contentShape(Rectangle())
+                                .buttonStyle(.plain)
+                                Divider()
                             }
-                            .buttonStyle(.plain)
-                            Divider()
                         }
                     }
+                    .frame(maxHeight: isKeyboardVisible ? 300 : 420)
+                    .scrollBounceBehavior(.basedOnSize)
                     .padding(.horizontal, 12)
                 }
                 if let message = placeSearchMessage {
