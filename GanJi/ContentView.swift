@@ -145,7 +145,9 @@ struct ContentView: View {
                 if isMarketSheetVisible {
                     marketSheet(screenHeight: geo.size.height)
                         .frame(maxHeight: .infinity, alignment: .bottom)
-                        .padding(.bottom, 116)
+                        // Reserve a dedicated lane for the fixed search control above the Dock.
+                        // The sheet must end before that lane so its last row is never obscured.
+                        .padding(.bottom, 138)
                         .zIndex(3)
                 }
                 // Only render the map Dock while the map page is active.
@@ -532,9 +534,10 @@ struct ContentView: View {
         .padding(.bottom, 28)
         // Keep the bottom navigation readable over the map; only the map canvas
         // itself is transparent to the system, not the Dock surface.
-        .background(.regularMaterial)
+        // Use a stable system surface instead of material that blends map colors into the Dock.
+        .background(Color(uiColor: .systemBackground).opacity(0.98))
         .overlay(alignment: .top) {
-            Rectangle().fill(Color.white.opacity(0.28)).frame(height: 0.5)
+            Rectangle().fill(Color(uiColor: .separator).opacity(0.22)).frame(height: 0.5)
         }
     }
 
@@ -642,7 +645,7 @@ struct ContentView: View {
                 // Restore a solid, lightly translucent surface for the full
                 // location/search control. The map behind it remains visible
                 // everywhere outside this rounded container.
-                .background(Color(uiColor: .systemBackground).opacity(0.96), in: Capsule())
+                .background(Color(uiColor: .systemBackground).opacity(0.99), in: Capsule())
                 .overlay(Capsule().stroke(Color(red: 0.82, green: 0.86, blue: 0.91), lineWidth: 1))
 
                 if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -708,6 +711,8 @@ struct ContentView: View {
             .padding(.bottom, 5)
         }
         .background(Color.clear.ignoresSafeArea(edges: .bottom))
+        // Keep the search control fixed in its own lane above the bottom navigation.
+        // Only shift it slightly when the keyboard is shown; never let it overlap list rows.
         // Keep the existing keyboard-aware positioning.
         .offset(y: isKeyboardVisible ? 44 : 0)
     }
@@ -885,13 +890,13 @@ struct ContentView: View {
         // report a keyboard-reduced GeometryReader height, so use a taller share
         // of the available area and avoid the normal collapsed-sheet height.
         .frame(height: min(
-            screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.78 : 0.43)),
-            screenHeight - (isKeyboardVisible ? 130 : 175)
+            screenHeight * (isKeyboardVisible ? 0.88 : (sheetExpanded ? 0.80 : 0.48)),
+            screenHeight - (isKeyboardVisible ? 170 : 205)
         ))
-        // Keep the visible sheet opaque and rounded; extend its solid fill behind the home indicator.
+        // Solid white iOS-style panel: no map texture should bleed through the market rows.
         .background {
             TopRoundedShape(radius: 25)
-                .fill(Color(red: 0.96, green: 0.96, blue: 0.96))
+                .fill(Color(uiColor: .systemBackground))
                 .ignoresSafeArea(edges: .bottom)
         }
         // Only the two upper corners are rounded. Square lower corners let the
