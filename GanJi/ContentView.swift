@@ -152,11 +152,13 @@ struct ContentView: View {
             // This root container ignores keyboard safe-area changes so its bottom edge
             // remains the physical screen bottom while the search field can still focus.
             .overlay(alignment: .bottom) {
+                // Keep the Dock attached to the physical bottom edge without
+                // disabling keyboard avoidance for the search sheet itself.
                 sharedDock
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .zIndex(11)
             }
-            .ignoresSafeArea(.keyboard, edges: .bottom)
             .background(Color.clear)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
                 isKeyboardVisible = true
