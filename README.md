@@ -21,3 +21,12 @@ Please run the repository's GitHub Actions workflow and test on device; this pac
 - Shifted accent colors to a natural market-inspired palette.
 - Updated market row typography, selection fills, and panel surfaces.
 - Preserved MarketAPI endpoint, MapKit place suggestions, lunar market schedule logic, filters, favorites, region lookup, and widget targets.
+
+
+## v106 — remove bundled market records
+- Deleted `Shared/markets.json` containing the bundled market list.
+- `MarketStore.load()` now returns an empty list; runtime market data should come from the existing API fetch or per-area cache.
+- `MarketAPI` endpoint and response parsing remain unchanged.
+- The API used bundled records only as optional region-name metadata; without the dataset, that metadata falls back to empty strings.
+- Updated schedule test to assert there is no bundled market dataset.
+- Not built with Xcode in this environment; verify API loading and region labels on device.
