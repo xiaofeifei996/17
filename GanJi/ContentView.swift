@@ -151,7 +151,11 @@ struct ContentView: View {
                     .allowsHitTesting(false)
                     .zIndex(2.7)
                 }
-                if isMarketSheetVisible {
+                // While the place-search field is active, hide the market list visually
+                // so no market rows appear in the narrow strip above the keyboard.
+                // Keep isMarketSheetVisible unchanged: when search focus ends, the panel
+                // returns to its previous expanded/collapsed state automatically.
+                if isMarketSheetVisible && !isPlaceSearchFocused {
                     marketSheet(screenHeight: geo.size.height)
                         .frame(maxHeight: .infinity, alignment: .bottom)
                         // Reserve a dedicated lane for the fixed search control above the Dock.
