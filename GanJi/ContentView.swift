@@ -95,12 +95,10 @@ struct ContentView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { showDatePicker = false } } }
             }
-            .presentationDetents([.medium, .large])
         }
         .sheet(item: $selectedMarket) { market in
             marketDetail(market)
-                .presentationDetents([.medium, .large])
-        }
+            }
     }
 
     private var header: some View {
@@ -251,7 +249,7 @@ struct ContentView: View {
             tabButton(.saved, icon: "bookmark.fill")
         }
         .padding(.top, 10).padding(.bottom, 22)
-        .background(.white.shadow(.drop(color: .black.opacity(0.05), radius: 12, y: -4)))
+        .background(Color.white.shadow(color: .black.opacity(0.05), radius: 12, x: 0, y: -4))
     }
 
     private func tabButton(_ value: GatherTab, icon: String) -> some View {
