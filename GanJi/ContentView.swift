@@ -343,10 +343,13 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 22) {
                         HStack(spacing: 10) {
                             Image(systemName: "magnifyingglass").font(.system(size: 15, weight: .semibold))
-                            TextField("搜索圩名或地区", text: $searchText)
+                            TextField("搜索省份、城市或区县", text: $searchText)
                                 .font(.system(size: 15, weight: .medium))
+                                .textInputAutocapitalization(.never)
                                 .onChange(of: searchText) { value in
-                                    placeSearch.query(value)
+                                    if !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                        Task { await loadNationalRegions() }
+                                    }
                                 }
                             if !searchText.isEmpty {
                                 Button { searchText = "" } label: { Image(systemName: "xmark.circle.fill").foregroundColor(.secondary) }
@@ -354,6 +357,47 @@ struct ContentView: View {
                         }
                         .padding(.horizontal, 16).frame(height: 48)
                         .background(Color(red: 0.94, green: 0.92, blue: 0.86), in: RoundedRectangle(cornerRadius: 15))
+                        if !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            VStack(spacing: 0) {
+                                if homeRegionSearchResults.isEmpty {
+                                    Text(nationalRegionOptions.isEmpty && loadingRegionOptions ? "正在加载行政区划…" : "没有匹配的地区，请尝试输入区县或城市名称")
+                                        .font(.system(size: 12, weight: .medium))
+                                        .foregroundColor(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(14)
+                                } else {
+                                    ForEach(Array(homeRegionSearchResults.prefix(8))) { option in
+                                        Button {
+                                            chooseRegion(option)
+                                            withAnimation { showMainPage = true; homeTab = .region }
+                                        } label: {
+                                            HStack(spacing: 10) {
+                                                Image(systemName: option.kind == .county ? "mappin.and.ellipse" : "map")
+                                                    .font(.system(size: 15, weight: .semibold))
+                                                    .foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                                                    .frame(width: 30, height: 30)
+                                                    .background(Color(red: 0.97, green: 0.88, blue: 0.78), in: RoundedRectangle(cornerRadius: 9))
+                                                VStack(alignment: .leading, spacing: 3) {
+                                                    Text(option.name).font(.system(size: 14, weight: .semibold)).foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18))
+                                                    Text([option.province, option.city, option.kind == .county ? option.name : ""].filter { !$0.isEmpty }.joined(separator: " · "))
+                                                        .font(.system(size: 10, weight: .medium)).foregroundColor(.secondary).lineLimit(1)
+                                                }
+                                                Spacer(minLength: 4)
+                                                Text(option.kind == .county ? "区县" : (option.kind == .city ? "城市" : "省份"))
+                                                    .font(.system(size: 10, weight: .semibold)).foregroundColor(.secondary)
+                                                Image(systemName: "chevron.right").font(.system(size: 10, weight: .bold)).foregroundColor(.secondary)
+                                            }
+                                            .padding(.horizontal, 12).padding(.vertical, 9)
+                                            .contentShape(Rectangle())
+                                        }
+                                        .buttonStyle(.plain)
+                                        if option.id != homeRegionSearchResults.prefix(8).last?.id { Divider().padding(.leading, 52) }
+                                    }
+                                }
+                            }
+                            .background(Color.white.opacity(0.92), in: RoundedRectangle(cornerRadius: 15))
+                            .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.88, green: 0.86, blue: 0.80), lineWidth: 1))
+                        }
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 5) {
                                 Text("MARKET NOTES").font(.system(size: 10, weight: .heavy, design: .rounded)).tracking(1.8).foregroundColor(.white.opacity(0.72))
@@ -1044,6 +1088,23 @@ struct ContentView: View {
         }
         var seen = Set<Int>()
         return combined.filter { seen.insert($0.code).inserted }
+    }
+
+    // Homepage search uses the same administrative-region data as the Region picker,
+    // rather than MapKit place autocomplete. County matches rank first, then city/province.
+    private var homeRegionSearchResults: [RegionOption] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+        return regionOptions.filter { option in
+            option.name.localizedCaseInsensitiveContains(query) ||
+            option.city.localizedCaseInsensitiveContains(query) ||
+            option.province.localizedCaseInsensitiveContains(query)
+        }.sorted { lhs, rhs in
+            let leftRank = lhs.kind == .county ? 0 : (lhs.kind == .city ? 1 : 2)
+            let rightRank = rhs.kind == .county ? 0 : (rhs.kind == .city ? 1 : 2)
+            if leftRank != rightRank { return leftRank < rightRank }
+            return lhs.name.localizedCompare(rhs.name) == .orderedAscending
+        }
     }
 
     private var pickerProvinces: [RegionOption] {

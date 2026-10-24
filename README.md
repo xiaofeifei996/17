@@ -1,12 +1,13 @@
-# GanJi v109 — Vertical Nearby Market List
+# GanJi v110 — Homepage Uses Region Search
 
-Based on v108 unified search + nearby market panel.
+Based on v109 vertical nearby-market list.
 
 Changes:
-- Replaced the collapsed nearby-market horizontal carousel with a vertical scrolling list.
-- Reuses the existing `MarketListRow` component, preserving schedule, distance, selection and favorite UI.
-- Selecting a row in the compact list centers the map on that market.
-- Keeps the expanded vertical list and place search flow intact.
-- Does not introduce iOS 16-only APIs.
+- Homepage search now searches the same administrative-region dataset used by the Region picker.
+- Results include province, city and county/district entries, with county matches ranked first.
+- Selecting a result reuses `chooseRegion(_:)`, then opens the Region/map experience for that area.
+- Homepage search no longer uses MapKit place autocomplete; the map destination search keeps its existing place-search behavior.
+- Preserves existing region loading, region selection, market refresh, routing, favorites and the vertical nearby-market list.
+- Uses APIs compatible with the iOS 15 deployment target.
 
-Validation: ZIP integrity checked. An Xcode/macOS build was not available in this environment.
+Validation: ZIP integrity and source-level checks completed. An Xcode/macOS build and iPhone runtime test were not available in this environment.
