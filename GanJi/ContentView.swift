@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import MapKit
 import CoreLocation
 
@@ -981,6 +982,8 @@ struct ContentView: View {
 
     @MainActor
     private func selectPlace(_ completion: MKLocalSearchCompletion) async {
+        // Dismiss the software keyboard immediately when the user taps a place suggestion.
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         placeSearch.clearResults()
         placeSearchMessage = "正在解析地点并匹配行政区划…"
         do {
