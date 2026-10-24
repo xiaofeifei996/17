@@ -684,14 +684,12 @@ struct ContentView: View {
             // Keep the entire search area opaque even when the field is focused
             // and suggestions have not arrived yet. This prevents the map from
             // showing through around the search capsule while the keyboard is open.
-            .background(
-                Color.white,
-                in: RoundedRectangle(cornerRadius: 22)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 22))
+            // Square outer search panel: only the inner search field keeps its pill shape.
+            .background(Color.white)
+            .clipShape(Rectangle())
             .overlay {
                 if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    RoundedRectangle(cornerRadius: 22).stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1)
+                    Rectangle().stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1)
                 }
             }
             .padding(.horizontal, 16)
