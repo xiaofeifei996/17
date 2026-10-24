@@ -11,6 +11,25 @@ private enum MarketFilter: String, CaseIterable, Identifiable {
     }
 }
 
+private struct TopRoundedShape: Shape {
+    var radius: CGFloat = 25
+
+    func path(in rect: CGRect) -> Path {
+        let r = min(radius, min(rect.width / 2, rect.height / 2))
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
+        path.addQuadCurve(to: CGPoint(x: rect.minX + r, y: rect.minY),
+                          control: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + r),
+                          control: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
 struct ContentView: View {
     @StateObject private var locator = LocationModel()
     @State private var selectedFilter: MarketFilter = .all
@@ -532,7 +551,7 @@ struct ContentView: View {
         }
     }
 
-    // Compact location + search bar. The full-width dock background is opaque so the map never shows at the sides.
+    // Compact location + search bar, styled like a single horizontal navigation control.
     private var mapSearchAndDock: some View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -820,8 +839,19 @@ struct ContentView: View {
             screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.78 : 0.43)),
             screenHeight - (isKeyboardVisible ? 130 : 175)
         ))
-        // Square, opaque sheet: remove the rounded top corners so the map is not exposed at the sides.
-        .background(Color(red: 0.96, green: 0.96, blue: 0.96).ignoresSafeArea(edges: .bottom))
+        // Keep the visible sheet opaque and rounded; extend its solid fill behind the home indicator.
+        .background {
+            TopRoundedShape(radius: 25)
+                .fill(Color(red: 0.96, green: 0.96, blue: 0.96))
+                .ignoresSafeArea(edges: .bottom)
+        }
+        // Only the two upper corners are rounded. Square lower corners let the
+        // opaque sheet join the bottom search/control area without exposing the map.
+        .clipShape(TopRoundedShape(radius: 25))
+        .overlay(alignment: .top) {
+            TopRoundedShape(radius: 25)
+                .stroke(Color.white.opacity(0.7), lineWidth: 1)
+        }
         .shadow(color: .black.opacity(0.12), radius: 18, x: 0, y: -5)
         .gesture(DragGesture(minimumDistance: 12).onEnded { value in
             withAnimation(.spring(response: 0.35, dampingFraction: 0.88)) {
