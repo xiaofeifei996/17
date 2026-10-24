@@ -37,6 +37,10 @@ struct Market: Codable, Identifiable {
     }
 }
 
+private struct MarketFile: Decodable {
+    let markets: [Market]
+}
+
 struct MarketDay: Identifiable {
     let market: Market
     let date: Date
@@ -53,9 +57,11 @@ struct MarketDay: Identifiable {
 }
 
 enum MarketStore {
-    /// No bundled market dataset: markets are loaded from MarketAPI or the per-area cache.
     static func load() -> [Market] {
-        return []
+        guard let url = Bundle.main.url(forResource: "markets", withExtension: "json"),
+              let data = try? Data(contentsOf: url),
+              let file = try? JSONDecoder().decode(MarketFile.self, from: data) else { return [] }
+        return file.markets.filter { $0.status == nil || $0.status == 1 }
     }
 
     private static let phaseTable: [Character: Int] = ["子":0,"卯":0,"午":0,"酉":0,"辰":1,"戌":1,"丑":1,"未":1,"寅":2,"申":2,"巳":2,"亥":2]
