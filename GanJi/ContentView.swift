@@ -531,35 +531,61 @@ struct ContentView: View {
         }
     }
 
-    // Search field and region selector share one unified card above the persistent Dock.
+    // Compact location + search bar, styled like a single horizontal navigation control.
     private var mapSearchAndDock: some View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
                 HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(Color(red: 0.53, green: 0.60, blue: 0.69))
-                    TextField("搜索全国地名，如木格镇", text: $searchText)
-                        .font(.system(size: 16))
-                        .submitLabel(.search)
-                        .onChange(of: searchText) { value in
-                            placeSearch.query(value)
-                            placeSearchMessage = nil
-                            if value.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
-                                Task { await loadNationalRegions() }
-                            }
+                    Button { showRegionPicker = true } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundColor(Color(red: 0.56, green: 0.62, blue: 0.71))
+                            Text(homeRegionDisplayName.split(separator: "·").last.map(String.init)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? homeRegionDisplayName)
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(Color(red: 0.20, green: 0.25, blue: 0.32))
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
+                            Image(systemName: "chevron.down")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(Color(red: 0.56, green: 0.62, blue: 0.71))
                         }
-                    if !searchText.isEmpty {
-                        Button { searchText = "" } label: {
-                            Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
-                        }
-                        .accessibilityLabel("清除搜索")
+                        .padding(.leading, 12)
+                        .frame(height: 44)
+                        .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("切换地区，当前地区：\(homeRegionDisplayName)")
+
+                    HStack(spacing: 11) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 19, weight: .medium))
+                            .foregroundColor(Color(red: 0.56, green: 0.62, blue: 0.71))
+                        TextField("搜索地点", text: $searchText)
+                            .font(.system(size: 16))
+                            .submitLabel(.search)
+                            .onChange(of: searchText) { value in
+                                placeSearch.query(value)
+                                placeSearchMessage = nil
+                                if value.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
+                                    Task { await loadNationalRegions() }
+                                }
+                            }
+                        if !searchText.isEmpty {
+                            Button { searchText = "" } label: {
+                                Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                            }
+                            .accessibilityLabel("清除搜索")
+                        }
+                    }
+                    .padding(.horizontal, 13)
+                    .frame(height: 44)
+                    .background(Color(red: 0.93, green: 0.95, blue: 0.98))
+                    .clipShape(Capsule())
+                    .overlay(Capsule().stroke(Color(red: 0.87, green: 0.89, blue: 0.93), lineWidth: 1))
                 }
-                .padding(.horizontal, 15)
-                .frame(height: 48)
-                .padding(.horizontal, 3)
-                .padding(.top, 3)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
 
                 if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     VStack(spacing: 0) {
@@ -589,6 +615,7 @@ struct ContentView: View {
                             Divider()
                         }
                     }
+                    .padding(.horizontal, 12)
                 }
                 if let message = placeSearchMessage {
                     Text(message)
@@ -598,44 +625,10 @@ struct ContentView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 6)
                 }
-
-                Rectangle()
-                    .fill(Color.black.opacity(0.07))
-                    .frame(height: 1)
-                    .padding(.horizontal, 12)
-
-                Button { showRegionPicker = true } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "mappin.and.ellipse")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(Color.ganjiBlue)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("地区搜索")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(.secondary)
-                            Text(homeRegionDisplayName)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.primary)
-                                .lineLimit(1)
-                        }
-                        Spacer(minLength: 4)
-                        Text("切换地区")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color.ganjiBlue)
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.horizontal, 13)
-                    .frame(height: 48)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("地区搜索，当前地区：\(homeRegionDisplayName)，点击切换地区")
             }
             .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 18))
-            .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 22))
+            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1))
             .padding(.horizontal, 16)
             .padding(.top, 10)
             .padding(.bottom, 5)
