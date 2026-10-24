@@ -140,7 +140,7 @@ struct ContentView: View {
                         // the search lane. The previous fixed 150pt reservation was still
                         // applied after SwiftUI reduced the available height for the keyboard,
                         // leaving a large empty map strip and hiding market rows.
-                        .padding(.bottom, isKeyboardVisible ? 0 : 176)
+                        .padding(.bottom, isKeyboardVisible ? 0 : 150)
                         .zIndex(3)
                 }
                 // Only render the map Dock while the map page is active.
@@ -154,7 +154,7 @@ struct ContentView: View {
                 } else {
                     homePage
                         .padding(.bottom, 58)
-                        .background(Color(red: 0.96, green: 0.96, blue: 0.92).ignoresSafeArea())
+                        .background(Color(red: 0.955, green: 0.949, blue: 0.918).ignoresSafeArea())
                         .zIndex(10)
                 }
                 // One persistent Dock shared by every top-level page. Keeping the
@@ -329,33 +329,36 @@ struct ContentView: View {
     private var homePage: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(homeTab == .region ? "地区搜索" : (homeTab == .favorites ? "我的收藏" : "赶集日记")).font(.system(size: 29, weight: .bold, design: .rounded))
-                    .foregroundColor(Color(red: 0.13, green: 0.20, blue: 0.18))
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    Text(homeTab == .region ? "探索地区" : (homeTab == .favorites ? "收藏清单" : "赶集日历"))
+                        .font(.system(size: 30, weight: .black, design: .rounded))
+                        .tracking(-0.8)
+                        .foregroundColor(Color(red: 0.12, green: 0.20, blue: 0.17))
+                    Text(homeTab == .region ? "EXPLORE" : (homeTab == .favorites ? "SAVED" : "MARKET DAYS"))
+                        .font(.system(size: 9, weight: .heavy, design: .rounded))
+                        .tracking(1.5)
+                        .foregroundColor(Color(red: 0.30, green: 0.48, blue: 0.37))
+                }
                 Spacer()
-                Image(systemName: homeTab == .region ? "map.fill" : (homeTab == .favorites ? "heart.fill" : "sun.max.fill"))
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color.ganjiGreen)
-                    .frame(width: 42, height: 42)
-                    .background(Color.ganjiGreen.opacity(0.12), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
-            .padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 18)
+            .padding(.horizontal, 22).padding(.top, 24).padding(.bottom, 22)
             if homeTab == .home {
                 VStack(spacing: 0) {
                     ScrollView(showsIndicators: false) {
-                        LazyVStack(alignment: .leading, spacing: 16) {
+                        LazyVStack(alignment: .leading, spacing: 24) {
                             ForEach(0..<3, id: \.self) { offset in
                                 let rows = homeMarkets(for: offset)
-                                VStack(alignment: .leading, spacing: 7) {
+                                VStack(alignment: .leading, spacing: 11) {
                                     HStack(spacing: 8) {
-                                        RoundedRectangle(cornerRadius: 2).fill(Color.ganjiBlue).frame(width: 4, height: 19)
-                                        Text(["今日圩日", "明日圩日", "后日圩日"][offset]).font(.system(size: 18, weight: .bold))
-                                        Text("\(rows.count) 个集市").font(.system(size: 12, weight: .medium)).foregroundColor(.secondary)
+                                        Capsule().fill(Color(red: 0.24, green: 0.48, blue: 0.34)).frame(width: 5, height: 23)
+                                        Text(["今天开圩", "明天开圩", "后天开圩"][offset]).font(.system(size: 20, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.12, green: 0.20, blue: 0.17))
+                                        Text(String(format: "%02d 个圩场", rows.count)).font(.system(size: 11, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.36, green: 0.45, blue: 0.38))
                                     }
                                     .padding(.horizontal, 16)
                                     if rows.isEmpty {
                                         Text("这一天暂无开圩集市").font(.system(size: 13)).foregroundColor(.secondary)
                                             .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 14)
-                                            .background(Color(red: 1.00, green: 0.99, blue: 0.96), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                            .background(Color(red: 0.995, green: 0.989, blue: 0.962), in: RoundedRectangle(cornerRadius: 14))
                                             .padding(.horizontal, 16)
                                     } else {
                                         VStack(spacing: 1) {
@@ -366,7 +369,8 @@ struct ContentView: View {
                                                 }
                                             }
                                         }
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                                        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                                        .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Color(red: 0.22, green: 0.34, blue: 0.25).opacity(0.07), lineWidth: 1))
                                         .padding(.horizontal, 16)
                                     }
                                 }
@@ -378,7 +382,7 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 HStack {
-                    Text("收藏圩日").font(.system(size: 21, weight: .bold))
+                    Text("已收藏的圩场").font(.system(size: 20, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.12, green: 0.20, blue: 0.17))
                     Spacer()
                     Text("\(favorites.count) 个").font(.system(size: 13)).foregroundColor(.secondary)
                 }.padding(.horizontal, 22).padding(.bottom, 10)
@@ -417,7 +421,7 @@ struct ContentView: View {
                                     selectedMarketID = market.id
                                 }
                                 .padding(15)
-                                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+                                .background(Color(red: 0.995, green: 0.989, blue: 0.962), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                             }
                         }.padding(.horizontal, 16).padding(.bottom, 16)
                     }
@@ -456,8 +460,8 @@ struct ContentView: View {
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 9)
-                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 15))
-                .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color.black.opacity(0.05), lineWidth: 1))
+                .background(Color(red: 0.88, green: 0.92, blue: 0.84), in: RoundedRectangle(cornerRadius: 19, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 19, style: .continuous).stroke(Color(red: 0.30, green: 0.48, blue: 0.37).opacity(0.16), lineWidth: 1))
                 .contentShape(RoundedRectangle(cornerRadius: 15))
             }
             .buttonStyle(.plain)
@@ -465,7 +469,7 @@ struct ContentView: View {
             .padding(.horizontal, 16)
             .padding(.top, 10)
             .padding(.bottom, 8)
-            .background(Color(uiColor: .systemGroupedBackground))
+            .background(Color(red: 0.955, green: 0.949, blue: 0.918))
 
             if homeRegionExpanded {
                 VStack(spacing: 8) {
@@ -504,7 +508,7 @@ struct ContentView: View {
                     }
                 }
                 .padding(12)
-                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                .background(Color(red: 0.995, green: 0.989, blue: 0.962), in: RoundedRectangle(cornerRadius: 14))
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -528,19 +532,15 @@ struct ContentView: View {
             dockItem("heart.fill", title: "收藏", tab: .favorites)
             dockItem("mappin.and.ellipse", title: "地区", tab: .region)
         }
-        .padding(.top, 12)
+        .padding(.top, 10)
         // Raise the Dock contents so the iPhone home indicator cannot overlap them.
         .padding(.bottom, 28)
         // Keep the bottom navigation readable over the map; only the map canvas
         // itself is transparent to the system, not the Dock surface.
         // Use a stable system surface instead of material that blends map colors into the Dock.
-         .background {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(uiColor: .secondarySystemBackground))
-                .ignoresSafeArea(edges: .bottom)
-        }
+        .background(Color(uiColor: .systemBackground))
         .overlay(alignment: .top) {
-            Capsule().fill(Color(uiColor: .separator).opacity(0.28)).frame(width: 34, height: 3).padding(.top, 5)
+            Rectangle().fill(Color(uiColor: .separator).opacity(0.22)).frame(height: 0.5)
         }
     }
 
@@ -732,13 +732,13 @@ struct ContentView: View {
                         }
                         .foregroundColor(market.id == selectedMarketID ? .white : Color(red: 0.19, green: 0.24, blue: 0.29))
                         .padding(.horizontal, 10).padding(.vertical, 7)
-                        .background(market.id == selectedMarketID ? Color.ganjiGreen : Color.white, in: Capsule())
+                        .background(market.id == selectedMarketID ? Color.ganjiBlue : Color.white, in: Capsule())
                         .overlay(Capsule().stroke(Color.white.opacity(0.9), lineWidth: 1))
                         .shadow(color: .black.opacity(0.13), radius: 6, x: 0, y: 3)
                         Image(systemName: "triangle.fill")
                             .font(.system(size: 7))
                             .rotationEffect(.degrees(180))
-                            .foregroundColor(market.id == selectedMarketID ? Color.ganjiGreen : .white)
+                            .foregroundColor(market.id == selectedMarketID ? Color.ganjiBlue : .white)
                             .offset(y: -4)
                     }
                 }
@@ -831,20 +831,19 @@ struct ContentView: View {
                 .padding(.leading, 8)
             }
         }
-         .padding(.horizontal, 18)
-        .padding(.top, 12)
-        .padding(.bottom, 16)
+        .padding(.horizontal, 18)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
         .background(.regularMaterial)
-        .background(Color(red: 0.91, green: 0.93, blue: 0.86).opacity(0.88))
-        .clipShape(RoundedRectangle(cornerRadius: 0))
+        .background(Color(red: 0.78, green: 0.84, blue: 0.72).opacity(0.48))
     }
 
     private func marketSheet(screenHeight: CGFloat) -> some View {
         VStack(spacing: 0) {
-            Capsule().fill(Color(red: 0.76, green: 0.79, blue: 0.75)).frame(width: 36, height: 4).padding(.top, 10).padding(.bottom, 14)
+            Capsule().fill(Color(red: 0.79, green: 0.82, blue: 0.87)).frame(width: 42, height: 5).padding(.top, 10).padding(.bottom, 12)
             HStack(alignment: .firstTextBaseline) {
                 Text(selectedFilter == .all ? "附近集市" : "\(selectedFilter.rawValue)赶集")
-                     .font(.system(size: 20, weight: .heavy, design: .rounded))
+                    .font(.system(size: 19, weight: .bold))
                     .foregroundColor(Color(red: 0.12, green: 0.17, blue: 0.23))
                 Text(loadingMarkets ? "正在加载…" : (marketLoadError ?? "\(filteredMarkets.count) 个集市"))
                     .font(.system(size: 12, weight: .medium))
@@ -860,8 +859,7 @@ struct ContentView: View {
                         .background(Color.ganjiBlue.opacity(0.08), in: Circle())
                 }
             }
-            .padding(.horizontal, 22)
-            .padding(.bottom, 8)
+            .padding(.horizontal, 20)
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 0) {
                     if filteredMarkets.isEmpty {
@@ -884,7 +882,7 @@ struct ContentView: View {
             .padding(.top, 3)
             // Prevent iOS ScrollView from drawing any default/translucent scroll surface.
             // Omitted scrollContentBackground: deployment target is iOS 15.
-            .background(Color(red: 0.99, green: 0.985, blue: 0.96))
+            .background(Color(uiColor: .systemBackground))
         }
         .frame(maxWidth: .infinity)
         // Keep enough market rows visible while the keyboard is open. SwiftUI may
@@ -893,13 +891,13 @@ struct ContentView: View {
         // Use predictable sheet heights. The expanded panel must stop above the
         // fixed search lane and Dock instead of growing behind them on short screens.
         .frame(height: min(
-            screenHeight * (isKeyboardVisible ? 0.86 : (sheetExpanded ? 0.68 : 0.42)),
-            max(220, screenHeight - (isKeyboardVisible ? 120 : 250))
+            screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.76 : 0.48)),
+            max(220, screenHeight - (isKeyboardVisible ? 100 : 230))
         ))
         // Solid white iOS-style panel: no map texture should bleed through the market rows.
         .background {
             TopRoundedShape(radius: 25)
-                .fill(Color(red: 0.99, green: 0.985, blue: 0.96))
+                .fill(Color(uiColor: .systemBackground))
                 .ignoresSafeArea(edges: .bottom)
         }
         // Only the two upper corners are rounded. Square lower corners let the
@@ -909,7 +907,7 @@ struct ContentView: View {
             TopRoundedShape(radius: 25)
                 .stroke(Color.white.opacity(0.7), lineWidth: 1)
         }
-        .shadow(color: Color(red: 0.15, green: 0.22, blue: 0.16).opacity(0.10), radius: 22, x: 0, y: -6)
+        .shadow(color: Color(red: 0.12, green: 0.20, blue: 0.17).opacity(0.13), radius: 28, x: 0, y: -8)
         .gesture(DragGesture(minimumDistance: 12).onEnded { value in
             withAnimation(.spring(response: 0.35, dampingFraction: 0.88)) {
                 if value.translation.height < -35 { sheetExpanded = true }
@@ -960,7 +958,7 @@ struct ContentView: View {
     @ViewBuilder
     private func pickerColumn(title: String, selection: Binding<Int>, options: [RegionOption]) -> some View {
         VStack(spacing: 0) {
-            Text(title).font(.system(size: 11, weight: .bold, design: .rounded)).foregroundColor(Color.ganjiGreen).padding(.top, 7).padding(.bottom, 3)
+            Text(title).font(.system(size: 12)).foregroundColor(.secondary).padding(.top, 4)
             if options.isEmpty {
                 Text("暂无数据").font(.system(size: 14)).foregroundColor(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -975,9 +973,7 @@ struct ContentView: View {
                 .clipped()
             }
         }
-         .frame(maxWidth: .infinity)
-        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
-        .padding(.horizontal, 3)
+        .frame(maxWidth: .infinity)
     }
 
     private func alignPickerToSelectedRegion() {
@@ -1198,13 +1194,10 @@ private struct MarketListRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
             Button(action: action) {
-                HStack(spacing: 13) {
-                    RoundedRectangle(cornerRadius: 3)
-                        .fill(selected ? Color.ganjiOrange : Color.ganjiGreen.opacity(0.72))
-                        .frame(width: 4, height: 42)
+                HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 7) {
                         HStack(spacing: 7) {
-                            Text(row.market.name).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.23)).lineLimit(1)
+                            Text(row.market.name).font(.system(size: 17, weight: .semibold)).foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.23)).lineLimit(1)
                             Text(row.market.size).font(.system(size: 10, weight: .medium)).foregroundColor(Color.ganjiBlue).padding(.horizontal, 7).padding(.vertical, 4).background(Color.ganjiBlue.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
                             Text(row.dayLabel).font(.system(size: 10, weight: .semibold)).foregroundColor(Color.ganjiGreen).padding(.horizontal, 7).padding(.vertical, 4).background(Color.ganjiGreen.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
                         }
@@ -1216,7 +1209,7 @@ private struct MarketListRow: View {
                         Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(Color(red: 0.62, green: 0.68, blue: 0.75))
                     }
                 }
-                .padding(.leading, 13).padding(.trailing, 8).padding(.vertical, 14)
+                .padding(.leading, 20).padding(.trailing, 8).padding(.vertical, 17)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
@@ -1236,10 +1229,8 @@ private struct MarketListRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         // Each row gets a fully opaque fill as well, including non-selected rows.
-         .background(selected ? Color(red: 0.91, green: 0.95, blue: 0.87) : Color(red: 1.00, green: 0.99, blue: 0.96))
-        .clipShape(RoundedRectangle(cornerRadius: 13))
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
+        .background(selected ? Color(red: 0.95, green: 0.97, blue: 1.0) : Color.white)
+        .clipShape(Rectangle())
     }
 }
 
