@@ -38,3 +38,10 @@ Please run the repository's GitHub Actions workflow and test on device; this pac
 - Rebuilt the persistent bottom Dock as a dark navigation strip with harvest-gold active state.
 - Preserved the existing data models, market schedule calculations, location and search flows, favorites, region picker, MapKit map, and widget source.
 - Source archive edited in this environment; an Xcode build/device validation has not been run.
+
+## v111 — map page redesign, not a reference-screen copy
+- Replaced the map page's warm light sheet with a midnight blue/charcoal surface and mint-green highlights.
+- Changed market rows to dark individual cards, with teal distance labels, amber size tags, and arrow-style affordances.
+- Changed location/search controls to dark floating capsules and updated the bottom Dock to match the new night-map theme.
+- This intentionally departs from the supplied screenshot's ivory sheet, blue-gray distances, bright pink hearts, and white/blue search capsule.
+- Existing functionality is preserved in source; compile and device testing are still required.
