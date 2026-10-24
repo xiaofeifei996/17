@@ -897,13 +897,17 @@ struct ContentView: View {
             // This list must consume only the space left after the fixed search lane.
             // Without a flexible frame, its content can push the search control below
             // the sheet's clipped bottom edge on compact/keyboard-resized layouts.
-            .frame(maxHeight: .infinity)
+            .frame(minHeight: 0, maxHeight: .infinity)
             // Search and market rows share this same sheet and opaque background.
             // A subtle divider creates hierarchy without creating a second floating panel.
             Rectangle()
                 .fill(Color(uiColor: .separator).opacity(0.22))
                 .frame(height: 0.5)
             mapSearchAndDock
+                // Reserve the search/location lane before allocating height to rows.
+                // This prevents the flexible ScrollView from squeezing it out of the sheet.
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(2)
         }
         .frame(maxWidth: .infinity)
         // Keep enough market rows visible while the keyboard is open. SwiftUI may
