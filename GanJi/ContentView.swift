@@ -35,6 +35,8 @@ struct ContentView: View {
     @State private var selectedFilter: MarketFilter = .all
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var searchText = ""
+    @FocusState private var isPlaceSearchFocused: Bool
+    @State private var isMarketSheetVisible = true
     @State private var isKeyboardVisible = false
     @StateObject private var placeSearch = PlaceSearchModel()
     @State private var placeSearchMessage: String?
@@ -138,13 +140,21 @@ struct ContentView: View {
                         .allowsHitTesting(false)
                         .zIndex(2.7)
                 }
-                marketSheet(screenHeight: geo.size.height)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, 58)
-                    .zIndex(3)
-                // The map search/location control is now embedded in the market sheet,
-                // so keyboard show/hide moves the list and search together as one surface.
-                if !showMainPage {
+                if isMarketSheetVisible {
+                    marketSheet(screenHeight: geo.size.height)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, 116)
+                        .zIndex(3)
+                }
+                // Only render the map Dock while the map page is active.
+                // The home/favorites page has its own Dock; rendering both at once
+                // causes overlapping hit targets and a brief visual flash during tab changes.
+                if showMainPage {
+                    mapSearchAndDock
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, 58)
+                        .zIndex(4)
+                } else {
                     homePage
                         .padding(.bottom, 58)
                         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
@@ -592,6 +602,12 @@ struct ContentView: View {
                             .font(.system(size: 19, weight: .medium))
                             .foregroundColor(Color(red: 0.56, green: 0.62, blue: 0.71))
                         TextField("搜索地点", text: $searchText)
+                            .focused($isPlaceSearchFocused)
+                            .onChange(of: isPlaceSearchFocused) { focused in
+                                if focused {
+                                    withAnimation(.easeInOut(duration: 0.2)) { isMarketSheetVisible = false }
+                                }
+                            }
                             .font(.system(size: 16))
                             .submitLabel(.search)
                             .onChange(of: searchText) { value in
@@ -669,6 +685,8 @@ struct ContentView: View {
             .padding(.bottom, 5)
         }
         .background(Color(red: 0.96, green: 0.96, blue: 0.96).ignoresSafeArea(edges: .bottom))
+        // Keep the existing keyboard-aware positioning.
+        .offset(y: isKeyboardVisible ? 44 : 0)
     }
 
     private var mapLayer: some View {
@@ -838,7 +856,6 @@ struct ContentView: View {
             // Prevent iOS ScrollView from drawing any default/translucent scroll surface.
             // Omitted scrollContentBackground: deployment target is iOS 15.
             .background(Color(red: 0.96, green: 0.96, blue: 0.96))
-            mapSearchAndDock
         }
         .frame(maxWidth: .infinity)
         // Keep enough market rows visible while the keyboard is open. SwiftUI may
@@ -1014,7 +1031,9 @@ struct ContentView: View {
 
     @MainActor
     private func selectPlace(_ completion: MKLocalSearchCompletion) async {
-        // Dismiss the software keyboard immediately when the user taps a place suggestion.
+        // Hide the keyboard while resolving the place, then restore the nearby-markets panel.
+        defer { withAnimation(.easeInOut(duration: 0.25)) { isMarketSheetVisible = true } }
+        isPlaceSearchFocused = false
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         placeSearch.clearResults()
         placeSearchMessage = "正在解析地点并匹配行政区划…"
