@@ -1085,6 +1085,12 @@ struct ContentView: View {
         selectedAreaDisplayName = option.name
         selectedMarketID = nil
         showRegionPicker = false
+        // Switching regions should dismiss search/keyboard and restore the nearby-markets panel.
+        isPlaceSearchFocused = false
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        searchText = ""
+        placeSearch.clearResults()
+        withAnimation(.easeInOut(duration: 0.25)) { isMarketSheetVisible = true }
         Task { await refreshMarkets(for: option.code) }
         if let area = MarketStore.availableAreas.first(where: { $0.code == option.code }) {
             region.center = CLLocationCoordinate2D(latitude: area.lat, longitude: area.lon)
