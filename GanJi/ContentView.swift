@@ -641,7 +641,7 @@ struct ContentView: View {
         // When the keyboard appears, move the entire search + region control group
         // down into the unused gap above the keyboard. Keep the normal position
         // unchanged when the keyboard is hidden.
-        .offset(y: isKeyboardVisible ? 64 : 0)
+        .offset(y: isKeyboardVisible ? 44 : 0)
     }
 
     private var mapLayer: some View {
