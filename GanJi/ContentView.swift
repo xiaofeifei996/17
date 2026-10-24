@@ -714,13 +714,19 @@ struct ContentView: View {
             .padding(.top, 10)
             .padding(.bottom, 5)
         }
-        // Keep a fully opaque backing behind the whole search-and-dock region.
-        // Do not switch to Color.clear on focus: SwiftUI's keyboard/focus relayout
-        // can otherwise expose the map around the search capsule.
-        .background(Color.white.ignoresSafeArea(edges: .bottom))
+        // Opaque search lane, not merely an opaque capsule. The previous background
+        // followed the VStack's intrinsic height, leaving map-visible strips above and
+        // below the capsule when SwiftUI resized the view for the keyboard.
+        // Extend a solid system surface upward from the bottom of this control lane.
+        .frame(maxWidth: .infinity)
+        .background(alignment: .bottom) {
+            Color(uiColor: .systemBackground)
+                .frame(maxWidth: .infinity)
+                .frame(height: isKeyboardVisible ? 290 : 205)
+                .ignoresSafeArea(edges: .bottom)
+        }
         // Keep the search control fixed in its own lane above the bottom navigation.
         // Only shift it slightly when the keyboard is shown; never let it overlap list rows.
-        // Keep the existing keyboard-aware positioning.
         .offset(y: isKeyboardVisible ? 44 : 0)
     }
 
