@@ -31,22 +31,10 @@ Please run the repository's GitHub Actions workflow and test on device; this pac
 - Updated schedule test to assert there is no bundled market dataset.
 - Not built with Xcode in this environment; verify API loading and region labels on device.
 
-## UI refresh (v110)
 
-- Reworked the Home screen into a minimalist grayscale market timeline, grouped as today / tomorrow / the day after tomorrow.
-- The timeline reads actual markets returned by the existing `MarketAPI` and cached market records; it does not create sample market data.
-- Keeps `MarketStore.upcoming` as the schedule calculation source and sorts markets by distance within each date group, with stable name ordering as a fallback.
-- Updated shared brand colors and market rows to a black / white / gray visual system while retaining the existing region selection, map, search, lunar calendar, and favorites persistence code paths.
-- Validation performed in this environment: `ScheduleTests.swift` compiled and passed. An iOS app build requires Xcode/iOS SDK and was not run in this environment.
-
-## UI redesign (v111 — editorial grayscale timeline)
-
-- Reworked the home page with a restrained editorial hierarchy, a black typographic hero, fine rules, and spacious white market cards on a soft neutral canvas.
-- Replaced dense stacked rows with a subtle vertical timeline, clearer market names, repeat schedule details, distance labels, and dedicated bookmark actions.
-- Kept the existing API-backed market source, `MarketStore.upcoming` schedule calculations, date-group ordering, distance-first sorting within each day, region selection, MapKit search, lunar calendar, and favorites persistence.
-- No mock market records were introduced. Schedule tests were recompiled and passed in this environment; a full iOS build still requires Xcode/iOS SDK and device verification.
-
-## v112 — fix Swift string literal build error
-- Fixed the multiline hero title in `GanJi/ContentView.swift` to use an escaped newline (`\n`) inside a valid Swift string literal.
-- This directly addresses the Xcode error `unterminated string literal` at the home hero title.
-- The project should be rebuilt with the existing GitHub Actions workflow to verify the full iOS build.
+## v110 — distinctive visual redesign
+- Reworked the home page into an editorial market-calendar layout with a dark olive / harvest-gold palette, numbered day sections, and a date-led hero.
+- Rebranded map discovery as “圩场探索” and refined the market sheet and market rows into rounded, warm-paper cards.
+- Rebuilt the persistent bottom Dock as a dark navigation strip with harvest-gold active state.
+- Preserved the existing data models, market schedule calculations, location and search flows, favorites, region picker, MapKit map, and widget source.
+- Source archive edited in this environment; an Xcode build/device validation has not been run.
