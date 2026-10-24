@@ -11,11 +11,32 @@ private enum MarketFilter: String, CaseIterable, Identifiable {
     }
 }
 
+private struct TopRoundedShape: Shape {
+    var radius: CGFloat = 25
+
+    func path(in rect: CGRect) -> Path {
+        let r = min(radius, min(rect.width / 2, rect.height / 2))
+        var path = Path()
+        path.move(to: CGPoint(x: rect.minX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + r))
+        path.addQuadCurve(to: CGPoint(x: rect.minX + r, y: rect.minY),
+                          control: CGPoint(x: rect.minX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - r, y: rect.minY))
+        path.addQuadCurve(to: CGPoint(x: rect.maxX, y: rect.minY + r),
+                          control: CGPoint(x: rect.maxX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.closeSubpath()
+        return path
+    }
+}
+
 struct ContentView: View {
     @StateObject private var locator = LocationModel()
     @State private var selectedFilter: MarketFilter = .all
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var searchText = ""
+    @FocusState private var isPlaceSearchFocused: Bool
+    @State private var isMarketSheetVisible = true
     @State private var isKeyboardVisible = false
     @StateObject private var placeSearch = PlaceSearchModel()
     @State private var placeSearchMessage: String?
@@ -62,7 +83,17 @@ struct ContentView: View {
             return a.daysAhead < b.daysAhead
         }
     }
-    private var mapMarkets: [Market] { filteredMarkets.map { $0.market } }
+    private var mapMarkets: [Market] {
+        var markets = filteredMarkets.map { $0.market }
+        // A saved favorite may not be present in the currently loaded/filtered API list.
+        // Keep the selected saved market on the map so tapping a favorite can move to it.
+        if let selectedID = selectedMarketID,
+           !markets.contains(where: { $0.id == selectedID }),
+           let saved = favoriteMarkets.first(where: { $0.id == selectedID }) {
+            markets.append(saved)
+        }
+        return markets
+    }
 
     /// Home groups only the markets opening today, tomorrow, and the day after tomorrow.
     /// Sorting is performed inside each date group, so a closer market never jumps ahead of today's group.
@@ -91,28 +122,27 @@ struct ContentView: View {
                 // Draw the map behind both the top status-bar safe area and the bottom edge.
                 mapLayer
                     .ignoresSafeArea()
-                // Hard cover for the bottom safe-area gap: keep the map from showing
-                // beneath the rounded market sheet on devices with a home indicator.
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    Color(red: 0.96, green: 0.96, blue: 0.96)
-                        .frame(height: 130)
+                // Keep the map visible when searching. Do not place a tall white
+                // background behind the whole bottom lane: when SwiftUI resizes for
+                // the keyboard, that layer expands upward and creates the huge blank
+                // white area seen in v97. The search capsule and suggestions each have
+                // their own opaque backgrounds below.
+                // While the place-search field is active, hide the market list visually
+                // so no market rows appear in the narrow strip above the keyboard.
+                // Keep isMarketSheetVisible unchanged: when search focus ends, the panel
+                // returns to its previous expanded/collapsed state automatically.
+                if isMarketSheetVisible && !isPlaceSearchFocused {
+                    marketSheet(screenHeight: geo.size.height)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        // Reserve a dedicated lane for the fixed search control above the Dock.
+                        // The sheet must end before that lane so its last row is never obscured.
+                        // With the keyboard open, let the panel use the area down to
+                        // the search lane. The previous fixed 150pt reservation was still
+                        // applied after SwiftUI reduced the available height for the keyboard,
+                        // leaving a large empty map strip and hiding market rows.
+                        .padding(.bottom, isKeyboardVisible ? 0 : 150)
+                        .zIndex(3)
                 }
-                .ignoresSafeArea(edges: .bottom)
-                .allowsHitTesting(false)
-                .zIndex(2.5)
-                // When the software keyboard is open, cover the exposed map gap
-                // with the same solid surface used by the search controls.
-                if isKeyboardVisible {
-                    Color(red: 0.96, green: 0.96, blue: 0.96)
-                        .ignoresSafeArea()
-                        .allowsHitTesting(false)
-                        .zIndex(2.7)
-                }
-                marketSheet(screenHeight: geo.size.height)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, 116)
-                    .zIndex(3)
                 // Only render the map Dock while the map page is active.
                 // The home/favorites page has its own Dock; rendering both at once
                 // causes overlapping hit targets and a brief visual flash during tab changes.
@@ -151,7 +181,9 @@ struct ContentView: View {
                 }
             }
             .onChange(of: selectedMarketID) { newValue in
-                guard let id = newValue, let market = allMarkets.first(where: { $0.id == id }) else { return }
+                guard let id = newValue,
+                      let market = allMarkets.first(where: { $0.id == id })
+                        ?? favoriteMarkets.first(where: { $0.id == id }) else { return }
                 // Selecting a row should expose the map area above the bottom sheet.
                 // Collapse the sheet and place the selected annotation in the visible
                 // map area's center rather than the physical screen's center.
@@ -297,10 +329,16 @@ struct ContentView: View {
     private var homePage: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(homeTab == .region ? "地区搜索" : (homeTab == .favorites ? "我的收藏" : "赶集日记")).font(.system(size: 25, weight: .bold))
+                Text(homeTab == .region ? "地区搜索" : (homeTab == .favorites ? "我的收藏" : "赶集日记")).font(.system(size: 27, weight: .heavy, design: .rounded))
+                    .foregroundColor(Color(red: 0.13, green: 0.20, blue: 0.18))
                 Spacer()
+                Image(systemName: homeTab == .region ? "map.fill" : (homeTab == .favorites ? "heart.fill" : "sun.max.fill"))
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(Color.ganjiGreen)
+                    .frame(width: 40, height: 40)
+                    .background(Color.ganjiGreen.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
             }
-            .padding(.horizontal, 22).padding(.top, 18).padding(.bottom, 16)
+            .padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 18)
             if homeTab == .home {
                 VStack(spacing: 0) {
                     ScrollView(showsIndicators: false) {
@@ -317,7 +355,7 @@ struct ContentView: View {
                                     if rows.isEmpty {
                                         Text("这一天暂无开圩集市").font(.system(size: 13)).foregroundColor(.secondary)
                                             .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 14)
-                                            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                                            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
                                             .padding(.horizontal, 16)
                                     } else {
                                         VStack(spacing: 1) {
@@ -372,10 +410,14 @@ struct ContentView: View {
                                     Button { toggleFavorite(market.id) } label: {
                                         Image(systemName: "heart.fill").font(.system(size: 20)).foregroundColor(.pink).frame(width: 42, height: 44)
                                     }.accessibilityLabel("取消收藏\(market.name)")
-                                    Button { withAnimation { showMainPage = true; homeTab = .region }; selectedMarketID = market.id } label: {
-                                        Image(systemName: "arrow.up.right").foregroundColor(Color.ganjiBlue).frame(width: 32, height: 40)
-                                    }.accessibilityLabel("在地图查看\(market.name)")
-                                }.padding(15).background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    withAnimation { showMainPage = true; homeTab = .region }
+                                    selectedMarketID = market.id
+                                }
+                                .padding(15)
+                                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
                             }
                         }.padding(.horizontal, 16).padding(.bottom, 16)
                     }
@@ -486,10 +528,20 @@ struct ContentView: View {
             dockItem("heart.fill", title: "收藏", tab: .favorites)
             dockItem("mappin.and.ellipse", title: "地区", tab: .region)
         }
-        .padding(.top, 10)
+        .padding(.top, 12)
         // Raise the Dock contents so the iPhone home indicator cannot overlap them.
         .padding(.bottom, 28)
-        .background(Color(uiColor: .systemGroupedBackground))
+        // Keep the bottom navigation readable over the map; only the map canvas
+        // itself is transparent to the system, not the Dock surface.
+        // Use a stable system surface instead of material that blends map colors into the Dock.
+         .background {
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(Color(uiColor: .systemBackground))
+                .ignoresSafeArea(edges: .bottom)
+        }
+        .overlay(alignment: .top) {
+            Capsule().fill(Color(uiColor: .separator).opacity(0.28)).frame(width: 34, height: 3).padding(.top, 5)
+        }
     }
 
     private func dockItem(_ symbol: String, title: String, tab: HomeTab) -> some View {
@@ -532,7 +584,7 @@ struct ContentView: View {
         }
     }
 
-    // Compact location + search bar. The full-width dock background is opaque so the map never shows at the sides.
+    // Compact location + search bar, styled like a single horizontal navigation control.
     private var mapSearchAndDock: some View {
         VStack(spacing: 0) {
             VStack(spacing: 0) {
@@ -563,6 +615,8 @@ struct ContentView: View {
                             .font(.system(size: 19, weight: .medium))
                             .foregroundColor(Color(red: 0.56, green: 0.62, blue: 0.71))
                         TextField("搜索地点", text: $searchText)
+                            .focused($isPlaceSearchFocused)
+                            // Search focus hides the market sheet; its expansion state is preserved.
                             .font(.system(size: 16))
                             .submitLabel(.search)
                             .onChange(of: searchText) { value in
@@ -581,12 +635,16 @@ struct ContentView: View {
                     }
                     .padding(.horizontal, 13)
                     .frame(height: 44)
-                    .background(Color(red: 0.93, green: 0.95, blue: 0.98))
+                    .background(Color(red: 0.93, green: 0.95, blue: 0.98).opacity(1.0))
                     .clipShape(Capsule())
                     .overlay(Capsule().stroke(Color(red: 0.87, green: 0.89, blue: 0.93), lineWidth: 1))
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
+                // Fully opaque capsule: map pixels must never show through the
+                // location/search control while the keyboard animates.
+                .background(Color.white, in: Capsule())
+                .overlay(Capsule().stroke(Color(red: 0.82, green: 0.86, blue: 0.91), lineWidth: 1))
 
                 if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     // Keep suggestions scrollable when the iOS keyboard covers the lower part
@@ -622,6 +680,7 @@ struct ContentView: View {
                     }
                     .frame(maxHeight: isKeyboardVisible ? 300 : 420)
                     .padding(.horizontal, 12)
+                    .background(Color.white)
                 }
                 if let message = placeSearchMessage {
                     Text(message)
@@ -632,16 +691,29 @@ struct ContentView: View {
                         .padding(.vertical, 6)
                 }
             }
-            .background(Color.white)
+            // Keep the entire search area opaque even when the field is focused
+            // and suggestions have not arrived yet. This prevents the map from
+            // showing through around the search capsule while the keyboard is open.
+            .background(
+                Color.white,
+                in: RoundedRectangle(cornerRadius: 22)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 22))
-            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1))
+            .overlay {
+                if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    RoundedRectangle(cornerRadius: 22).stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1)
+                }
+            }
             .padding(.horizontal, 16)
             .padding(.top, 10)
             .padding(.bottom, 5)
         }
-        .background(Color(red: 0.96, green: 0.96, blue: 0.96).ignoresSafeArea(edges: .bottom))
-        // Keep the existing keyboard-aware positioning.
-        .offset(y: isKeyboardVisible ? 44 : 0)
+        // Keep this view at its intrinsic content height. The opaque white capsule
+        // above protects the search control; the suggestions list has its own white
+        // surface. Avoid a tall bottom background here because keyboard resizing can
+        // stretch it over the map and produce a large blank white block.
+        .fixedSize(horizontal: false, vertical: true)
+
     }
 
     private var mapLayer: some View {
@@ -660,13 +732,13 @@ struct ContentView: View {
                         }
                         .foregroundColor(market.id == selectedMarketID ? .white : Color(red: 0.19, green: 0.24, blue: 0.29))
                         .padding(.horizontal, 10).padding(.vertical, 7)
-                        .background(market.id == selectedMarketID ? Color.ganjiBlue : Color.white, in: Capsule())
+                        .background(market.id == selectedMarketID ? Color.ganjiGreen : Color.white, in: Capsule())
                         .overlay(Capsule().stroke(Color.white.opacity(0.9), lineWidth: 1))
                         .shadow(color: .black.opacity(0.13), radius: 6, x: 0, y: 3)
                         Image(systemName: "triangle.fill")
                             .font(.system(size: 7))
                             .rotationEffect(.degrees(180))
-                            .foregroundColor(market.id == selectedMarketID ? Color.ganjiBlue : .white)
+                            .foregroundColor(market.id == selectedMarketID ? Color.ganjiGreen : .white)
                             .offset(y: -4)
                     }
                 }
@@ -759,19 +831,20 @@ struct ContentView: View {
                 .padding(.leading, 8)
             }
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 8)
-        .padding(.bottom, 12)
+         .padding(.horizontal, 18)
+        .padding(.top, 12)
+        .padding(.bottom, 16)
         .background(.regularMaterial)
-        .background(Color(red: 0.78, green: 0.84, blue: 0.72).opacity(0.48))
+        .background(Color(red: 0.91, green: 0.93, blue: 0.86).opacity(0.88))
+        .clipShape(RoundedRectangle(cornerRadius: 0))
     }
 
     private func marketSheet(screenHeight: CGFloat) -> some View {
         VStack(spacing: 0) {
-            Capsule().fill(Color(red: 0.79, green: 0.82, blue: 0.87)).frame(width: 42, height: 5).padding(.top, 10).padding(.bottom, 12)
+            Capsule().fill(Color(red: 0.76, green: 0.79, blue: 0.75)).frame(width: 36, height: 4).padding(.top, 10).padding(.bottom, 14)
             HStack(alignment: .firstTextBaseline) {
                 Text(selectedFilter == .all ? "附近集市" : "\(selectedFilter.rawValue)赶集")
-                    .font(.system(size: 19, weight: .bold))
+                     .font(.system(size: 20, weight: .heavy, design: .rounded))
                     .foregroundColor(Color(red: 0.12, green: 0.17, blue: 0.23))
                 Text(loadingMarkets ? "正在加载…" : (marketLoadError ?? "\(filteredMarkets.count) 个集市"))
                     .font(.system(size: 12, weight: .medium))
@@ -810,18 +883,31 @@ struct ContentView: View {
             .padding(.top, 3)
             // Prevent iOS ScrollView from drawing any default/translucent scroll surface.
             // Omitted scrollContentBackground: deployment target is iOS 15.
-            .background(Color(red: 0.96, green: 0.96, blue: 0.96))
+            .background(Color(uiColor: .systemBackground))
         }
         .frame(maxWidth: .infinity)
         // Keep enough market rows visible while the keyboard is open. SwiftUI may
         // report a keyboard-reduced GeometryReader height, so use a taller share
         // of the available area and avoid the normal collapsed-sheet height.
+        // Use predictable sheet heights. The expanded panel must stop above the
+        // fixed search lane and Dock instead of growing behind them on short screens.
         .frame(height: min(
-            screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.78 : 0.43)),
-            screenHeight - (isKeyboardVisible ? 130 : 175)
+            screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.76 : 0.48)),
+            max(220, screenHeight - (isKeyboardVisible ? 100 : 230))
         ))
-        // Square, opaque sheet: remove the rounded top corners so the map is not exposed at the sides.
-        .background(Color(red: 0.96, green: 0.96, blue: 0.96).ignoresSafeArea(edges: .bottom))
+        // Solid white iOS-style panel: no map texture should bleed through the market rows.
+        .background {
+            TopRoundedShape(radius: 25)
+                .fill(Color(uiColor: .systemBackground))
+                .ignoresSafeArea(edges: .bottom)
+        }
+        // Only the two upper corners are rounded. Square lower corners let the
+        // opaque sheet join the bottom search/control area without exposing the map.
+        .clipShape(TopRoundedShape(radius: 25))
+        .overlay(alignment: .top) {
+            TopRoundedShape(radius: 25)
+                .stroke(Color.white.opacity(0.7), lineWidth: 1)
+        }
         .shadow(color: .black.opacity(0.12), radius: 18, x: 0, y: -5)
         .gesture(DragGesture(minimumDistance: 12).onEnded { value in
             withAnimation(.spring(response: 0.35, dampingFraction: 0.88)) {
@@ -873,7 +959,7 @@ struct ContentView: View {
     @ViewBuilder
     private func pickerColumn(title: String, selection: Binding<Int>, options: [RegionOption]) -> some View {
         VStack(spacing: 0) {
-            Text(title).font(.system(size: 12)).foregroundColor(.secondary).padding(.top, 4)
+            Text(title).font(.system(size: 11, weight: .bold, design: .rounded)).foregroundColor(Color.ganjiGreen).padding(.top, 7).padding(.bottom, 3)
             if options.isEmpty {
                 Text("暂无数据").font(.system(size: 14)).foregroundColor(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -888,7 +974,9 @@ struct ContentView: View {
                 .clipped()
             }
         }
-        .frame(maxWidth: .infinity)
+         .frame(maxWidth: .infinity)
+        .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 3)
     }
 
     private func alignPickerToSelectedRegion() {
@@ -975,7 +1063,9 @@ struct ContentView: View {
 
     @MainActor
     private func selectPlace(_ completion: MKLocalSearchCompletion) async {
-        // Dismiss the software keyboard immediately when the user taps a place suggestion.
+        // Hide the keyboard while resolving the place, then restore the nearby-markets panel.
+        defer { withAnimation(.easeInOut(duration: 0.25)) { isMarketSheetVisible = true } }
+        isPlaceSearchFocused = false
         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         placeSearch.clearResults()
         placeSearchMessage = "正在解析地点并匹配行政区划…"
@@ -1027,6 +1117,12 @@ struct ContentView: View {
         selectedAreaDisplayName = option.name
         selectedMarketID = nil
         showRegionPicker = false
+        // Switching regions should dismiss search/keyboard and restore the nearby-markets panel.
+        isPlaceSearchFocused = false
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        searchText = ""
+        placeSearch.clearResults()
+        withAnimation(.easeInOut(duration: 0.25)) { isMarketSheetVisible = true }
         Task { await refreshMarkets(for: option.code) }
         if let area = MarketStore.availableAreas.first(where: { $0.code == option.code }) {
             region.center = CLLocationCoordinate2D(latitude: area.lat, longitude: area.lon)
@@ -1101,10 +1197,13 @@ private struct MarketListRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 0) {
             Button(action: action) {
-                HStack(spacing: 12) {
+                HStack(spacing: 13) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(selected ? Color.ganjiOrange : Color.ganjiGreen.opacity(0.72))
+                        .frame(width: 4, height: 42)
                     VStack(alignment: .leading, spacing: 7) {
                         HStack(spacing: 7) {
-                            Text(row.market.name).font(.system(size: 17, weight: .semibold)).foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.23)).lineLimit(1)
+                            Text(row.market.name).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.23)).lineLimit(1)
                             Text(row.market.size).font(.system(size: 10, weight: .medium)).foregroundColor(Color.ganjiBlue).padding(.horizontal, 7).padding(.vertical, 4).background(Color.ganjiBlue.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
                             Text(row.dayLabel).font(.system(size: 10, weight: .semibold)).foregroundColor(Color.ganjiGreen).padding(.horizontal, 7).padding(.vertical, 4).background(Color.ganjiGreen.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
                         }
@@ -1116,7 +1215,7 @@ private struct MarketListRow: View {
                         Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(Color(red: 0.62, green: 0.68, blue: 0.75))
                     }
                 }
-                .padding(.leading, 20).padding(.trailing, 8).padding(.vertical, 17)
+                .padding(.leading, 13).padding(.trailing, 8).padding(.vertical, 14)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
@@ -1136,8 +1235,10 @@ private struct MarketListRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         // Each row gets a fully opaque fill as well, including non-selected rows.
-        .background(selected ? Color(red: 0.95, green: 0.97, blue: 1.0) : Color.white)
-        .clipShape(Rectangle())
+         .background(selected ? Color(red: 0.97, green: 0.97, blue: 0.91) : Color(uiColor: .secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 13))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
     }
 }
 
