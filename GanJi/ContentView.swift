@@ -539,9 +539,9 @@ struct ContentView: View {
                 HStack(spacing: 10) {
                     Button { showRegionPicker = true } label: {
                         HStack(spacing: 7) {
-                            Image(systemName: "mappin.circle.fill")
-                                .font(.system(size: 20, weight: .medium))
-                                .foregroundColor(Color(red: 0.56, green: 0.62, blue: 0.71))
+                            Image(systemName: "location.fill")
+                                .font(.system(size: 21, weight: .semibold))
+                                .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
                             Text(homeRegionDisplayName.split(separator: "·").last.map(String.init)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? homeRegionDisplayName)
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundColor(Color(red: 0.20, green: 0.25, blue: 0.32))
