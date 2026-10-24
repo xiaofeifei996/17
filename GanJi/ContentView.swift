@@ -152,12 +152,21 @@ struct ContentView: View {
             // This root container ignores keyboard safe-area changes so its bottom edge
             // remains the physical screen bottom while the search field can still focus.
             .overlay(alignment: .bottom) {
-                // Keep the Dock attached to the physical bottom edge without
-                // disabling keyboard avoidance for the search sheet itself.
+                // Dock is a separate bottom overlay and ignores keyboard avoidance.
                 sharedDock
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                    .frame(maxWidth: .infinity, alignment: .bottom)
                     .ignoresSafeArea(.keyboard, edges: .bottom)
                     .zIndex(11)
+            }
+            .overlay(alignment: .bottom) {
+                // Keep the location/search lane OUTSIDE the market sheet's VStack.
+                // The list can now scroll independently and can never push this
+                // control off-screen. Place it directly above the fixed Dock.
+                if showMainPage && isMarketSheetVisible {
+                    mapSearchAndDock
+                        .padding(.bottom, 78)
+                        .zIndex(12)
+                }
             }
             .background(Color.clear)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
@@ -898,16 +907,8 @@ struct ContentView: View {
             // Without a flexible frame, its content can push the search control below
             // the sheet's clipped bottom edge on compact/keyboard-resized layouts.
             .frame(minHeight: 0, maxHeight: .infinity)
-            // Search and market rows share this same sheet and opaque background.
-            // A subtle divider creates hierarchy without creating a second floating panel.
-            Rectangle()
-                .fill(Color(uiColor: .separator).opacity(0.22))
-                .frame(height: 0.5)
-            mapSearchAndDock
-                // Reserve the search/location lane before allocating height to rows.
-                // This prevents the flexible ScrollView from squeezing it out of the sheet.
-                .fixedSize(horizontal: false, vertical: true)
-                .layoutPriority(2)
+            // Search/location control is a separate root overlay above the Dock,
+            // not a child of this list VStack, so list sizing cannot hide it.
         }
         .frame(maxWidth: .infinity)
         // Keep enough market rows visible while the keyboard is open. SwiftUI may
