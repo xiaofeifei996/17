@@ -127,31 +127,17 @@ struct ContentView: View {
                 // the keyboard, that layer expands upward and creates the huge blank
                 // white area seen in v97. The search capsule and suggestions each have
                 // their own opaque backgrounds below.
-                // While the place-search field is active, hide the market list visually
-                // so no market rows appear in the narrow strip above the keyboard.
-                // Keep isMarketSheetVisible unchanged: when search focus ends, the panel
-                // returns to its previous expanded/collapsed state automatically.
-                if isMarketSheetVisible && !isPlaceSearchFocused {
+                // The market list and location/search control are one unified bottom sheet.
+                // Keep the search field inside the same opaque surface so keyboard focus
+                // cannot expose the map between two independently positioned panels.
+                if showMainPage && isMarketSheetVisible {
                     marketSheet(screenHeight: geo.size.height)
                         .frame(maxHeight: .infinity, alignment: .bottom)
-                        // Reserve a dedicated lane for the fixed search control above the Dock.
-                        // The sheet must end before that lane so its last row is never obscured.
-                        // With the keyboard open, let the panel use the area down to
-                        // the search lane. The previous fixed 150pt reservation was still
-                        // applied after SwiftUI reduced the available height for the keyboard,
-                        // leaving a large empty map strip and hiding market rows.
-                        .padding(.bottom, isKeyboardVisible ? 0 : 150)
-                        .zIndex(3)
-                }
-                // Only render the map Dock while the map page is active.
-                // The home/favorites page has its own Dock; rendering both at once
-                // causes overlapping hit targets and a brief visual flash during tab changes.
-                if showMainPage {
-                    mapSearchAndDock
-                        .frame(maxHeight: .infinity, alignment: .bottom)
-                        .padding(.bottom, 58)
                         .zIndex(4)
-                } else {
+                }
+                // Only render the home/favorites content outside the map page. The map
+                // search control now lives inside marketSheet, not in a second overlay.
+                if !showMainPage {
                     homePage
                         .padding(.bottom, 58)
                         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
@@ -606,7 +592,7 @@ struct ContentView: View {
                             .foregroundColor(Color(red: 0.56, green: 0.62, blue: 0.71))
                         TextField("搜索地点", text: $searchText)
                             .focused($isPlaceSearchFocused)
-                            // Search focus hides the market sheet; its expansion state is preserved.
+                            // Search focus keeps this unified sheet visible while the keyboard opens.
                             .font(.system(size: 16))
                             .submitLabel(.search)
                             .onChange(of: searchText) { value in
@@ -685,16 +671,9 @@ struct ContentView: View {
             // and suggestions have not arrived yet. This prevents the map from
             // showing through around the search capsule while the keyboard is open.
             // Square outer search panel: only the inner search field keeps its pill shape.
-            .background(Color.white)
-            .clipShape(Rectangle())
-            .overlay {
-                if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Rectangle().stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1)
-                }
-            }
             .padding(.horizontal, 16)
-            .padding(.top, 10)
-            .padding(.bottom, 5)
+            .padding(.top, 8)
+            .padding(.bottom, 10)
         }
         // Keep this view at its intrinsic content height. The opaque white capsule
         // above protects the search control; the suggestions list has its own white
@@ -871,6 +850,12 @@ struct ContentView: View {
             // Prevent iOS ScrollView from drawing any default/translucent scroll surface.
             // Omitted scrollContentBackground: deployment target is iOS 15.
             .background(Color(uiColor: .systemBackground))
+            // Search and market rows share this same sheet and opaque background.
+            // A subtle divider creates hierarchy without creating a second floating panel.
+            Rectangle()
+                .fill(Color(uiColor: .separator).opacity(0.22))
+                .frame(height: 0.5)
+            mapSearchAndDock
         }
         .frame(maxWidth: .infinity)
         // Keep enough market rows visible while the keyboard is open. SwiftUI may
@@ -879,8 +864,8 @@ struct ContentView: View {
         // Use predictable sheet heights. The expanded panel must stop above the
         // fixed search lane and Dock instead of growing behind them on short screens.
         .frame(height: min(
-            screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.76 : 0.48)),
-            max(220, screenHeight - (isKeyboardVisible ? 100 : 230))
+            screenHeight * (isKeyboardVisible ? 0.94 : (sheetExpanded ? 0.88 : 0.56)),
+            max(300, screenHeight - (isKeyboardVisible ? 8 : 150))
         ))
         // Solid white iOS-style panel: no map texture should bleed through the market rows.
         .background {
