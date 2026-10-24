@@ -30,3 +30,11 @@ Please run the repository's GitHub Actions workflow and test on device; this pac
 - The API used bundled records only as optional region-name metadata; without the dataset, that metadata falls back to empty strings.
 - Updated schedule test to assert there is no bundled market dataset.
 - Not built with Xcode in this environment; verify API loading and region labels on device.
+
+## UI refresh (v110)
+
+- Reworked the Home screen into a minimalist grayscale market timeline, grouped as today / tomorrow / the day after tomorrow.
+- The timeline reads actual markets returned by the existing `MarketAPI` and cached market records; it does not create sample market data.
+- Keeps `MarketStore.upcoming` as the schedule calculation source and sorts markets by distance within each date group, with stable name ordering as a fallback.
+- Updated shared brand colors and market rows to a black / white / gray visual system while retaining the existing region selection, map, search, lunar calendar, and favorites persistence code paths.
+- Validation performed in this environment: `ScheduleTests.swift` compiled and passed. An iOS app build requires Xcode/iOS SDK and was not run in this environment.
