@@ -147,12 +147,7 @@ struct ContentView: View {
                         .zIndex(10)
                 }
             }
-            // Ignore keyboard-driven safe-area changes at the ROOT content container.
-            // Applying this only to the Dock overlay is too late: GeometryReader itself
-            // is already shortened when the keyboard appears, so its bottom-aligned
-            // overlays still get laid out above the keyboard. The keyboard should cover
-            // the bottom-anchored Dock rather than push the Dock upward.
-            .ignoresSafeArea(.keyboard, edges: .bottom)
+            // The GeometryReader's parent safe area is handled outside this ZStack.
             // Overlay the Dock instead of using safeAreaInset: safeAreaInset participates
             // in keyboard avoidance and can move the Dock above the software keyboard.
             // This root container ignores keyboard safe-area changes so its bottom edge
@@ -329,6 +324,10 @@ struct ContentView: View {
                 }
             }
         }
+        // Apply keyboard safe-area ignoring OUTSIDE GeometryReader. Applying it only
+        // to GeometryReader's content is too late: GeometryReader has already received
+        // the keyboard-reduced height, so the bottom overlay still follows the keyboard.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .preferredColorScheme(.light)
     }
 
