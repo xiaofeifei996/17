@@ -639,7 +639,7 @@ struct ContentView: View {
             .padding(.top, 10)
             .padding(.bottom, 5)
         }
-        .background(Color(red: 0.96, green: 0.96, blue: 0.96).ignoresSafeArea(edges: .bottom))
+        .background(Color.clear.ignoresSafeArea(edges: .bottom))
         // Keep the existing keyboard-aware positioning.
         .offset(y: isKeyboardVisible ? 44 : 0)
     }
@@ -820,14 +820,8 @@ struct ContentView: View {
             screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.78 : 0.43)),
             screenHeight - (isKeyboardVisible ? 130 : 175)
         ))
-        // Keep the visible sheet opaque and rounded; extend its solid fill behind the home indicator.
-        .background {
-            RoundedRectangle(cornerRadius: 25, style: .continuous)
-                .fill(Color(red: 0.96, green: 0.96, blue: 0.96))
-                .ignoresSafeArea(edges: .bottom)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 25, style: .continuous))
-        .overlay(alignment: .top) { RoundedRectangle(cornerRadius: 25, style: .continuous).stroke(Color.white.opacity(0.7), lineWidth: 1) }
+        // Square, opaque sheet: remove the rounded top corners so the map is not exposed at the sides.
+        .background(Color(red: 0.96, green: 0.96, blue: 0.96).ignoresSafeArea(edges: .bottom))
         .shadow(color: .black.opacity(0.12), radius: 18, x: 0, y: -5)
         .gesture(DragGesture(minimumDistance: 12).onEnded { value in
             withAnimation(.spring(response: 0.35, dampingFraction: 0.88)) {
