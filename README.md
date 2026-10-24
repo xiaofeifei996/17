@@ -9,3 +9,8 @@ Changes:
 - Extended the opaque search-lane background while the keyboard is visible to cover the map strip below the search control.
 
 Please run the repository's GitHub Actions workflow and test on device; this package has not been built with Xcode in this environment.
+
+
+## v102 layout fix
+- Reserved a 96pt bottom lane for the persistent Dock when the keyboard is closed, so the unified market/search sheet no longer places its search control behind the Dock.
+- Keyboard-visible layout does not receive this additional fixed offset.

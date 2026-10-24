@@ -133,6 +133,12 @@ struct ContentView: View {
                 if showMainPage && isMarketSheetVisible {
                     marketSheet(screenHeight: geo.size.height)
                         .frame(maxHeight: .infinity, alignment: .bottom)
+                        // The shared Dock is a separate, opaque overlay at zIndex 11.
+                        // Reserve its actual vertical lane here so the unified sheet's
+                        // bottom search control never sits underneath the Dock. While the
+                        // keyboard is visible, let the keyboard's resized layout determine
+                        // the available space instead of adding a second fixed offset.
+                        .padding(.bottom, isKeyboardVisible ? 0 : 96)
                         .zIndex(4)
                 }
                 // Only render the home/favorites content outside the map page. The map
