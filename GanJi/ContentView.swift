@@ -140,17 +140,11 @@ struct ContentView: View {
                 }
                 marketSheet(screenHeight: geo.size.height)
                     .frame(maxHeight: .infinity, alignment: .bottom)
-                    .padding(.bottom, 116)
+                    .padding(.bottom, 58)
                     .zIndex(3)
-                // Only render the map Dock while the map page is active.
-                // The home/favorites page has its own Dock; rendering both at once
-                // causes overlapping hit targets and a brief visual flash during tab changes.
-                if showMainPage {
-                    mapSearchAndDock
-                        .frame(maxHeight: .infinity, alignment: .bottom)
-                        .padding(.bottom, 58)
-                        .zIndex(4)
-                } else {
+                // The map search/location control is now embedded in the market sheet,
+                // so keyboard show/hide moves the list and search together as one surface.
+                if !showMainPage {
                     homePage
                         .padding(.bottom, 58)
                         .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
@@ -675,8 +669,6 @@ struct ContentView: View {
             .padding(.bottom, 5)
         }
         .background(Color(red: 0.96, green: 0.96, blue: 0.96).ignoresSafeArea(edges: .bottom))
-        // Keep the existing keyboard-aware positioning.
-        .offset(y: isKeyboardVisible ? 44 : 0)
     }
 
     private var mapLayer: some View {
@@ -846,6 +838,7 @@ struct ContentView: View {
             // Prevent iOS ScrollView from drawing any default/translucent scroll surface.
             // Omitted scrollContentBackground: deployment target is iOS 15.
             .background(Color(red: 0.96, green: 0.96, blue: 0.96))
+            mapSearchAndDock
         }
         .frame(maxWidth: .infinity)
         // Keep enough market rows visible while the keyboard is open. SwiftUI may
