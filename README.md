@@ -51,3 +51,11 @@ Please run the repository's GitHub Actions workflow and test on device; this pac
 - Reworked the Region tab's identity and selected-area control into a location-exploration panel with English micro-label, mint location glyph, dark gradient card, and a distinct expanded picker surface.
 - Updated the region selector and confirm/collapse actions to match the night-map theme. This is a structural component redesign rather than a recolor of the reference screenshot.
 - Existing region data selection and chooseRegion flow retained. Build and device verification remain necessary.
+
+
+## v113 — Region page structural redesign
+- Rebuilt the map region sheet from a plain vertical market list into a discovery dashboard with a title/region/count header, filter chips, and a two-column market-card grid.
+- Each market card has a storefront glyph, market name, animal/schedule detail, size/day chips, distance, and a favorite action.
+- Reworked the region search capsule and suggestions to use the same dark navy / mint visual system.
+- Kept the existing map, region selection, search model, market filtering, distance calculations, and favorites state.
+- Xcode is not available in this environment, so the archive has not been compiled or validated on-device.
