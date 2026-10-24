@@ -154,7 +154,7 @@ struct ContentView: View {
                 } else {
                     homePage
                         .padding(.bottom, 58)
-                        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+                        .background(Color(red: 0.96, green: 0.96, blue: 0.92).ignoresSafeArea())
                         .zIndex(10)
                 }
                 // One persistent Dock shared by every top-level page. Keeping the
@@ -329,14 +329,14 @@ struct ContentView: View {
     private var homePage: some View {
         VStack(spacing: 0) {
             HStack {
-                Text(homeTab == .region ? "地区搜索" : (homeTab == .favorites ? "我的收藏" : "赶集日记")).font(.system(size: 27, weight: .heavy, design: .rounded))
+                Text(homeTab == .region ? "地区搜索" : (homeTab == .favorites ? "我的收藏" : "赶集日记")).font(.system(size: 29, weight: .bold, design: .rounded))
                     .foregroundColor(Color(red: 0.13, green: 0.20, blue: 0.18))
                 Spacer()
                 Image(systemName: homeTab == .region ? "map.fill" : (homeTab == .favorites ? "heart.fill" : "sun.max.fill"))
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(Color.ganjiGreen)
-                    .frame(width: 40, height: 40)
-                    .background(Color.ganjiGreen.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+                    .frame(width: 42, height: 42)
+                    .background(Color.ganjiGreen.opacity(0.12), in: RoundedRectangle(cornerRadius: 15, style: .continuous))
             }
             .padding(.horizontal, 20).padding(.top, 16).padding(.bottom, 18)
             if homeTab == .home {
@@ -355,7 +355,7 @@ struct ContentView: View {
                                     if rows.isEmpty {
                                         Text("这一天暂无开圩集市").font(.system(size: 13)).foregroundColor(.secondary)
                                             .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 14)
-                                            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+                                            .background(Color(red: 1.00, green: 0.99, blue: 0.96), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
                                             .padding(.horizontal, 16)
                                     } else {
                                         VStack(spacing: 1) {
@@ -884,7 +884,7 @@ struct ContentView: View {
             .padding(.top, 3)
             // Prevent iOS ScrollView from drawing any default/translucent scroll surface.
             // Omitted scrollContentBackground: deployment target is iOS 15.
-            .background(Color(uiColor: .systemBackground))
+            .background(Color(red: 0.99, green: 0.985, blue: 0.96))
         }
         .frame(maxWidth: .infinity)
         // Keep enough market rows visible while the keyboard is open. SwiftUI may
@@ -899,7 +899,7 @@ struct ContentView: View {
         // Solid white iOS-style panel: no map texture should bleed through the market rows.
         .background {
             TopRoundedShape(radius: 25)
-                .fill(Color(uiColor: .systemBackground))
+                .fill(Color(red: 0.99, green: 0.985, blue: 0.96))
                 .ignoresSafeArea(edges: .bottom)
         }
         // Only the two upper corners are rounded. Square lower corners let the
@@ -909,7 +909,7 @@ struct ContentView: View {
             TopRoundedShape(radius: 25)
                 .stroke(Color.white.opacity(0.7), lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.12), radius: 18, x: 0, y: -5)
+        .shadow(color: Color(red: 0.15, green: 0.22, blue: 0.16).opacity(0.10), radius: 22, x: 0, y: -6)
         .gesture(DragGesture(minimumDistance: 12).onEnded { value in
             withAnimation(.spring(response: 0.35, dampingFraction: 0.88)) {
                 if value.translation.height < -35 { sheetExpanded = true }
@@ -1236,7 +1236,7 @@ private struct MarketListRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         // Each row gets a fully opaque fill as well, including non-selected rows.
-         .background(selected ? Color(red: 0.97, green: 0.97, blue: 0.91) : Color(uiColor: .secondarySystemGroupedBackground))
+         .background(selected ? Color(red: 0.91, green: 0.95, blue: 0.87) : Color(red: 1.00, green: 0.99, blue: 0.96))
         .clipShape(RoundedRectangle(cornerRadius: 13))
         .padding(.horizontal, 8)
         .padding(.vertical, 3)
