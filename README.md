@@ -9,3 +9,8 @@ Based on the previous GanJi v89 source.
 
 ## Build
 Upload the project to GitHub and run the existing Actions workflow. This source has not been compiled with Xcode in this environment.
+
+
+## v91 search behavior fix
+- Tapping/focusing the place search field no longer hides the nearby-markets panel.
+- Search suggestions and place selection behavior remain unchanged; selecting a result can still dismiss the keyboard and restore the panel as before.

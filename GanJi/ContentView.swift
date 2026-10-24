@@ -616,11 +616,7 @@ struct ContentView: View {
                             .foregroundColor(Color(red: 0.56, green: 0.62, blue: 0.71))
                         TextField("搜索地点", text: $searchText)
                             .focused($isPlaceSearchFocused)
-                            .onChange(of: isPlaceSearchFocused) { focused in
-                                if focused {
-                                    withAnimation(.easeInOut(duration: 0.2)) { isMarketSheetVisible = false }
-                                }
-                            }
+                            // Focusing the search field must not dismiss the nearby-markets panel.
                             .font(.system(size: 16))
                             .submitLabel(.search)
                             .onChange(of: searchText) { value in
