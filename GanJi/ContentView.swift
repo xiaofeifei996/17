@@ -677,9 +677,20 @@ struct ContentView: View {
                         .padding(.vertical, 6)
                 }
             }
-            .background(Color.white)
+            // Keep the surrounding search dock transparent; only the search field and
+            // actual result rows retain opaque surfaces for legibility.
+            .background(
+                (!placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    ? Color.white
+                    : Color.clear,
+                in: RoundedRectangle(cornerRadius: 22)
+            )
             .clipShape(RoundedRectangle(cornerRadius: 22))
-            .overlay(RoundedRectangle(cornerRadius: 22).stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1))
+            .overlay {
+                if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    RoundedRectangle(cornerRadius: 22).stroke(Color(red: 0.86, green: 0.89, blue: 0.93), lineWidth: 1)
+                }
+            }
             .padding(.horizontal, 16)
             .padding(.top, 10)
             .padding(.bottom, 5)
