@@ -45,3 +45,8 @@ Please run the repository's GitHub Actions workflow and test on device; this pac
 - Replaced dense stacked rows with a subtle vertical timeline, clearer market names, repeat schedule details, distance labels, and dedicated bookmark actions.
 - Kept the existing API-backed market source, `MarketStore.upcoming` schedule calculations, date-group ordering, distance-first sorting within each day, region selection, MapKit search, lunar calendar, and favorites persistence.
 - No mock market records were introduced. Schedule tests were recompiled and passed in this environment; a full iOS build still requires Xcode/iOS SDK and device verification.
+
+## v112 — fix Swift string literal build error
+- Fixed the multiline hero title in `GanJi/ContentView.swift` to use an escaped newline (`\n`) inside a valid Swift string literal.
+- This directly addresses the Xcode error `unterminated string literal` at the home hero title.
+- The project should be rebuilt with the existing GitHub Actions workflow to verify the full iOS build.

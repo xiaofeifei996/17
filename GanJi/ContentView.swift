@@ -368,8 +368,7 @@ struct ContentView: View {
                         Text(Date.now.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits)))
                             .font(.system(size: 11, weight: .semibold, design: .monospaced))
                             .tracking(1.1).foregroundColor(Color.white.opacity(0.62))
-                        Text("把日子过成
-一场好圩市。")
+                        Text("把日子过成\n一场好圩市。")
                             .font(.system(size: 25, weight: .bold, design: .rounded))
                             .tracking(-0.7)
                             .lineSpacing(2)
