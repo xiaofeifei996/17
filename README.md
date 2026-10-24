@@ -1,35 +1,44 @@
-# GanJi — 赶集日记 v1.4.0
+# 赶集日记 · GanJi 1.4.0
 
-基于 v102 源码继续开发的现代简洁 iOS 赶集应用。项目使用 SwiftUI、MapKit、CoreLocation 和 XcodeGen。
+基于原 GanJi v102 源码的现代简约版重构。保留原始集市接口、离线缓存、农历/圩期计算、地区切换、地图标注、附近距离、日期筛选、地点搜索、收藏与 WidgetKit 桌面小组件。
 
-## 本版调整
+## 项目结构
 
-- 首页改为更接近 iOS 原生风格的标题区、日期信息和搜索框。
-- 首页保留「今日圩日 / 明日圩日 / 后日圩日」三日分组。
-- 首页列表不显示收藏按钮；收藏操作仍可在地区/集市浏览页面使用。
-- 首页的收藏圩市列表跨地区显示，不受地图/地区页当前选择地区影响。
-- 保留地图、地点搜索、地区选择、收藏持久化、圩市详情入口、农历/圩日计算和 Widget 资源。
-- 版本号更新为 1.4.0 (28)。
+- `GanJi/`：SwiftUI iOS 主应用、地图与地点搜索、定位、网络 API、收藏状态和 App 图标。
+- `Shared/`：集市数据模型、农历/圩期算法、随包数据 `markets.json`、行政区数据 `regions.json`。主应用和小组件共用。
+- `Widget/`：WidgetKit 小组件与背景资源。
+- `Tests/`：集市数据和日历规则回归检查。
+- `GanJi.xcodeproj/`：可直接在 macOS 的 Xcode 中打开的项目。
+- `project.yml`：XcodeGen 项目描述，供 CI 或开发者重新生成工程。
 
-## GitHub Actions 编译
+## 打开和运行
 
-1. 将 ZIP 解压后，把项目全部文件上传到你自己的 GitHub 仓库根目录（不要只上传 `GanJi` 文件夹）。
-2. 确认仓库包含 `.github/workflows/build.yml`、`project.yml`、`GanJi/`、`Shared/`、`Widget/` 和 `Tests/`。
-3. 推送到 `main` 分支，或打开仓库的 **Actions → Build GanJi → Run workflow** 手动运行。
-4. 工作流会在 macOS runner 上安装 XcodeGen、运行圩日/农历回归测试、生成 Xcode 工程并构建 Release iOS App。
-5. 成功后打开该次工作流运行记录，在 **Artifacts** 下载 `GanJi-ipa`，其中是未签名 IPA。
+1. 在 macOS 上用 Xcode 打开 `GanJi.xcodeproj`。
+2. 选择 `GanJi` scheme 和 iOS Simulator 或已连接的 iPhone。
+3. 首次在设备上运行时，允许定位权限以计算附近距离；拒绝定位后仍可按地区浏览。
+4. 网络接口为 `https://api.ganjirili.com/gathers`。网络失败时优先使用该地区缓存，其次使用包内数据。
 
-### 安装提示
+如果想用 XcodeGen 重新生成工程：
 
-该工作流输出的是未签名 IPA，不能保证可直接点开安装。实际安装到 iPhone 通常需要使用自己的 Apple 开发者签名，或使用你已有的侧载工具签名安装。此环境未运行完整 Xcode iOS 构建，因此请以 GitHub Actions 的实际构建日志为最终编译结果。
-
-## 本地验证
-
-在 macOS 安装 Xcode 与 XcodeGen 后运行：
-
-```bash
-swiftc Shared/LunarCalendar.swift Shared/MarketData.swift Tests/ScheduleTests.swift -o /tmp/ganji-tests
-/tmp/ganji-tests
+```sh
+brew install xcodegen
 xcodegen generate
-xcodebuild -project GanJi.xcodeproj -scheme GanJi -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
 ```
+
+## 本次改动
+
+- 更新主页层级、日期提示卡、卡片圆角、间距、字体与配色，统一为现代简约的浅色界面。
+- 优化集市列表的选中状态与信息层级，并调整地图面板默认高度。
+- 为地区请求加入请求序号保护：快速切换地区时，较晚返回的旧请求不会覆盖当前地区结果。
+- 保留 API 的字段映射和缓存行为，不将未知圩期编码猜测成固定规则。
+- 将版本更新为 `1.4.0 (28)`。
+
+## 验证情况
+
+在本交付环境中已运行：
+
+- `swiftc -frontend -parse` 对主应用、共享代码和 Widget Swift 源码进行语法解析。
+- `swiftc Shared/LunarCalendar.swift Shared/MarketData.swift Tests/ScheduleTests.swift -o /tmp/ganji-tests && /tmp/ganji-tests`，通过数据解码、ID 唯一性、72 组本地日期/时间一致性和农历回归检查。
+- `plutil -lint GanJi.xcodeproj/project.pbxproj`，项目文件格式检查通过。
+
+当前环境不是 macOS，没有 Apple SDK、Xcode 或 iOS Simulator，因此尚未执行真正的 iOS SDK 编译、签名、设备运行、地图/定位权限流程、真实 API 联调和 Widget 安装验证。请在 macOS Xcode 中完成最终构建与设备测试。

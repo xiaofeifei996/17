@@ -52,6 +52,7 @@ struct ContentView: View {
     @State private var selectedAreaDisplayName: String?
     @State private var displayedMarkets: [Market] = MarketStore.load()
     @State private var loadingMarkets = false
+    @State private var marketRequestID = 0
     @State private var marketLoadError: String?
     @State private var selectedMarketID: String?
     @State private var showDatePicker = false
@@ -102,8 +103,6 @@ struct ContentView: View {
         // The home page shows only favorited markets, grouped by their next opening day.
         // Use the persisted favorite market records so favorites remain available even when
         // the currently loaded API list does not contain them.
-        // Home intentionally spans every region. The selected area is only a filter
-        // for the map/region browser and must never hide a saved market from this list.
         let savedFavorites = favoriteMarkets.filter { favorites.contains($0.id) }
         let upcoming = MarketStore.upcoming(from: today, markets: savedFavorites)
             .filter { $0.daysAhead == offset }
@@ -322,73 +321,52 @@ struct ContentView: View {
 
     private var homePage: some View {
         VStack(spacing: 0) {
-            if homeTab == .home {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(alignment: .center, spacing: 12) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("赶集日记")
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-                            Text(Date.now.formatted(.dateTime.month(.abbreviated).day().weekday(.wide)))
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "calendar.badge.clock")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundColor(Color.ganjiBlue)
-                            .frame(width: 48, height: 48)
-                            .background(Color.ganjiBlue.opacity(0.10), in: RoundedRectangle(cornerRadius: 16))
-                    }
-                    HStack(spacing: 10) {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
-                        TextField("搜索圩市名称或地区", text: $searchText)
-                            .font(.system(size: 15))
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                        if !searchText.isEmpty {
-                            Button { searchText = "" } label: {
-                                Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
-                            }
-                            .accessibilityLabel("清除搜索")
-                        }
-                    }
-                    .padding(.horizontal, 14)
-                    .frame(height: 46)
-                    .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
-                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(uiColor: .separator).opacity(0.18), lineWidth: 1))
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 16)
-                .padding(.bottom, 14)
-            } else {
-                HStack {
-                    Text(homeTab == .region ? "地区搜索" : "我的收藏")
-                        .font(.system(size: 27, weight: .bold, design: .rounded))
-                    Spacer()
-                }
-                .padding(.horizontal, 22)
-                .padding(.top, 18)
-                .padding(.bottom, 16)
+            HStack {
+                Text(homeTab == .region ? "探索地区" : (homeTab == .favorites ? "我的收藏" : "赶集日记"))
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .tracking(-0.6)
+                Spacer()
             }
+            .padding(.horizontal, 20).padding(.top, 18).padding(.bottom, 14)
             if homeTab == .home {
                 VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(Date.now.formatted(.dateTime.month(.wide).day().weekday(.wide)))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.secondary)
+                            Text("把握每一个圩日")
+                                .font(.system(size: 21, weight: .bold, design: .rounded))
+                                .foregroundColor(Color.ganjiInk)
+                        }
+                        Spacer()
+                        Image(systemName: "sun.max.fill")
+                            .font(.system(size: 19, weight: .semibold))
+                            .foregroundColor(Color.ganjiOrange)
+                            .frame(width: 46, height: 46)
+                            .background(Color.ganjiOrange.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
+                    .padding(16)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Color.black.opacity(0.035), lineWidth: 1))
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 20)
                     ScrollView(showsIndicators: false) {
-                        LazyVStack(alignment: .leading, spacing: 16) {
+                        LazyVStack(alignment: .leading, spacing: 18) {
                             ForEach(0..<3, id: \.self) { offset in
                                 let rows = homeMarkets(for: offset)
                                 VStack(alignment: .leading, spacing: 7) {
                                     HStack(spacing: 8) {
-                                        RoundedRectangle(cornerRadius: 2).fill(Color.ganjiBlue).frame(width: 4, height: 21)
-                                        Text(["今日圩日", "明日圩日", "后日圩日"][offset]).font(.system(size: 19, weight: .bold, design: .rounded))
-                                        Text("\(rows.count) 个").font(.system(size: 12, weight: .medium)).foregroundColor(.secondary)
+                                        RoundedRectangle(cornerRadius: 3).fill(Color.ganjiGreen).frame(width: 4, height: 20)
+                                        Text(["今日圩日", "明日圩日", "后日圩日"][offset]).font(.system(size: 18, weight: .bold, design: .rounded))
+                                        Text("\(rows.count) 个集市").font(.system(size: 12, weight: .medium)).foregroundColor(.secondary)
                                     }
                                     .padding(.horizontal, 16)
                                     if rows.isEmpty {
                                         Text("这一天暂无开圩集市").font(.system(size: 13)).foregroundColor(.secondary)
                                             .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 20).padding(.vertical, 14)
-                                            .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                                            .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.black.opacity(0.035), lineWidth: 1))
                                             .padding(.horizontal, 16)
                                     } else {
                                         VStack(spacing: 1) {
@@ -399,7 +377,8 @@ struct ContentView: View {
                                                 }
                                             }
                                         }
-                                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                        .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.black.opacity(0.035), lineWidth: 1))
                                         .padding(.horizontal, 16)
                                     }
                                 }
@@ -450,7 +429,8 @@ struct ContentView: View {
                                     selectedMarketID = market.id
                                 }
                                 .padding(15)
-                                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+                                .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).stroke(Color.black.opacity(0.04), lineWidth: 1))
                             }
                         }.padding(.horizontal, 16).padding(.bottom, 16)
                     }
@@ -537,7 +517,8 @@ struct ContentView: View {
                     }
                 }
                 .padding(12)
-                .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Color.black.opacity(0.035), lineWidth: 1))
                 .padding(.horizontal, 16)
                 .padding(.bottom, 8)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -855,7 +836,7 @@ struct ContentView: View {
         .padding(.top, 8)
         .padding(.bottom, 12)
         .background(.regularMaterial)
-        .background(Color(red: 0.78, green: 0.84, blue: 0.72).opacity(0.48))
+        .background(Color(red: 0.94, green: 0.96, blue: 0.93).opacity(0.94))
     }
 
     private func marketSheet(screenHeight: CGFloat) -> some View {
@@ -863,7 +844,7 @@ struct ContentView: View {
             Capsule().fill(Color(red: 0.79, green: 0.82, blue: 0.87)).frame(width: 42, height: 5).padding(.top, 10).padding(.bottom, 12)
             HStack(alignment: .firstTextBaseline) {
                 Text(selectedFilter == .all ? "附近集市" : "\(selectedFilter.rawValue)赶集")
-                    .font(.system(size: 19, weight: .bold))
+                    .font(.system(size: 20, weight: .bold, design: .rounded))
                     .foregroundColor(Color(red: 0.12, green: 0.17, blue: 0.23))
                 Text(loadingMarkets ? "正在加载…" : (marketLoadError ?? "\(filteredMarkets.count) 个集市"))
                     .font(.system(size: 12, weight: .medium))
@@ -917,7 +898,7 @@ struct ContentView: View {
         // Use predictable sheet heights. The expanded panel must stop above the
         // fixed search lane and Dock instead of growing behind them on short screens.
         .frame(height: min(
-            screenHeight * (isKeyboardVisible ? 0.94 : (sheetExpanded ? 0.88 : 0.56)),
+            screenHeight * (isKeyboardVisible ? 0.94 : (sheetExpanded ? 0.88 : 0.58)),
             max(300, screenHeight - (isKeyboardVisible ? 8 : 150))
         ))
         // Solid white iOS-style panel: no map texture should bleed through the market rows.
@@ -1164,11 +1145,17 @@ struct ContentView: View {
     }
     @MainActor
     private func refreshMarkets(for areaCode: Int) async {
+        marketRequestID += 1
+        let requestID = marketRequestID
         loadingMarkets = true
         marketLoadError = nil
-        defer { loadingMarkets = false }
+        defer {
+            if requestID == marketRequestID { loadingMarkets = false }
+        }
         do {
             let fetched = try await MarketAPI.fetch(areaCode: areaCode)
+            // Ignore a slow response for an area the user has already left.
+            guard requestID == marketRequestID, selectedAreaCode == areaCode else { return }
             if !fetched.isEmpty {
                 displayedMarkets = fetched
                 if let first = fetched.first {
@@ -1186,6 +1173,7 @@ struct ContentView: View {
                 displayedMarkets = MarketCache.load(areaCode: areaCode) ?? MarketStore.load().filter { $0.areaCode == areaCode }
             }
         } catch {
+            guard requestID == marketRequestID, selectedAreaCode == areaCode else { return }
             displayedMarkets = MarketCache.load(areaCode: areaCode) ?? MarketStore.load().filter { $0.areaCode == areaCode }
             marketLoadError = displayedMarkets.isEmpty ? "网络请求失败，请稍后重试" : "网络不可用，显示已缓存数据"
         }
@@ -1223,7 +1211,7 @@ private struct MarketListRow: View {
                 HStack(spacing: 12) {
                     VStack(alignment: .leading, spacing: 7) {
                         HStack(spacing: 7) {
-                            Text(row.market.name).font(.system(size: 17, weight: .semibold)).foregroundColor(Color(red: 0.10, green: 0.15, blue: 0.23)).lineLimit(1)
+                            Text(row.market.name).font(.system(size: 16, weight: .semibold, design: .rounded)).foregroundColor(Color.ganjiInk).lineLimit(1)
                             Text(row.market.size).font(.system(size: 10, weight: .medium)).foregroundColor(Color.ganjiBlue).padding(.horizontal, 7).padding(.vertical, 4).background(Color.ganjiBlue.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
                             Text(row.dayLabel).font(.system(size: 10, weight: .semibold)).foregroundColor(Color.ganjiGreen).padding(.horizontal, 7).padding(.vertical, 4).background(Color.ganjiGreen.opacity(0.10), in: RoundedRectangle(cornerRadius: 5))
                         }
@@ -1235,7 +1223,7 @@ private struct MarketListRow: View {
                         Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(Color(red: 0.62, green: 0.68, blue: 0.75))
                     }
                 }
-                .padding(.leading, 20).padding(.trailing, 8).padding(.vertical, 17)
+                .padding(.leading, 17).padding(.trailing, 8).padding(.vertical, 15)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
@@ -1255,13 +1243,14 @@ private struct MarketListRow: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         // Each row gets a fully opaque fill as well, including non-selected rows.
-        .background(selected ? Color(red: 0.95, green: 0.97, blue: 1.0) : Color.white)
+        .background(selected ? Color.ganjiBlue.opacity(0.07) : Color.white)
         .clipShape(Rectangle())
     }
 }
 
 private extension Color {
-    static let ganjiBlue = Color(red: 0.16, green: 0.43, blue: 0.94)
+    static let ganjiBlue = Color(red: 0.16, green: 0.43, blue: 0.72)
+    static let ganjiInk = Color(red: 0.10, green: 0.16, blue: 0.18)
     static let ganjiOrange = Color(red: 0.96, green: 0.43, blue: 0.20)
     static let ganjiGreen = Color(red: 0.10, green: 0.63, blue: 0.30)
 }
