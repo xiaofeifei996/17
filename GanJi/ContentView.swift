@@ -140,7 +140,7 @@ struct ContentView: View {
                         // the search lane. The previous fixed 150pt reservation was still
                         // applied after SwiftUI reduced the available height for the keyboard,
                         // leaving a large empty map strip and hiding market rows.
-                        .padding(.bottom, isKeyboardVisible ? 0 : 150)
+                        .padding(.bottom, isKeyboardVisible ? 0 : 176)
                         .zIndex(3)
                 }
                 // Only render the map Dock while the map page is active.
@@ -536,7 +536,7 @@ struct ContentView: View {
         // Use a stable system surface instead of material that blends map colors into the Dock.
          .background {
             RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(uiColor: .systemBackground))
+                .fill(Color(uiColor: .secondarySystemBackground))
                 .ignoresSafeArea(edges: .bottom)
         }
         .overlay(alignment: .top) {
@@ -860,7 +860,8 @@ struct ContentView: View {
                         .background(Color.ganjiBlue.opacity(0.08), in: Circle())
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 22)
+            .padding(.bottom, 8)
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 0) {
                     if filteredMarkets.isEmpty {
@@ -892,8 +893,8 @@ struct ContentView: View {
         // Use predictable sheet heights. The expanded panel must stop above the
         // fixed search lane and Dock instead of growing behind them on short screens.
         .frame(height: min(
-            screenHeight * (isKeyboardVisible ? 0.90 : (sheetExpanded ? 0.76 : 0.48)),
-            max(220, screenHeight - (isKeyboardVisible ? 100 : 230))
+            screenHeight * (isKeyboardVisible ? 0.86 : (sheetExpanded ? 0.68 : 0.42)),
+            max(220, screenHeight - (isKeyboardVisible ? 120 : 250))
         ))
         // Solid white iOS-style panel: no map texture should bleed through the market rows.
         .background {
