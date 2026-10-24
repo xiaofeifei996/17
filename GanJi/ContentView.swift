@@ -81,7 +81,17 @@ struct ContentView: View {
             return a.daysAhead < b.daysAhead
         }
     }
-    private var mapMarkets: [Market] { filteredMarkets.map { $0.market } }
+    private var mapMarkets: [Market] {
+        var markets = filteredMarkets.map { $0.market }
+        // A saved favorite may not be present in the currently loaded/filtered API list.
+        // Keep the selected saved market on the map so tapping a favorite can move to it.
+        if let selectedID = selectedMarketID,
+           !markets.contains(where: { $0.id == selectedID }),
+           let saved = favoriteMarkets.first(where: { $0.id == selectedID }) {
+            markets.append(saved)
+        }
+        return markets
+    }
 
     /// Home groups only the markets opening today, tomorrow, and the day after tomorrow.
     /// Sorting is performed inside each date group, so a closer market never jumps ahead of today's group.
@@ -170,7 +180,9 @@ struct ContentView: View {
                 }
             }
             .onChange(of: selectedMarketID) { newValue in
-                guard let id = newValue, let market = allMarkets.first(where: { $0.id == id }) else { return }
+                guard let id = newValue,
+                      let market = allMarkets.first(where: { $0.id == id })
+                        ?? favoriteMarkets.first(where: { $0.id == id }) else { return }
                 // Selecting a row should expose the map area above the bottom sheet.
                 // Collapse the sheet and place the selected annotation in the visible
                 // map area's center rather than the physical screen's center.
