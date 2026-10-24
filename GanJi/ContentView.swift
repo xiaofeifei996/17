@@ -122,15 +122,16 @@ struct ContentView: View {
                 // Draw the map behind both the top status-bar safe area and the bottom edge.
                 mapLayer
                     .ignoresSafeArea()
-                // Hard cover for the bottom safe-area gap: keep the map from showing
-                // beneath the rounded market sheet on devices with a home indicator.
+                // Unified bottom control surface: the search capsule and Dock sit on one
+                // continuous light surface, matching the native iOS layout.
+                // This also hides the map strip that previously appeared between them.
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    // Solid bottom control surface: prevents a strip of map texture
-                    // from appearing between the market sheet, search capsule and Dock.
+                    // Extend the solid surface behind both the search control and the full Dock.
+                    // The top edge aligns with the market sheet bottom reservation.
                     Color(uiColor: .systemBackground)
                         .opacity(0.99)
-                        .frame(height: 150)
+                        .frame(height: 350)
                 }
                 .ignoresSafeArea(edges: .bottom)
                 .allowsHitTesting(false)

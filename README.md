@@ -1,12 +1,11 @@
-# GanJi v89 — iOS 原生地图/集市布局修正
+# GanJi v90 — iOS native bottom layout refinement
 
-基于 GanJi-v88-ios-native-layout.zip 修改。
+Based on the previous GanJi v89 source.
 
-## 本次修改
-- 将底部搜索栏与 Dock 后方的露地图区域改为接近不透明的系统背景，消除集市面板和搜索栏之间突兀的绿色地图条带。
-- 集市面板默认高度调整为可用高度约 45%，展开约 78%，底部为固定搜索/导航操作区预留空间。
-- 集市列表滚动区背景改为系统背景色，保持白色 iOS 原生卡片观感。
-- 保留现有地图、集市数据、收藏、地区选择、地点搜索和面板拖动交互。
+## Layout changes
+- Extends the solid system-background surface behind the fixed location/search capsule and bottom Dock.
+- Removes the exposed map-texture strip between the market sheet and the bottom controls.
+- Keeps the existing market sheet height/drag behavior, search, region picker, map annotations, market data, and favorites logic unchanged.
 
-## 验证
-已检查 ZIP 结构和 Swift 源码修改；此环境未安装 Xcode/iOS SDK，尚未执行 iOS 编译。请通过 GitHub Actions 编译后在设备上验证。
+## Build
+Upload the project to GitHub and run the existing Actions workflow. This source has not been compiled with Xcode in this environment.
