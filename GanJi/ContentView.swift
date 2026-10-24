@@ -126,9 +126,11 @@ struct ContentView: View {
                 // beneath the rounded market sheet on devices with a home indicator.
                 VStack(spacing: 0) {
                     Spacer(minLength: 0)
-                    // Transparent bottom cover: let the underlying map show through.
-                    Color.clear
-                        .frame(height: 130)
+                    // Solid bottom control surface: prevents a strip of map texture
+                    // from appearing between the market sheet, search capsule and Dock.
+                    Color(uiColor: .systemBackground)
+                        .opacity(0.99)
+                        .frame(height: 150)
                 }
                 .ignoresSafeArea(edges: .bottom)
                 .allowsHitTesting(false)
@@ -147,7 +149,7 @@ struct ContentView: View {
                         .frame(maxHeight: .infinity, alignment: .bottom)
                         // Reserve a dedicated lane for the fixed search control above the Dock.
                         // The sheet must end before that lane so its last row is never obscured.
-                        .padding(.bottom, 138)
+                        .padding(.bottom, 150)
                         .zIndex(3)
                 }
                 // Only render the map Dock while the map page is active.
@@ -883,15 +885,15 @@ struct ContentView: View {
             .padding(.top, 3)
             // Prevent iOS ScrollView from drawing any default/translucent scroll surface.
             // Omitted scrollContentBackground: deployment target is iOS 15.
-            .background(Color(red: 0.96, green: 0.96, blue: 0.96))
+            .background(Color(uiColor: .systemBackground))
         }
         .frame(maxWidth: .infinity)
         // Keep enough market rows visible while the keyboard is open. SwiftUI may
         // report a keyboard-reduced GeometryReader height, so use a taller share
         // of the available area and avoid the normal collapsed-sheet height.
         .frame(height: min(
-            screenHeight * (isKeyboardVisible ? 0.88 : (sheetExpanded ? 0.80 : 0.48)),
-            screenHeight - (isKeyboardVisible ? 170 : 205)
+            screenHeight * (isKeyboardVisible ? 0.86 : (sheetExpanded ? 0.78 : 0.45)),
+            screenHeight - (isKeyboardVisible ? 180 : 220)
         ))
         // Solid white iOS-style panel: no map texture should bleed through the market rows.
         .background {
