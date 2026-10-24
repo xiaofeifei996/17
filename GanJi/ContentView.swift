@@ -156,7 +156,11 @@ struct ContentView: View {
                         .frame(maxHeight: .infinity, alignment: .bottom)
                         // Reserve a dedicated lane for the fixed search control above the Dock.
                         // The sheet must end before that lane so its last row is never obscured.
-                        .padding(.bottom, 150)
+                        // With the keyboard open, let the panel use the area down to
+                        // the search lane. The previous fixed 150pt reservation was still
+                        // applied after SwiftUI reduced the available height for the keyboard,
+                        // leaving a large empty map strip and hiding market rows.
+                        .padding(.bottom, isKeyboardVisible ? 0 : 150)
                         .zIndex(3)
                 }
                 // Only render the map Dock while the map page is active.
@@ -720,14 +724,15 @@ struct ContentView: View {
         // Extend a solid system surface upward from the bottom of this control lane.
         .frame(maxWidth: .infinity)
         .background(alignment: .bottom) {
+            // Fill the entire strip between the search control and the keyboard.
+            // Use an opaque color and do not offset this background when focus changes.
             Color(uiColor: .systemBackground)
                 .frame(maxWidth: .infinity)
-                .frame(height: isKeyboardVisible ? 290 : 205)
+                .frame(height: isKeyboardVisible ? 390 : 205)
                 .ignoresSafeArea(edges: .bottom)
         }
-        // Keep the search control fixed in its own lane above the bottom navigation.
-        // Only shift it slightly when the keyboard is shown; never let it overlap list rows.
-        .offset(y: isKeyboardVisible ? 44 : 0)
+        // Do not shift the search lane when the keyboard appears: doing so exposed
+        // a horizontal strip of the map between the lane and the keyboard.
     }
 
     private var mapLayer: some View {
@@ -903,8 +908,8 @@ struct ContentView: View {
         // report a keyboard-reduced GeometryReader height, so use a taller share
         // of the available area and avoid the normal collapsed-sheet height.
         .frame(height: min(
-            screenHeight * (isKeyboardVisible ? 0.86 : (sheetExpanded ? 0.78 : 0.45)),
-            screenHeight - (isKeyboardVisible ? 180 : 220)
+            screenHeight * (isKeyboardVisible ? 0.94 : (sheetExpanded ? 0.86 : 0.52)),
+            screenHeight - (isKeyboardVisible ? 110 : 220)
         ))
         // Solid white iOS-style panel: no map texture should bleed through the market rows.
         .background {

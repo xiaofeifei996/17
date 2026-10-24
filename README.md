@@ -1,11 +1,11 @@
-# GanJi v93 - Opaque search area fix
+# GanJi v96 - market panel and opaque search lane
 
-This revision fixes the search-area surroundings becoming transparent when the location search TextField receives focus.
+This package is based on the supplied GanJi v94 project archive, with `GanJi/ContentView.swift` updated for v96.
 
-Changes in `GanJi/ContentView.swift`:
-- The outer search capsule uses solid white instead of system background opacity.
-- The search/suggestions container uses solid white.
-- The whole search-and-dock region always paints an opaque white backing extending through the bottom safe area; it no longer switches to a clear background when focus changes.
-- Existing search, suggestion, nearby market panel, favorites, and region selection logic is preserved.
+Changes:
+- Removed the keyboard-visible 150pt bottom reservation from the nearby-market panel so it can use more of the available height.
+- Increased the collapsed panel share to 52%, expanded share to 86%, and keyboard-visible share to 94% of available geometry (bounded to preserve the bottom control lane).
+- Removed the 44pt vertical offset when the keyboard appears.
+- Extended the opaque search-lane background while the keyboard is visible to cover the map strip below the search control.
 
-Compile with the project's existing GitHub Actions workflow. Xcode compilation was not run in this environment.
+Please run the repository's GitHub Actions workflow and test on device; this package has not been built with Xcode in this environment.
