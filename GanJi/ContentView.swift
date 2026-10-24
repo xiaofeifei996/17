@@ -122,35 +122,11 @@ struct ContentView: View {
                 // Draw the map behind both the top status-bar safe area and the bottom edge.
                 mapLayer
                     .ignoresSafeArea()
-                // Unified bottom control surface: the search capsule and Dock sit on one
-                // continuous light surface, matching the native iOS layout.
-                // This also hides the map strip that previously appeared between them.
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    // Extend the solid surface behind both the search control and the full Dock.
-                    // The top edge aligns with the market sheet bottom reservation.
-                    Color(uiColor: .systemBackground)
-                        .opacity(0.99)
-                        .frame(height: 350)
-                }
-                .ignoresSafeArea(edges: .bottom)
-                .allowsHitTesting(false)
-                .zIndex(2.5)
-                // When the software keyboard is open, keep the bottom control lane opaque.
-                if isKeyboardVisible {
-                    // When search is focused, SwiftUI resizes the available geometry for the keyboard.
-                    // Keep an opaque bottom surface behind the search control and Dock so the map
-                    // cannot show through the surrounding area. Limit it to the bottom control lane
-                    // rather than covering the map or the visible upper part of the market sheet.
-                    VStack(spacing: 0) {
-                        Spacer(minLength: 0)
-                        Color(uiColor: .systemBackground)
-                            .frame(height: 360)
-                    }
-                    .ignoresSafeArea(edges: .bottom)
-                    .allowsHitTesting(false)
-                    .zIndex(2.7)
-                }
+                // Keep the map visible when searching. Do not place a tall white
+                // background behind the whole bottom lane: when SwiftUI resizes for
+                // the keyboard, that layer expands upward and creates the huge blank
+                // white area seen in v97. The search capsule and suggestions each have
+                // their own opaque backgrounds below.
                 // While the place-search field is active, hide the market list visually
                 // so no market rows appear in the narrow strip above the keyboard.
                 // Keep isMarketSheetVisible unchanged: when search focus ends, the panel
@@ -695,6 +671,7 @@ struct ContentView: View {
                     }
                     .frame(maxHeight: isKeyboardVisible ? 300 : 420)
                     .padding(.horizontal, 12)
+                    .background(Color.white)
                 }
                 if let message = placeSearchMessage {
                     Text(message)
@@ -722,21 +699,12 @@ struct ContentView: View {
             .padding(.top, 10)
             .padding(.bottom, 5)
         }
-        // Opaque search lane, not merely an opaque capsule. The previous background
-        // followed the VStack's intrinsic height, leaving map-visible strips above and
-        // below the capsule when SwiftUI resized the view for the keyboard.
-        // Extend a solid system surface upward from the bottom of this control lane.
-        .frame(maxWidth: .infinity)
-        .background(alignment: .bottom) {
-            // Fill the entire strip between the search control and the keyboard.
-            // Use an opaque color and do not offset this background when focus changes.
-            Color(uiColor: .systemBackground)
-                .frame(maxWidth: .infinity)
-                .frame(height: isKeyboardVisible ? 390 : 205)
-                .ignoresSafeArea(edges: .bottom)
-        }
-        // Do not shift the search lane when the keyboard appears: doing so exposed
-        // a horizontal strip of the map between the lane and the keyboard.
+        // Keep this view at its intrinsic content height. The opaque white capsule
+        // above protects the search control; the suggestions list has its own white
+        // surface. Avoid a tall bottom background here because keyboard resizing can
+        // stretch it over the map and produce a large blank white block.
+        .fixedSize(horizontal: false, vertical: true)
+
     }
 
     private var mapLayer: some View {
