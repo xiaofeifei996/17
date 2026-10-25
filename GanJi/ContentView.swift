@@ -141,8 +141,8 @@ struct ContentView: View {
                 if isMarketSheetVisible && showMainPage {
                     marketSheet(screenHeight: geo.size.height)
                         .frame(maxHeight: isKeyboardVisible ? geo.size.height * 0.62 : .infinity, alignment: .bottom)
-                        // Let the panel meet the persistent Dock without an extra bottom spacer.
-                        .padding(.bottom, 0)
+                        // Search and nearby market browsing share one panel above the persistent Dock.
+                        .padding(.bottom, isKeyboardVisible ? 0 : 66)
                         .zIndex(3)
                 }
                 if !showMainPage {
@@ -1120,9 +1120,10 @@ struct ContentView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.95), lineWidth: 1))
-        .shadow(color: Color(red: 0.13, green: 0.20, blue: 0.16).opacity(0.18), radius: 22, x: 0, y: 8)
+        // Removed the opaque foreground sheet fill and border so the market cards
+        // are not visually covered by the panel layer. Keep a subtle shadow only.
+        .background(Color.clear)
+        .shadow(color: Color(red: 0.13, green: 0.20, blue: 0.16).opacity(0.08), radius: 10, x: 0, y: 3)
         .padding(.horizontal, 12)
         .gesture(DragGesture(minimumDistance: 18).onEnded { value in
             withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
