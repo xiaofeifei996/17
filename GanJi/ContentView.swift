@@ -143,7 +143,7 @@ struct ContentView: View {
                         .frame(maxHeight: isKeyboardVisible ? geo.size.height * 0.62 : .infinity, alignment: .bottom)
                         // Search and nearby market browsing share one panel above the persistent Dock.
                         .padding(.bottom, isKeyboardVisible ? 0 : 66)
-                        .zIndex(3)
+                        .zIndex(12)
                 }
                 if !showMainPage {
                     homePage
