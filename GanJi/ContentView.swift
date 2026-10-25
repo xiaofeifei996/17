@@ -141,9 +141,9 @@ struct ContentView: View {
                 if isMarketSheetVisible && showMainPage {
                     marketSheet(screenHeight: geo.size.height)
                         .frame(maxHeight: isKeyboardVisible ? geo.size.height * 0.62 : .infinity, alignment: .bottom)
-                        // Search and nearby market browsing share one panel above the persistent Dock.
-                        .padding(.bottom, isKeyboardVisible ? 0 : 66)
-                        .zIndex(12)
+                        // Let the panel meet the persistent Dock without an extra bottom spacer.
+                        .padding(.bottom, 0)
+                        .zIndex(3)
                 }
                 if !showMainPage {
                     homePage
@@ -1090,10 +1090,9 @@ struct ContentView: View {
                             }
                         }
                     }
-                    // Keep the last card fully inside the opaque panel when scrolling.
-                    .padding(.bottom, 16)
+                    .padding(.bottom, 4)
                 }
-                .frame(maxHeight: min(screenHeight * 0.62, 560))
+                .frame(maxHeight: min(screenHeight * 0.48, 390))
             } else {
                 // Compact nearby-market list uses vertical scrolling; no horizontal carousel.
                 ScrollView(.vertical, showsIndicators: false) {
@@ -1113,9 +1112,9 @@ struct ContentView: View {
                             }
                         }
                     }
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 2)
                 }
-                .frame(maxHeight: min(screenHeight * 0.38, 300))
+                .frame(maxHeight: min(screenHeight * 0.32, 250))
             }
             }
         }
