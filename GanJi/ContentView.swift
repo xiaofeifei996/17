@@ -1093,7 +1093,7 @@ struct ContentView: View {
                     }
                     .padding(.bottom, 4)
                 }
-                .frame(maxHeight: min(screenHeight * 0.42, 340))
+                .frame(maxHeight: min(screenHeight * 0.48, 390))
             } else {
                 // Compact nearby-market list uses vertical scrolling; no horizontal carousel.
                 ScrollView(.vertical, showsIndicators: false) {
@@ -1115,7 +1115,7 @@ struct ContentView: View {
                     }
                     .padding(.bottom, 2)
                 }
-                .frame(maxHeight: min(screenHeight * 0.26, 210))
+                .frame(maxHeight: min(screenHeight * 0.32, 250))
             }
             }
         }
