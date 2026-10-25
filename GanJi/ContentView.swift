@@ -1188,11 +1188,13 @@ struct ContentView: View {
             let placemark = item.placemark
             let province = placemark.administrativeArea ?? ""
             let city = placemark.locality ?? ""
+            // In China, MapKit may put the prefecture-level city in subAdministrativeArea;
+            // prefer subLocality for the county/district when available.
             let district = placemark.subLocality ?? placemark.subAdministrativeArea ?? ""
             let countyOptions = regionOptions.filter { $0.kind == .county }
 
-            // MapKit often returns a township as the title and its district in the subtitle.
-            // Do not assume subAdministrativeArea is always the county: in China it may be the prefecture-level city.
+            // Use every available label, not just one MapKit hierarchy field. Search results
+            // often look like “木格镇（港南区）” while placemark fields are incomplete.
             let sourceFields = [
                 completion.title, completion.subtitle, placemark.name ?? "", province, city,
                 placemark.subAdministrativeArea ?? "", placemark.subLocality ?? "",
@@ -1208,14 +1210,12 @@ struct ContentView: View {
                     .replacingOccurrences(of: "　", with: "")
                     .replacingOccurrences(of: "·", with: "")
             }
-            let normalizedContext = normalizedAdminName(context)
             let normalizedProvince = normalizedAdminName(province)
             let normalizedCity = normalizedAdminName(city)
             let normalizedDistrictFields = [district, placemark.subLocality ?? "", placemark.subAdministrativeArea ?? ""]
                 .map(normalizedAdminName).filter { !$0.isEmpty }
 
-            // Score candidates using both structured placemark fields and the full completion text.
-            // This supports results such as “木格镇（港南区）” even when MapKit's hierarchy fields are inconsistent.
+            // Rank candidates from strongest evidence to weaker text/context evidence.
             let rankedMatches: [(option: RegionOption, score: Int)] = countyOptions.compactMap { option in
                 let areaName = normalizedAdminName(option.name)
                 guard !areaName.isEmpty, areaName.count >= 2 else { return nil }
@@ -1223,19 +1223,19 @@ struct ContentView: View {
                 if normalizedDistrictFields.contains(areaName) { score += 100 }
                 if normalizedAdminName(completion.subtitle).contains(areaName) { score += 90 }
                 if normalizedAdminName(completion.title).contains(areaName) { score += 65 }
-                if normalizedContext.contains(areaName) { score += 55 }
+                if normalizedAdminName(context).contains(areaName) { score += 55 }
                 guard score > 0 else { return nil }
 
                 let optionCity = normalizedAdminName(option.city)
-                if !optionCity.isEmpty && (!normalizedCity.isEmpty && optionCity == normalizedCity) {
+                if !optionCity.isEmpty && !normalizedCity.isEmpty && optionCity == normalizedCity {
                     score += 30
-                } else if !optionCity.isEmpty && normalizedContext.contains(optionCity) {
+                } else if !optionCity.isEmpty && normalizedAdminName(context).contains(optionCity) {
                     score += 20
                 }
                 let optionProvince = normalizedAdminName(option.province)
                 if !optionProvince.isEmpty && !normalizedProvince.isEmpty && optionProvince == normalizedProvince {
                     score += 15
-                } else if !optionProvince.isEmpty && normalizedContext.contains(optionProvince) {
+                } else if !optionProvince.isEmpty && normalizedAdminName(context).contains(optionProvince) {
                     score += 10
                 }
                 return (option, score)

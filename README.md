@@ -60,9 +60,10 @@ Please run the repository's GitHub Actions workflow and test on device; this pac
 - Kept the existing map, region selection, search model, market filtering, distance calculations, and favorites state.
 - Xcode is not available in this environment, so the archive has not been compiled or validated on-device.
 
-## v114 — place recognition and administrative-code matching
-- Search matching now scores the full MapKit completion title/subtitle and multiple placemark hierarchy fields instead of relying only on `subAdministrativeArea`.
-- Normalizes Chinese administrative suffixes and uses city/province context to rank county candidates, reducing false failures when MapKit labels a township and its district inconsistently.
-- Adds offline fallback codes for 港北区 (450802), 港南区 (450803), and 覃塘区 (450804), alongside the existing locally known areas. Local fallback records take precedence over duplicate online records.
-- Failure messages now show the administrative fields that were detected and distinguish a missing code match from a failure to recognize the place.
-- Validation: Swift frontend parse passed for `ContentView.swift`; existing `ScheduleTests.swift` passed. Full iOS/Xcode build and device test were not available in this environment.
+
+## v113.1 — place recognition fix (based on v113)
+- Base archive: GanJi-v113-Region-Redesigned.zip. The v113 redesigned region-page UI is retained.
+- Improved MapKit place-to-county matching using completion title/subtitle and placemark fields, with normalized names and ranked candidate scoring.
+- Added offline fallback entries for 港北区、港南区、覃塘区 in 贵港市.
+- UI redesign from later versions was not copied into this archive.
+- iOS build and device validation remain required.
