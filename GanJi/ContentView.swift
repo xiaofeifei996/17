@@ -320,6 +320,23 @@ struct ContentView: View {
 
     private enum HomeTab { case home, favorites, region, map }
 
+    private func homeCalendarInfo(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.white.opacity(0.78))
+            Text(value)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .background(Color.white.opacity(0.16), in: RoundedRectangle(cornerRadius: 10))
+    }
+
     private var homePage: some View {
         VStack(spacing: 0) {
             // Editorial header: a different information hierarchy from the original card/list screen.
@@ -353,14 +370,12 @@ struct ContentView: View {
                                 Text("圩日记事").font(.system(size: 10, weight: .heavy, design: .rounded)).tracking(1.8).foregroundColor(.white.opacity(0.82))
                                 Text("今天去哪赶圩？").font(.system(size: 21, weight: .bold, design: .rounded)).foregroundColor(.white)
                                 Text("按开圩日期整理你的行程").font(.system(size: 12, weight: .medium)).foregroundColor(.white.opacity(0.88))
-                                HStack(spacing: 8) {
-                                    Text("今日生肖：\(LunarCalendar.zodiacName(Date()))")
-                                    Text("日干支：\(LunarCalendar.ganzhiName(Date()))")
-                                    Text("农历：\(LunarCalendar.lunarText(Date()))")
+                                HStack(alignment: .top, spacing: 8) {
+                                    homeCalendarInfo(title: "生肖", value: LunarCalendar.zodiacName(Date()))
+                                    homeCalendarInfo(title: "日干支", value: LunarCalendar.ganzhiName(Date()))
+                                    homeCalendarInfo(title: "农历", value: LunarCalendar.lunarText(Date()))
                                 }
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.white)
-                                .padding(.top, 3)
+                                .padding(.top, 7)
                             }
                             Spacer(minLength: 0)
                             Image(systemName: "basket.fill").font(.system(size: 36, weight: .medium)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
@@ -474,7 +489,16 @@ struct ContentView: View {
                                                     .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 13))
                                                     VStack(alignment: .leading, spacing: 5) {
                                                         Text(row.market.name).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(Color.primary).lineLimit(1)
-                                                        Text([row.market.city, row.market.area].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 11, weight: .medium)).foregroundColor(Color(red: 0.48, green: 0.49, blue: 0.43)).lineLimit(1)
+                                                        Text([row.market.city, row.market.area].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 11, weight: .medium)).foregroundColor(Color(red: 0.38, green: 0.39, blue: 0.36)).lineLimit(1)
+                                                        HStack(spacing: 8) {
+                                                            Text("生肖：\(LunarCalendar.zodiacName(row.date))")
+                                                            Text("日干支：\(LunarCalendar.ganzhiName(row.date))")
+                                                            Text("农历：\(LunarCalendar.lunarText(row.date))")
+                                                        }
+                                                        .font(.system(size: 10, weight: .semibold))
+                                                        .foregroundColor(Color(red: 0.00, green: 0.40, blue: 0.82))
+                                                        .lineLimit(1)
+                                                        .minimumScaleFactor(0.75)
                                                     }
                                                     Spacer(minLength: 4)
                                                     Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .bold)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
