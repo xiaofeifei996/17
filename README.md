@@ -1,8 +1,7 @@
-# GanJi v113 — Remove Bundled 108 Markets
+# GanJi v116 — Direct County Name Matching
 
-Removed `Shared/markets.json`, the bundled dataset containing 108 built-in market records. Market lists now rely on live API results and per-area cached results instead of the bundled sample data. If the network fails and no cache exists for the selected area, the app will show its existing network/error empty state rather than displaying the built-in 108 markets.
+Fixes place search for queries that are already county/district names (for example, 青秀区). Matching now checks the search title/subtitle against loaded county records before relying on MapKit placemark administrative fields. Unique exact county names can resolve even when MapKit only returns a province; duplicate names still require city/province context to avoid false matches.
 
-The region/place search and existing `api.ganjirili.com/gathers` request flow are retained. ZIP integrity checked; Xcode compilation and iPhone runtime validation have not been performed in this environment.
+The existing county selection and market API flow are unchanged. Bundled `Shared/markets.json` remains absent.
 
-
-The schedule regression test uses in-memory fixture records and does not require `Shared/markets.json`, which is intentionally absent.
+Validation: source-level patch and ZIP integrity check only; Xcode/iPhone runtime not verified.

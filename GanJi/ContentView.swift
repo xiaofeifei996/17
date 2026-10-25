@@ -1281,22 +1281,51 @@ struct ContentView: View {
             let normalizedDistrict = normalized(district)
             let addressText = "\(completion.title) \(completion.subtitle) \(province) \(city) \(district)"
             let normalizedAddress = normalized(addressText)
+            let normalizedTitle = normalized(completion.title)
+            let normalizedSubtitle = normalized(completion.subtitle)
 
-            // Prefer exact county/district matches. If MapKit returns a town as the subtitle
-            // and places its county in another placemark field, match the county independently;
-            // city/province fields can be incomplete or shifted for Chinese place results.
+            // First match an explicitly searched county/district name itself. MapKit may
+            // return only the province in placemark fields for queries such as "青秀区";
+            // requiring the city/district fields in that case incorrectly rejects a valid hit.
+            let exactQueryMatches = countyOptions.filter { option in
+                let countyName = normalized(option.name)
+                return !countyName.isEmpty &&
+                    (countyName == normalizedTitle || countyName == normalizedSubtitle)
+            }
+            // If the query name is unique in the loaded administrative data, it is safe to
+            // use even when MapKit's address metadata is incomplete. Duplicate county names
+            // still require the city/province context to avoid selecting the wrong area.
+            let exactQueryMatch: [RegionOption] = exactQueryMatches.count == 1
+                ? exactQueryMatches
+                : exactQueryMatches.filter { option in
+                    let cityName = normalized(option.city)
+                    let provinceName = normalized(option.province)
+                    let cityCompatible = !cityName.isEmpty && normalizedAddress.contains(cityName)
+                    let provinceCompatible = !provinceName.isEmpty && normalizedAddress.contains(provinceName)
+                    return cityCompatible || provinceCompatible
+                }
+
+            // Also match an explicit district returned in the placemark, then fall back to
+            // the complete title/subtitle/address text. City/province fields may be shifted.
             let exactDistrictMatches = countyOptions.filter { option in
                 normalized(option.name) == normalizedDistrict && !normalizedDistrict.isEmpty
             }
-            let candidates = exactDistrictMatches.isEmpty ? countyOptions.filter { option in
-                let countyName = normalized(option.name)
-                guard !countyName.isEmpty, normalizedAddress.contains(countyName) else { return false }
-                let cityName = normalized(option.city)
-                let provinceName = normalized(option.province)
-                let cityCompatible = normalizedCity.isEmpty || cityName.isEmpty || cityName == normalizedCity || normalizedAddress.contains(cityName)
-                let provinceCompatible = normalizedProvince.isEmpty || provinceName.isEmpty || provinceName == normalizedProvince || normalizedAddress.contains(provinceName)
-                return cityCompatible && provinceCompatible
-            } : exactDistrictMatches
+            let candidates: [RegionOption]
+            if exactQueryMatch.count == 1 {
+                candidates = exactQueryMatch
+            } else if !exactDistrictMatches.isEmpty {
+                candidates = exactDistrictMatches
+            } else {
+                candidates = countyOptions.filter { option in
+                    let countyName = normalized(option.name)
+                    guard !countyName.isEmpty, normalizedAddress.contains(countyName) else { return false }
+                    let cityName = normalized(option.city)
+                    let provinceName = normalized(option.province)
+                    let cityCompatible = normalizedCity.isEmpty || cityName.isEmpty || cityName == normalizedCity || normalizedAddress.contains(cityName)
+                    let provinceCompatible = normalizedProvince.isEmpty || provinceName.isEmpty || provinceName == normalizedProvince || normalizedAddress.contains(provinceName)
+                    return cityCompatible && provinceCompatible
+                }
+            }
             let match = candidates.count == 1 ? candidates[0] : nil
             if let match = match {
                 // A selected place is a location choice, not a market-name filter.
