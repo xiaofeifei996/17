@@ -228,7 +228,7 @@ struct ContentView: View {
                         .accessibilityLabel("关闭地区选择")
                         Spacer(minLength: 0)
                         Text("选择地区")
-                            .font(.system(size: 19, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                         Spacer(minLength: 0)
                         Button {
                             // The sheet blocks the underlying Dock, so provide a direct
@@ -341,7 +341,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             // Editorial header: a different information hierarchy from the original card/list screen.
             HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 5) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(currentDateHeaderText)
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .tracking(1.1)
@@ -355,7 +355,7 @@ struct ContentView: View {
                 }
                 Spacer(minLength: 0)
                 ZStack {
-                    Circle().fill(Color(red: 0.87, green: 0.34, blue: 0.19)).frame(width: 48, height: 48)
+                    Circle().fill(Color(red: 0.87, green: 0.34, blue: 0.19)).frame(width: 40, height: 40)
                     Image(systemName: homeTab == .favorites ? "bookmark.fill" : "sun.max.fill")
                         .font(.system(size: 19, weight: .bold)).foregroundColor(.white)
                 }.padding(.top, 7)
@@ -477,7 +477,7 @@ struct ContentView: View {
                                                 selectedMarketID = row.market.id
                                                 withAnimation { showMainPage = true; homeTab = .region }
                                             } label: {
-                                                HStack(spacing: 13) {
+                                                HStack(spacing: 10) {
                                                     VStack(spacing: 4) {
                                                         if row.market.repeatType == 6 {
                                                             Image(systemName: "storefront.fill")
@@ -492,9 +492,9 @@ struct ContentView: View {
                                                     }
                                                     .foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                                     .frame(width: 48, height: 48)
-                                                    .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 13))
+                                                    .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 11))
                                                     VStack(alignment: .leading, spacing: 5) {
-                                                        Text(row.market.name).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(Color.primary).lineLimit(1)
+                                                        Text(row.market.name).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(Color.primary).lineLimit(1)
                                                         Text([row.market.city, row.market.area].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 11, weight: .medium)).foregroundColor(Color(red: 0.38, green: 0.39, blue: 0.36)).lineLimit(1)
                                                         HStack(spacing: 8) {
                                                             Text("生肖：\(LunarCalendar.zodiacName(row.date))")
@@ -509,9 +509,9 @@ struct ContentView: View {
                                                     Spacer(minLength: 4)
                                                     Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .bold)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                                 }
-                                                .padding(.vertical, 12).padding(.horizontal, 12).contentShape(Rectangle())
+                                                .padding(.vertical, 8).padding(.horizontal, 10).contentShape(Rectangle())
                                             }.buttonStyle(.plain)
-                                            if row.id != rows.last?.id { Divider().overlay(Color(uiColor: .separator)).padding(.leading, 72) }
+                                            if row.id != rows.last?.id { Divider().overlay(Color(uiColor: .separator)).padding(.leading, 60) }
                                         }
                                     }
                                     .padding(.horizontal, 4)
