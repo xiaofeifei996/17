@@ -459,7 +459,6 @@ struct ContentView: View {
                                         .font(.system(size: 20, weight: .bold, design: .rounded))
                                         .foregroundColor(Color.primary)
                                     Spacer()
-                                    Text(["今日", "明日", "后日"][offset]).font(.system(size: 9, weight: .heavy, design: .rounded)).tracking(1.1).foregroundColor(Color(red: 0.35, green: 0.36, blue: 0.39))
                                 }
                                 if rows.isEmpty {
                                     HStack(spacing: 12) {
