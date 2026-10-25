@@ -396,6 +396,9 @@ struct ContentView: View {
                                     .onChange(of: searchText) { value in
                                         placeSearch.query(value)
                                         placeSearchMessage = nil
+                                        if value.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
+                                            Task { await loadNationalRegions() }
+                                        }
                                     }
                                 if !searchText.isEmpty {
                                     Button {
@@ -1337,8 +1340,21 @@ struct ContentView: View {
             // Ensure the nationwide administrative-code list has had a chance to load
             // before matching MapKit's place result. Otherwise the same search may work
             // on one attempt and fail on another depending on network/load timing.
-            if nationalRegionOptions.isEmpty && !loadingRegionOptions {
-                await loadNationalRegions()
+            if nationalRegionOptions.isEmpty {
+                if !loadingRegionOptions {
+                    await loadNationalRegions()
+                } else {
+                    // The Region screen starts loading this dataset while the user types.
+                    // If they tap a result during that load, wait for it instead of trying
+                    // to match against only the small offline fallback list.
+                    while loadingRegionOptions {
+                        try? await Task.sleep(nanoseconds: 100_000_000)
+                    }
+                    // If the first load failed, make one awaited retry before matching.
+                    if nationalRegionOptions.isEmpty {
+                        await loadNationalRegions()
+                    }
+                }
             }
             let countyOptions = regionOptions.filter { $0.kind == .county }
 
