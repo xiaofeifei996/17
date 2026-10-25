@@ -346,7 +346,7 @@ struct ContentView: View {
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .tracking(1.1)
                         .foregroundColor(Color(red: 0.56, green: 0.31, blue: 0.19))
-                    Text(homeTab == .favorites ? "收藏簿" : (homeTab == .region ? "探索地区" : "去圩睇靓女"))
+                    Text(homeTab == .favorites ? "收藏簿" : (homeTab == .region ? "探索地区" : "趁圩睇靓女"))
                         .font(.system(size: 32, weight: .black, design: .rounded))
                         .foregroundColor(Color(red: 0.15, green: 0.19, blue: 0.17))
                     Text(homeTab == .favorites ? "把常去的圩日收进来" : (homeTab == .region ? "选择你的趁圩目的地" : "把圩日的热闹记下来"))
