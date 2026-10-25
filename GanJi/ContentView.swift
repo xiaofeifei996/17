@@ -1067,31 +1067,9 @@ struct ContentView: View {
         })
     }
 
+    // Use only the nationwide administrative dataset; no hard-coded offline regions.
     private var regionOptions: [RegionOption] {
-        let fallback = [
-            // Common county-level entries needed when the remote administrative feed
-            // is unavailable or returns incomplete lower-level data.
-            RegionOption(code: 450103, name: "青秀区", city: "南宁市", province: "广西壮族自治区", kind: .county),
-            RegionOption(code: 450803, name: "港南区", city: "贵港市", province: "广西壮族自治区", kind: .county),
-            RegionOption(code: 450821, name: "平南县", city: "贵港市", province: "广西壮族自治区", kind: .county),
-            RegionOption(code: 450881, name: "桂平市", city: "贵港市", province: "广西壮族自治区", kind: .county),
-            RegionOption(code: 450924, name: "兴业县", city: "玉林市", province: "广西壮族自治区", kind: .county),
-            RegionOption(code: 451324, name: "金秀瑶族自治县", city: "来宾市", province: "广西壮族自治区", kind: .county)
-        ]
-        var combined = nationalRegionOptions + fallback
-        // Derive parent province/city rows from the locally-known county entries as a safe offline fallback.
-        for item in fallback {
-            let provinceCode = (item.code / 10000) * 10000
-            let cityCode = (item.code / 100) * 100
-            if !combined.contains(where: { $0.code == provinceCode }) {
-                combined.append(RegionOption(code: provinceCode, name: item.province, city: "", province: item.province, kind: .province))
-            }
-            if !combined.contains(where: { $0.code == cityCode }) {
-                combined.append(RegionOption(code: cityCode, name: item.city, city: item.province, province: item.province, kind: .city))
-            }
-        }
-        var seen = Set<Int>()
-        return combined.filter { seen.insert($0.code).inserted }
+        nationalRegionOptions
     }
 
     // Homepage search uses the same administrative-region data as the Region picker,
@@ -1241,7 +1219,7 @@ struct ContentView: View {
                 lastError = error
             }
         }
-        regionLoadMessage = "全国行政区划数据暂时无法加载，请检查网络后重试；当前仅显示本地有限数据。"
+        regionLoadMessage = "全国行政区划数据暂时无法加载，请检查网络后重试。"
         _ = lastError
     }
 
@@ -1274,8 +1252,8 @@ struct ContentView: View {
                     await loadNationalRegions()
                 } else {
                     // The Region screen starts loading this dataset while the user types.
-                    // If they tap a result during that load, wait for it instead of trying
-                    // to match against only the small offline fallback list.
+                    // If they tap a result during that load, wait for the nationwide
+                    // dataset instead of matching before it has finished loading.
                     while loadingRegionOptions {
                         try? await Task.sleep(nanoseconds: 100_000_000)
                     }

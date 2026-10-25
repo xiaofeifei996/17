@@ -1,10 +1,13 @@
-# GanJi v117 — County Search Fallback Fix
+# GanJi — 全国行政区划数据加载
 
-- Adds Qingxiu District (青秀区, Nanning, Guangxi; administrative code 450103) to the local county fallback so direct county-name search can work when the remote administrative feed is incomplete.
-- Improves place-result matching by checking normalized title, subtitle, and full address text, while retaining city/province disambiguation for duplicate county names.
-- Keeps the no-bundled-108-markets behavior and existing gathers API flow.
+## 当前变更：移除硬编码地区备用项
 
-Validation: source-level checks and ZIP integrity only; Xcode/iPhone runtime validation has not been performed.
+- 删除 `regionOptions` 中的 6 条广西县级地区硬编码数据，以及由它们推导省、市记录的逻辑。
+- 地区搜索与省、市、区县选择器现在只使用成功加载的 `nationalRegionOptions`。
+- 保留 MapKit 地点结果匹配逻辑；该逻辑用于处理地址字段不完整的情况，不是硬编码地区数据。
+- `Shared/regions.json` 文件暂时保留，但当前地区加载代码没有读取它，因此它不会作为运行时备用地区列表。
+
+验证：已完成源码检查与 ZIP 完整性检查；尚未通过 Xcode 或 iPhone 进行运行验证。
 
 
 ## v118 全国县区行政区划加载
@@ -12,7 +15,7 @@ Validation: source-level checks and ZIP integrity only; Xcode/iPhone runtime val
 - 行政区划优先从民政部国家地名信息库接口加载。
 - 官方服务不可用时，尝试从 `province-city-china` 公共数据集加载全国省、市、县区层级数据。
 - 加载时会校验县区条目数量（至少 2,500 条），避免误把不完整响应当作全国数据。
-- `Shared/regions.json` 仍是离线兜底快照，不代表全国县区完整数据；首次完整加载需要网络。
+- 当前地区加载代码不读取 `Shared/regions.json`；首次完整加载需要网络。
 - 行政区划覆盖不等于圩日 API 覆盖，圩日记录仍以接口实际返回为准。
 
 
