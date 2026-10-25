@@ -1090,9 +1090,10 @@ struct ContentView: View {
                             }
                         }
                     }
+                    // Keep the last card fully inside the opaque panel when scrolling.
                     .padding(.bottom, 16)
                 }
-                .frame(maxHeight: min(screenHeight * 0.70, 600))
+                .frame(maxHeight: min(screenHeight * 0.62, 560))
             } else {
                 // Compact nearby-market list uses vertical scrolling; no horizontal carousel.
                 ScrollView(.vertical, showsIndicators: false) {
@@ -1112,31 +1113,16 @@ struct ContentView: View {
                             }
                         }
                     }
-                    .padding(.bottom, 2)
+                    .padding(.bottom, 12)
                 }
-                .frame(maxHeight: min(screenHeight * 0.32, 250))
+                .frame(maxHeight: min(screenHeight * 0.38, 300))
             }
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 14)
-        .padding(.bottom, 4)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Keep the upper controls readable while letting the bottom card remain visible
-        // through the panel's lower edge instead of covering it with an opaque fill.
-        .background(
-            LinearGradient(
-                stops: [
-                    .init(color: Color(red: 0.98, green: 0.97, blue: 0.91).opacity(0.98), location: 0.0),
-                    .init(color: Color(red: 0.98, green: 0.97, blue: 0.91).opacity(0.88), location: 0.72),
-                    .init(color: .clear, location: 1.0)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            ),
-            in: RoundedRectangle(cornerRadius: 28, style: .continuous)
-        )
-        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.75), lineWidth: 1))
+        .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.95), lineWidth: 1))
         .shadow(color: Color(red: 0.13, green: 0.20, blue: 0.16).opacity(0.18), radius: 22, x: 0, y: 8)
         .padding(.horizontal, 12)
         .gesture(DragGesture(minimumDistance: 18).onEnded { value in
