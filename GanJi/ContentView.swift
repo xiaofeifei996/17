@@ -228,7 +228,7 @@ struct ContentView: View {
                         .accessibilityLabel("关闭地区选择")
                         Spacer(minLength: 0)
                         Text("选择地区")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 19, weight: .semibold))
                         Spacer(minLength: 0)
                         Button {
                             // The sheet blocks the underlying Dock, so provide a direct
@@ -341,7 +341,7 @@ struct ContentView: View {
         VStack(spacing: 0) {
             // Editorial header: a different information hierarchy from the original card/list screen.
             HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 5) {
                     Text(currentDateHeaderText)
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .tracking(1.1)
@@ -355,7 +355,7 @@ struct ContentView: View {
                 }
                 Spacer(minLength: 0)
                 ZStack {
-                    Circle().fill(Color(red: 0.87, green: 0.34, blue: 0.19)).frame(width: 40, height: 40)
+                    Circle().fill(Color(red: 0.87, green: 0.34, blue: 0.19)).frame(width: 48, height: 48)
                     Image(systemName: homeTab == .favorites ? "bookmark.fill" : "sun.max.fill")
                         .font(.system(size: 19, weight: .bold)).foregroundColor(.white)
                 }.padding(.top, 7)
@@ -477,7 +477,7 @@ struct ContentView: View {
                                                 selectedMarketID = row.market.id
                                                 withAnimation { showMainPage = true; homeTab = .region }
                                             } label: {
-                                                HStack(spacing: 10) {
+                                                HStack(spacing: 13) {
                                                     VStack(spacing: 4) {
                                                         if row.market.repeatType == 6 {
                                                             Image(systemName: "storefront.fill")
@@ -492,9 +492,9 @@ struct ContentView: View {
                                                     }
                                                     .foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                                     .frame(width: 48, height: 48)
-                                                    .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 11))
+                                                    .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 13))
                                                     VStack(alignment: .leading, spacing: 5) {
-                                                        Text(row.market.name).font(.system(size: 14, weight: .bold, design: .rounded)).foregroundColor(Color.primary).lineLimit(1)
+                                                        Text(row.market.name).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(Color.primary).lineLimit(1)
                                                         Text([row.market.city, row.market.area].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 11, weight: .medium)).foregroundColor(Color(red: 0.38, green: 0.39, blue: 0.36)).lineLimit(1)
                                                         HStack(spacing: 8) {
                                                             Text("生肖：\(LunarCalendar.zodiacName(row.date))")
@@ -509,9 +509,9 @@ struct ContentView: View {
                                                     Spacer(minLength: 4)
                                                     Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .bold)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                                 }
-                                                .padding(.vertical, 8).padding(.horizontal, 10).contentShape(Rectangle())
+                                                .padding(.vertical, 12).padding(.horizontal, 12).contentShape(Rectangle())
                                             }.buttonStyle(.plain)
-                                            if row.id != rows.last?.id { Divider().overlay(Color(uiColor: .separator)).padding(.leading, 60) }
+                                            if row.id != rows.last?.id { Divider().overlay(Color(uiColor: .separator)).padding(.leading, 72) }
                                         }
                                     }
                                     .padding(.horizontal, 4)
@@ -1084,7 +1084,7 @@ struct ContentView: View {
                 .background(Color(red: 0.93, green: 0.92, blue: 0.84), in: RoundedRectangle(cornerRadius: 18))
             } else if sheetExpanded {
                 ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 8) {
+                    LazyVStack(spacing: 6) {
                         ForEach(filteredMarkets) { row in
                             MarketListRow(row: row, distanceText: distanceText(for: row), selected: selectedMarketID == row.market.id, isFavorite: favorites.contains(row.market.id), toggleFavorite: { toggleFavorite(row.market.id) }) {
                                 selectedMarketID = row.market.id
@@ -1097,7 +1097,7 @@ struct ContentView: View {
             } else {
                 // Compact nearby-market list uses vertical scrolling; no horizontal carousel.
                 ScrollView(.vertical, showsIndicators: false) {
-                    LazyVStack(spacing: 8) {
+                    LazyVStack(spacing: 6) {
                         ForEach(filteredMarkets) { row in
                             MarketListRow(
                                 row: row,
@@ -1508,7 +1508,7 @@ private struct MarketListRow: View {
             RoundedRectangle(cornerRadius: 3)
                 .fill(selected ? Color(red: 0.80, green: 0.38, blue: 0.20) : Color(red: 0.77, green: 0.79, blue: 0.69))
                 .frame(width: 4)
-                .padding(.vertical, 12)
+                .padding(.vertical, 8)
             Button(action: action) {
                 VStack(alignment: .leading, spacing: 9) {
                     HStack(spacing: 6) {
@@ -1540,7 +1540,7 @@ private struct MarketListRow: View {
                         .foregroundColor(Color(red: 0.48, green: 0.52, blue: 0.44))
                         .lineLimit(1)
                 }
-                .padding(.leading, 12).padding(.trailing, 8).padding(.vertical, 14)
+                .padding(.leading, 12).padding(.trailing, 8).padding(.vertical, 8)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
