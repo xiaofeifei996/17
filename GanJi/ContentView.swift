@@ -1092,7 +1092,7 @@ struct ContentView: View {
                     }
                     .padding(.bottom, 4)
                 }
-                .frame(maxHeight: min(screenHeight * 0.68, 520))
+                .frame(maxHeight: min(screenHeight * 0.53, 430))
             } else {
                 // Compact nearby-market list uses vertical scrolling; no horizontal carousel.
                 ScrollView(.vertical, showsIndicators: false) {
@@ -1333,6 +1333,13 @@ struct ContentView: View {
             let province = placemark.administrativeArea ?? ""
             let city = placemark.locality ?? ""
             let district = placemark.subAdministrativeArea ?? placemark.subLocality ?? ""
+
+            // Ensure the nationwide administrative-code list has had a chance to load
+            // before matching MapKit's place result. Otherwise the same search may work
+            // on one attempt and fail on another depending on network/load timing.
+            if nationalRegionOptions.isEmpty && !loadingRegionOptions {
+                await loadNationalRegions()
+            }
             let countyOptions = regionOptions.filter { $0.kind == .county }
 
             // Normalize common administrative suffixes while preserving the actual county identity.
@@ -1402,7 +1409,24 @@ struct ContentView: View {
                     return cityCompatible && provinceCompatible
                 }
             }
-            let match = candidates.count == 1 ? candidates[0] : nil
+            var match = candidates.count == 1 ? candidates[0] : nil
+
+            // MapKit sometimes omits county details from placemark metadata. If the
+            // visible search title/subtitle names a unique county, use that exact hit
+            // as a fallback instead of depending only on the parsed address fields.
+            if match == nil {
+                let queryNames = [completion.title, completion.subtitle]
+                    .map { normalized($0) }
+                    .filter { !$0.isEmpty }
+                let fallbackMatches = countyOptions.filter { option in
+                    let countyName = normalized(option.name)
+                    return !countyName.isEmpty && queryNames.contains(countyName)
+                }
+                if fallbackMatches.count == 1 {
+                    match = fallbackMatches[0]
+                }
+            }
+
             if let match = match {
                 // A selected place is a location choice, not a market-name filter.
                 // Clear the search query immediately so the market list is not hidden
