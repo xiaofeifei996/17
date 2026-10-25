@@ -348,9 +348,9 @@ struct ContentView: View {
                                 Text("按开圩日期整理你的行程").font(.system(size: 12, weight: .medium)).foregroundColor(.white.opacity(0.8))
                             }
                             Spacer(minLength: 0)
-                            Image(systemName: "basket.fill").font(.system(size: 36, weight: .medium)).foregroundColor(Color(red: 0.98, green: 0.75, blue: 0.38))
+                            Image(systemName: "basket.fill").font(.system(size: 36, weight: .medium)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                         }
-                        .padding(20).background(Color(red: 0.19, green: 0.29, blue: 0.24), in: RoundedRectangle(cornerRadius: 22))
+                        .padding(20).background(Color(red: 0.00, green: 0.48, blue: 1.00), in: RoundedRectangle(cornerRadius: 22))
 
                         // Homepage place search: use the same MapKit suggestions and subtitle
                         // as the Region map search, then resolve the full administrative area
@@ -358,7 +358,7 @@ struct ContentView: View {
                         VStack(alignment: .leading, spacing: 10) {
                             HStack(spacing: 10) {
                                 Image(systemName: "magnifyingglass")
-                                    .foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                                    .foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                 TextField("先搜索地名：城市、县、镇或村", text: $searchText)
                                     .focused($isPlaceSearchFocused)
                                     .font(.system(size: 14, weight: .medium))
@@ -379,7 +379,7 @@ struct ContentView: View {
                             }
                             .padding(.horizontal, 14).frame(height: 48)
                             .background(Color.white, in: RoundedRectangle(cornerRadius: 14))
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(red: 0.88, green: 0.86, blue: 0.80), lineWidth: 1))
+                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(uiColor: .separator), lineWidth: 1))
 
                             if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                                 Text("选择正确的地址，下面的小字用于区分市县镇")
@@ -396,7 +396,7 @@ struct ContentView: View {
                                             HStack(spacing: 10) {
                                                 Image(systemName: "mappin.and.ellipse")
                                                     .font(.system(size: 16, weight: .semibold))
-                                                    .foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                                                    .foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                                     .frame(width: 30)
                                                 VStack(alignment: .leading, spacing: 3) {
                                                     Text(completion.title).font(.system(size: 14, weight: .semibold)).foregroundColor(.primary).lineLimit(1)
@@ -427,14 +427,14 @@ struct ContentView: View {
                                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                                     Text(["今日安排", "明日预告", "后日预告"][offset])
                                         .font(.system(size: 20, weight: .bold, design: .rounded))
-                                        .foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18))
-                                    Text(String(format: "%02d", rows.count)).font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundColor(Color(red: 0.75, green: 0.31, blue: 0.17))
+                                        .foregroundColor(Color.primary)
+                                    Text(String(format: "%02d", rows.count)).font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                     Spacer()
                                     Text(["TODAY", "TOMORROW", "UP NEXT"][offset]).font(.system(size: 9, weight: .heavy, design: .rounded)).tracking(1.1).foregroundColor(Color(red: 0.55, green: 0.56, blue: 0.49))
                                 }
                                 if rows.isEmpty {
                                     HStack(spacing: 12) {
-                                        Image(systemName: "sun.horizon").font(.system(size: 21)).foregroundColor(Color(red: 0.75, green: 0.31, blue: 0.17))
+                                        Image(systemName: "sun.horizon").font(.system(size: 21)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                         VStack(alignment: .leading, spacing: 3) {
                                             Text("暂时没有安排").font(.system(size: 14, weight: .semibold))
                                             Text("收藏圩日后，会在这里按日期出现").font(.system(size: 12)).foregroundColor(.secondary)
@@ -454,19 +454,19 @@ struct ContentView: View {
                                                         Text(row.market.repeatType == 6 ? "集" : row.market.displaySchedule.components(separatedBy: "、").first ?? "—")
                                                             .font(.system(size: 12, weight: .black, design: .rounded)).lineLimit(1).minimumScaleFactor(0.7)
                                                     }
-                                                    .foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                                                    .foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                                     .frame(width: 48, height: 48)
-                                                    .background(Color(red: 0.97, green: 0.88, blue: 0.78), in: RoundedRectangle(cornerRadius: 13))
+                                                    .background(Color(uiColor: .tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 13))
                                                     VStack(alignment: .leading, spacing: 5) {
-                                                        Text(row.market.name).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18)).lineLimit(1)
+                                                        Text(row.market.name).font(.system(size: 16, weight: .bold, design: .rounded)).foregroundColor(Color.primary).lineLimit(1)
                                                         Text([row.market.city, row.market.area].filter { !$0.isEmpty }.joined(separator: " · ")).font(.system(size: 11, weight: .medium)).foregroundColor(Color(red: 0.48, green: 0.49, blue: 0.43)).lineLimit(1)
                                                     }
                                                     Spacer(minLength: 4)
-                                                    Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .bold)).foregroundColor(Color(red: 0.70, green: 0.33, blue: 0.19))
+                                                    Image(systemName: "arrow.up.right").font(.system(size: 12, weight: .bold)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                                 }
                                                 .padding(.vertical, 12).padding(.horizontal, 12).contentShape(Rectangle())
                                             }.buttonStyle(.plain)
-                                            if row.id != rows.last?.id { Divider().overlay(Color(red: 0.88, green: 0.85, blue: 0.78)).padding(.leading, 72) }
+                                            if row.id != rows.last?.id { Divider().overlay(Color(uiColor: .separator)).padding(.leading, 72) }
                                         }
                                     }
                                     .padding(.horizontal, 4)
@@ -481,14 +481,14 @@ struct ContentView: View {
                 let saved = favoriteMarkets.filter { favorites.contains($0.id) }
                 if saved.isEmpty {
                     VStack(spacing: 15) {
-                        ZStack { Circle().fill(Color(red: 0.94, green: 0.85, blue: 0.75)).frame(width: 94, height: 94); Image(systemName: "bookmark").font(.system(size: 32, weight: .medium)).foregroundColor(Color(red: 0.68, green: 0.29, blue: 0.16)) }
+                        ZStack { Circle().fill(Color(uiColor: .tertiarySystemGroupedBackground)).frame(width: 94, height: 94); Image(systemName: "bookmark").font(.system(size: 32, weight: .medium)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00)) }
                         Text("这里还空着").font(.system(size: 20, weight: .bold, design: .rounded))
                         Text("在地区地图里找到常去的圩，\n点一下收藏，就能建立自己的赶圩清单。")
                             .font(.system(size: 13)).foregroundColor(.secondary).multilineTextAlignment(.center).lineSpacing(4)
                         Button { withAnimation { showMainPage = true; homeTab = .region } } label: {
                             HStack(spacing: 8) { Text("去发现圩日"); Image(systemName: "arrow.right") }
                                 .font(.system(size: 14, weight: .bold)).foregroundColor(.white).padding(.horizontal, 20).frame(height: 46)
-                                .background(Color(red: 0.19, green: 0.29, blue: 0.24), in: Capsule())
+                                .background(Color(red: 0.00, green: 0.48, blue: 1.00), in: Capsule())
                         }
                     }.frame(maxWidth: .infinity, maxHeight: .infinity).padding(28)
                 } else {
@@ -499,12 +499,12 @@ struct ContentView: View {
                                 HStack(spacing: 13) {
                                     RoundedRectangle(cornerRadius: 12).fill(Color(red: 0.88, green: 0.40, blue: 0.23)).frame(width: 5)
                                     VStack(alignment: .leading, spacing: 6) {
-                                        Text(market.name).font(.system(size: 17, weight: .bold, design: .rounded)).foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18))
+                                        Text(market.name).font(.system(size: 17, weight: .bold, design: .rounded)).foregroundColor(Color.primary)
                                         Text([market.province, market.city, market.area].filter { !$0.isEmpty }.joined(separator: " / ")).font(.system(size: 11, weight: .medium)).foregroundColor(.secondary).lineLimit(1)
-                                        Label(market.repeatType == 6 ? "属相：\(market.repeatValue.joined(separator: "、"))" : "开圩：\(market.displaySchedule)", systemImage: "calendar").font(.system(size: 12, weight: .medium)).foregroundColor(Color(red: 0.64, green: 0.31, blue: 0.18))
+                                        Label(market.repeatType == 6 ? "属相：\(market.repeatValue.joined(separator: "、"))" : "开圩：\(market.displaySchedule)", systemImage: "calendar").font(.system(size: 12, weight: .medium)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                     }
                                     Spacer(minLength: 0)
-                                    Button { toggleFavorite(market.id) } label: { Image(systemName: "bookmark.fill").font(.system(size: 17)).foregroundColor(Color(red: 0.75, green: 0.31, blue: 0.17)).frame(width: 40, height: 48) }.accessibilityLabel("取消收藏\(market.name)")
+                                    Button { toggleFavorite(market.id) } label: { Image(systemName: "bookmark.fill").font(.system(size: 17)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00)).frame(width: 40, height: 48) }.accessibilityLabel("取消收藏\(market.name)")
                                 }
                                 .padding(14).frame(minHeight: 94).background(Color.white.opacity(0.82), in: RoundedRectangle(cornerRadius: 17))
                                 .contentShape(Rectangle()).onTapGesture { withAnimation { showMainPage = true; homeTab = .region }; selectedMarketID = market.id }
@@ -519,10 +519,10 @@ struct ContentView: View {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { homeRegionExpanded.toggle(); if homeRegionExpanded { alignPickerToSelectedRegion() } }
                         } label: {
                             HStack(spacing: 14) {
-                                ZStack { RoundedRectangle(cornerRadius: 15).fill(Color(red: 0.19, green: 0.29, blue: 0.24)).frame(width: 52, height: 52); Image(systemName: "map.fill").font(.system(size: 20)).foregroundColor(Color(red: 0.98, green: 0.75, blue: 0.38)) }
-                                VStack(alignment: .leading, spacing: 5) { Text("当前探索区域").font(.system(size: 11, weight: .semibold)).foregroundColor(.secondary); Text(homeRegionDisplayName).font(.system(size: 15, weight: .bold)).foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18)).lineLimit(2) }
+                                ZStack { RoundedRectangle(cornerRadius: 15).fill(Color(red: 0.00, green: 0.48, blue: 1.00)).frame(width: 52, height: 52); Image(systemName: "map.fill").font(.system(size: 20)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00)) }
+                                VStack(alignment: .leading, spacing: 5) { Text("当前探索区域").font(.system(size: 11, weight: .semibold)).foregroundColor(.secondary); Text(homeRegionDisplayName).font(.system(size: 15, weight: .bold)).foregroundColor(Color.primary).lineLimit(2) }
                                 Spacer(minLength: 0)
-                                Image(systemName: "slider.horizontal.3").font(.system(size: 18, weight: .semibold)).foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                                Image(systemName: "slider.horizontal.3").font(.system(size: 18, weight: .semibold)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                             }.padding(16).background(Color.white.opacity(0.8), in: RoundedRectangle(cornerRadius: 19))
                         }.buttonStyle(.plain)
                         if homeRegionExpanded {
@@ -530,21 +530,21 @@ struct ContentView: View {
                                 HStack { Text("省份"); Spacer(); Text("城市"); Spacer(); Text("区县") }.font(.system(size: 11, weight: .bold)).foregroundColor(.secondary)
                                 HStack(spacing: 0) { pickerColumn(title: "省份", selection: $selectedPickerProvinceCode, options: pickerProvinces); pickerColumn(title: "城市", selection: $selectedPickerCityCode, options: pickerCities); pickerColumn(title: "区县", selection: $selectedPickerCountyCode, options: pickerCounties) }.frame(height: 160)
                                 Text(regionLoadMessage).font(.system(size: 10)).foregroundColor(.secondary).lineLimit(2).multilineTextAlignment(.center)
-                                Button { if let option = pickerCounties.first(where: { $0.code == selectedPickerCountyCode }) ?? pickerCities.first(where: { $0.code == selectedPickerCityCode }) ?? pickerProvinces.first(where: { $0.code == selectedPickerProvinceCode }) { chooseRegion(option) }; withAnimation { homeRegionExpanded = false } } label: { Text("应用这个地区").font(.system(size: 14, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 46).background(Color(red: 0.19, green: 0.29, blue: 0.24), in: RoundedRectangle(cornerRadius: 13)) }
+                                Button { if let option = pickerCounties.first(where: { $0.code == selectedPickerCountyCode }) ?? pickerCities.first(where: { $0.code == selectedPickerCityCode }) ?? pickerProvinces.first(where: { $0.code == selectedPickerProvinceCode }) { chooseRegion(option) }; withAnimation { homeRegionExpanded = false } } label: { Text("应用这个地区").font(.system(size: 14, weight: .bold)).foregroundColor(.white).frame(maxWidth: .infinity).frame(height: 46).background(Color(red: 0.00, green: 0.48, blue: 1.00), in: RoundedRectangle(cornerRadius: 13)) }
                             }.padding(16).background(Color.white.opacity(0.8), in: RoundedRectangle(cornerRadius: 19))
                         }
                         HStack(spacing: 10) {
-                            Image(systemName: "info.circle.fill").foregroundColor(Color(red: 0.72, green: 0.30, blue: 0.16))
+                            Image(systemName: "info.circle.fill").foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                             Text("地图中可以查看集市位置，点选标记查看圩日详情。")
                                 .font(.system(size: 12, weight: .medium)).foregroundColor(.secondary)
-                        }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(Color(red: 0.94, green: 0.92, blue: 0.86), in: RoundedRectangle(cornerRadius: 15))
+                        }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 15))
                     }.padding(.horizontal, 18).padding(.bottom, 24)
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(red: 0.97, green: 0.96, blue: 0.92).ignoresSafeArea())
-        .foregroundColor(Color(red: 0.17, green: 0.21, blue: 0.18))
+        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+        .foregroundColor(Color.primary)
     }
 
     private var homeRegionDisplayName: String {
@@ -565,9 +565,9 @@ struct ContentView: View {
         // Keep the bottom navigation readable over the map; only the map canvas
         // itself is transparent to the system, not the Dock surface.
         // Use a stable system surface instead of material that blends map colors into the Dock.
-        .background(Color(red: 0.15, green: 0.22, blue: 0.18))
+        .background(Color(uiColor: .systemBackground))
         .overlay(alignment: .top) {
-            Rectangle().fill(Color(red: 0.87, green: 0.64, blue: 0.35).opacity(0.9)).frame(height: 2)
+            Rectangle().fill(Color(uiColor: .separator).opacity(0.55)).frame(height: 0.5)
         }
     }
 
@@ -590,7 +590,7 @@ struct ContentView: View {
                 Image(systemName: symbol).font(.system(size: 19, weight: .semibold))
                 Text(title).font(.system(size: 11, weight: .medium))
             }
-            .foregroundColor((homeTab == tab || (tab == .region && showMainPage)) ? Color(red: 0.98, green: 0.75, blue: 0.38) : Color.white.opacity(0.62))
+            .foregroundColor((homeTab == tab || (tab == .region && showMainPage)) ? Color(red: 0.00, green: 0.48, blue: 1.00) : Color.secondary)
             .frame(maxWidth: .infinity).contentShape(Rectangle())
         }.buttonStyle(.plain)
     }
@@ -992,7 +992,7 @@ struct ContentView: View {
                     }
                     Text("附近圩日")
                         .font(.system(size: 25, weight: .black, design: .rounded))
-                        .foregroundColor(Color(red: 0.15, green: 0.22, blue: 0.18))
+                        .foregroundColor(Color(uiColor: .systemBackground))
                     Text(loadingMarkets ? "正在更新集市" : "\(filteredMarkets.count) 个目的地 · 找一场附近的热闹")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Color(red: 0.45, green: 0.49, blue: 0.43))
@@ -1021,7 +1021,7 @@ struct ContentView: View {
                         .font(.system(size: 22, weight: .medium))
                         .foregroundColor(Color(red: 0.98, green: 0.72, blue: 0.36))
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("暂时没有找到圩日").font(.system(size: 14, weight: .bold)).foregroundColor(Color(red: 0.15, green: 0.22, blue: 0.18))
+                        Text("暂时没有找到圩日").font(.system(size: 14, weight: .bold)).foregroundColor(Color(uiColor: .systemBackground))
                         Text("尝试切换地区或调整日期筛选").font(.system(size: 11)).foregroundColor(Color(red: 0.45, green: 0.49, blue: 0.43))
                     }
                     Spacer(minLength: 0)
