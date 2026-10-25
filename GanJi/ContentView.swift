@@ -1120,10 +1120,9 @@ struct ContentView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Removed the opaque foreground sheet fill and border so the market cards
-        // are not visually covered by the panel layer. Keep a subtle shadow only.
-        .background(Color.clear)
-        .shadow(color: Color(red: 0.13, green: 0.20, blue: 0.16).opacity(0.08), radius: 10, x: 0, y: 3)
+        .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        // Removed the decorative foreground border overlay; keep the panel surface and contents intact.
+        .shadow(color: Color(red: 0.13, green: 0.20, blue: 0.16).opacity(0.18), radius: 22, x: 0, y: 8)
         .padding(.horizontal, 12)
         .gesture(DragGesture(minimumDistance: 18).onEnded { value in
             withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
