@@ -1082,6 +1082,9 @@ struct ContentView: View {
 
     private var regionOptions: [RegionOption] {
         let fallback = [
+            // Common county-level entries needed when the remote administrative feed
+            // is unavailable or returns incomplete lower-level data.
+            RegionOption(code: 450103, name: "青秀区", city: "南宁市", province: "广西壮族自治区", kind: .county),
             RegionOption(code: 450803, name: "港南区", city: "贵港市", province: "广西壮族自治区", kind: .county),
             RegionOption(code: 450821, name: "平南县", city: "贵港市", province: "广西壮族自治区", kind: .county),
             RegionOption(code: 450881, name: "桂平市", city: "贵港市", province: "广西壮族自治区", kind: .county),
@@ -1175,68 +1178,84 @@ struct ContentView: View {
         guard !loadingRegionOptions, nationalRegionOptions.isEmpty else { return }
         loadingRegionOptions = true
         defer { loadingRegionOptions = false }
-        guard let url = URL(string: "https://dmfw.mca.gov.cn/9095/xzqh/getList?code=&maxLevel=3") else {
-            regionLoadMessage = "无法生成行政区划请求，显示本地已知地区。"
-            return
-        }
-        do {
-            var request = URLRequest(url: url)
-            request.timeoutInterval = 20
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                throw URLError(.badServerResponse)
-            }
-            let root = try JSONSerialization.jsonObject(with: data)
-            var parsed: [RegionOption] = []
-            var seen = Set<Int>()
-            func walk(_ value: Any, province: String, city: String, depth: Int) {
-                guard depth < 12 else { return }
-                if let array = value as? [Any] {
-                    for item in array { walk(item, province: province, city: city, depth: depth + 1) }
-                    return
+
+        // Try the official national place-name service first, then a public
+        // county-level administrative dataset. This avoids relying on the tiny
+        // local HAR snapshot (which only contains a handful of counties).
+        let sources = [
+            "https://dmfw.mca.gov.cn/9095/xzqh/getList?code=&maxLevel=3",
+            "https://unpkg.com/province-city-china@latest/dist/level.json"
+        ]
+        var lastError: Error = URLError(.cannotLoadFromNetwork)
+        for source in sources {
+            guard let url = URL(string: source) else { continue }
+            do {
+                var request = URLRequest(url: url)
+                request.timeoutInterval = 25
+                request.setValue("application/json", forHTTPHeaderField: "Accept")
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                    throw URLError(.badServerResponse)
                 }
-                guard let object = value as? [String: Any] else { return }
-                let codeKeys = ["code", "xzqhCode", "areaCode", "value", "id"]
-                let nameKeys = ["name", "xzqhName", "areaName", "label", "title"]
-                let rawCode = codeKeys.compactMap { object[$0] }.compactMap { item -> String? in
-                    if let str = item as? String { return str }
-                    if let num = item as? NSNumber { return num.stringValue }
-                    return nil
-                }.first(where: { $0.allSatisfy(\.isNumber) && ($0.count == 6 || $0.count == 12) })
-                let rawName = nameKeys.compactMap { object[$0] as? String }.first
-                var nextProvince = province
-                var nextCity = city
-                if let rawCode = rawCode, let rawName = rawName, !rawName.isEmpty {
-                    let codeString = String(rawCode.prefix(6))
-                    if let code = Int(codeString) {
-                        let kind: RegionOption.Kind
-                        if codeString.hasSuffix("0000") { kind = .province; nextProvince = rawName; nextCity = "" }
-                        else if codeString.hasSuffix("00") { kind = .city; nextCity = rawName }
-                        else { kind = .county }
-                        if seen.insert(code).inserted {
-                            let option = RegionOption(code: code, name: rawName, city: kind == .county ? city : (kind == .city ? province : ""), province: kind == .province ? rawName : province, kind: kind)
-                            parsed.append(option)
+                let root = try JSONSerialization.jsonObject(with: data)
+                var parsed: [RegionOption] = []
+                var seen = Set<Int>()
+                func walk(_ value: Any, province: String, city: String, depth: Int) {
+                    guard depth < 16 else { return }
+                    if let array = value as? [Any] {
+                        for item in array { walk(item, province: province, city: city, depth: depth + 1) }
+                        return
+                    }
+                    guard let object = value as? [String: Any] else { return }
+                    let codeKeys = ["code", "xzqhCode", "areaCode", "adcode", "value", "id", "c"]
+                    let nameKeys = ["name", "xzqhName", "areaName", "label", "title", "n"]
+                    let rawCode = codeKeys.compactMap { object[$0] }.compactMap { item -> String? in
+                        if let str = item as? String { return str }
+                        if let num = item as? NSNumber { return num.stringValue }
+                        return nil
+                    }.first(where: { $0.allSatisfy(\.isNumber) && ($0.count == 2 || $0.count == 4 || $0.count == 6 || $0.count == 9 || $0.count == 12) })
+                    let rawName = nameKeys.compactMap { object[$0] as? String }.first
+                    var nextProvince = province
+                    var nextCity = city
+                    if let rawCode = rawCode, let rawName = rawName, !rawName.isEmpty {
+                        let digits = String(rawCode.prefix(6))
+                        if digits.count == 6, let code = Int(digits) {
+                            let kind: RegionOption.Kind
+                            if digits.hasSuffix("0000") { kind = .province; nextProvince = rawName; nextCity = "" }
+                            else if digits.hasSuffix("00") { kind = .city; nextCity = rawName }
+                            else { kind = .county }
+                            if seen.insert(code).inserted {
+                                let option = RegionOption(code: code, name: rawName,
+                                    city: kind == .county ? city : (kind == .city ? province : ""),
+                                    province: kind == .province ? rawName : province, kind: kind)
+                                parsed.append(option)
+                            }
+                        }
+                    }
+                    let metadataKeys = Set(codeKeys + nameKeys + ["province", "city", "area", "town", "parent", "parentCode", "parent_adcode", "level"])
+                    for (key, child) in object where !metadataKeys.contains(key) {
+                        if child is [Any] || child is [String: Any] {
+                            walk(child, province: nextProvince, city: nextCity, depth: depth + 1)
                         }
                     }
                 }
-                for (key, child) in object where !["code", "xzqhCode", "areaCode", "value", "id", "name", "xzqhName", "areaName", "label", "title"].contains(key) {
-                    if child is [Any] || child is [String: Any] {
-                        walk(child, province: nextProvince, city: nextCity, depth: depth + 1)
-                    }
+                walk(root, province: "", city: "", depth: 0)
+                // Do not replace a working list with a province-only or malformed parse.
+                let countyCount = parsed.filter { $0.kind == .county }.count
+                guard countyCount > 2500 else { throw URLError(.cannotParseResponse) }
+                nationalRegionOptions = parsed.sorted {
+                    if $0.province != $1.province { return $0.province.localizedCompare($1.province) == .orderedAscending }
+                    if $0.city != $1.city { return $0.city.localizedCompare($1.city) == .orderedAscending }
+                    return $0.name.localizedCompare($1.name) == .orderedAscending
                 }
+                regionLoadMessage = "已加载全国县区行政区划数据；选择县区后自动查询圩日。行政区划数据与圩日数据覆盖范围不同。"
+                return
+            } catch {
+                lastError = error
             }
-            walk(root, province: "", city: "", depth: 0)
-            guard !parsed.isEmpty else { throw URLError(.cannotParseResponse) }
-            nationalRegionOptions = parsed.sorted {
-                if $0.province != $1.province { return $0.province.localizedCompare($1.province) == .orderedAscending }
-                if $0.city != $1.city { return $0.city.localizedCompare($1.city) == .orderedAscending }
-                return $0.name.localizedCompare($1.name) == .orderedAscending
-            }
-            regionLoadMessage = "已加载全国行政区划；选择县区后自动查询圩日数据。若官方服务暂不可用，将显示本地已知地区。"
-        } catch {
-            regionLoadMessage = "全国区划服务暂不可用，当前显示本地已知地区。请联网后重新打开此页面。"
         }
+        regionLoadMessage = "全国行政区划数据暂时无法加载，请检查网络后重试；当前仅显示本地有限数据。"
+        _ = lastError
     }
 
 
@@ -1289,8 +1308,10 @@ struct ContentView: View {
             // requiring the city/district fields in that case incorrectly rejects a valid hit.
             let exactQueryMatches = countyOptions.filter { option in
                 let countyName = normalized(option.name)
-                return !countyName.isEmpty &&
-                    (countyName == normalizedTitle || countyName == normalizedSubtitle)
+                let titleMatches = !countyName.isEmpty && countyName == normalizedTitle
+                let subtitleMatches = !countyName.isEmpty && countyName == normalizedSubtitle
+                let addressMatches = !countyName.isEmpty && normalizedAddress.contains(countyName)
+                return titleMatches || subtitleMatches || addressMatches
             }
             // If the query name is unique in the loaded administrative data, it is safe to
             // use even when MapKit's address metadata is incomplete. Duplicate county names
@@ -1300,8 +1321,8 @@ struct ContentView: View {
                 : exactQueryMatches.filter { option in
                     let cityName = normalized(option.city)
                     let provinceName = normalized(option.province)
-                    let cityCompatible = !cityName.isEmpty && normalizedAddress.contains(cityName)
-                    let provinceCompatible = !provinceName.isEmpty && normalizedAddress.contains(provinceName)
+                    let cityCompatible = !cityName.isEmpty && normalizedAddress.contains(normalized(cityName))
+                    let provinceCompatible = !provinceName.isEmpty && normalizedAddress.contains(normalized(provinceName))
                     return cityCompatible || provinceCompatible
                 }
 
