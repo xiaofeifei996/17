@@ -1118,11 +1118,11 @@ struct ContentView: View {
             }
             }
         }
-        .padding(14)
+        .padding(.horizontal, 14)
+        .padding(.top, 14)
+        .padding(.bottom, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        // Clip scrolling rows to the panel's rounded bounds so cards never render outside it.
-        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.95), lineWidth: 1))
         .shadow(color: Color(red: 0.13, green: 0.20, blue: 0.16).opacity(0.18), radius: 22, x: 0, y: 8)
         .padding(.horizontal, 12)
