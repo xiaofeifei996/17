@@ -458,7 +458,6 @@ struct ContentView: View {
                                     Text(["今日趁圩", "明日趁圩", "后日趁圩"][offset])
                                         .font(.system(size: 20, weight: .bold, design: .rounded))
                                         .foregroundColor(Color.primary)
-                                    Text(String(format: "%02d", rows.count)).font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                     Spacer()
                                     Text(["今日", "明日", "后日"][offset]).font(.system(size: 9, weight: .heavy, design: .rounded)).tracking(1.1).foregroundColor(Color(red: 0.35, green: 0.36, blue: 0.39))
                                 }
