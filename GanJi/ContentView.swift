@@ -66,6 +66,13 @@ struct ContentView: View {
     )
 
     private var allMarkets: [Market] { displayedMarkets }
+    private var currentDateHeaderText: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.timeZone = TimeZone.current
+        formatter.dateFormat = "M月d日 EEEE"
+        return formatter.string(from: Date())
+    }
     private var offsetFromToday: Int {
         Calendar.current.dateComponents([.day], from: Calendar.current.startOfDay(for: Date()), to: selectedDate).day ?? 0
     }
@@ -318,7 +325,7 @@ struct ContentView: View {
             // Editorial header: a different information hierarchy from the original card/list screen.
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(Date.now.formatted(.dateTime.month(.wide).day().weekday(.wide)))
+                    Text(currentDateHeaderText)
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .tracking(1.1)
                         .foregroundColor(Color(red: 0.56, green: 0.31, blue: 0.19))
@@ -343,9 +350,17 @@ struct ContentView: View {
                     VStack(alignment: .leading, spacing: 22) {
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 5) {
-                                Text("MARKET NOTES").font(.system(size: 10, weight: .heavy, design: .rounded)).tracking(1.8).foregroundColor(.white.opacity(0.72))
+                                Text("圩日记事").font(.system(size: 10, weight: .heavy, design: .rounded)).tracking(1.8).foregroundColor(.white.opacity(0.82))
                                 Text("今天去哪赶圩？").font(.system(size: 21, weight: .bold, design: .rounded)).foregroundColor(.white)
-                                Text("按开圩日期整理你的行程").font(.system(size: 12, weight: .medium)).foregroundColor(.white.opacity(0.8))
+                                Text("按开圩日期整理你的行程").font(.system(size: 12, weight: .medium)).foregroundColor(.white.opacity(0.88))
+                                HStack(spacing: 8) {
+                                    Text("今日生肖：\(LunarCalendar.zodiacName(Date()))")
+                                    Text("日干支：\(LunarCalendar.ganzhiName(Date()))")
+                                    Text("农历：\(LunarCalendar.lunarText(Date()))")
+                                }
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.white)
+                                .padding(.top, 3)
                             }
                             Spacer(minLength: 0)
                             Image(systemName: "basket.fill").font(.system(size: 36, weight: .medium)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
@@ -430,7 +445,7 @@ struct ContentView: View {
                                         .foregroundColor(Color.primary)
                                     Text(String(format: "%02d", rows.count)).font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                     Spacer()
-                                    Text(["TODAY", "TOMORROW", "UP NEXT"][offset]).font(.system(size: 9, weight: .heavy, design: .rounded)).tracking(1.1).foregroundColor(Color(red: 0.55, green: 0.56, blue: 0.49))
+                                    Text(["今日", "明日", "后日"][offset]).font(.system(size: 9, weight: .heavy, design: .rounded)).tracking(1.1).foregroundColor(Color(red: 0.35, green: 0.36, blue: 0.39))
                                 }
                                 if rows.isEmpty {
                                     HStack(spacing: 12) {
@@ -504,7 +519,15 @@ struct ContentView: View {
                                         Label(market.repeatType == 6 ? "属相：\(market.repeatValue.joined(separator: "、"))" : "开圩：\(market.displaySchedule)", systemImage: "calendar").font(.system(size: 12, weight: .medium)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                     }
                                     Spacer(minLength: 0)
-                                    Button { toggleFavorite(market.id) } label: { Image(systemName: "bookmark.fill").font(.system(size: 17)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00)).frame(width: 40, height: 48) }.accessibilityLabel("取消收藏\(market.name)")
+                                    Button { toggleFavorite(market.id) } label: {
+                                        Image(systemName: "heart.fill")
+                                            .font(.system(size: 17, weight: .semibold))
+                                            .foregroundColor(Color(red: 0.82, green: 0.27, blue: 0.25))
+                                            .frame(width: 38, height: 38)
+                                            .background(Color(red: 0.98, green: 0.89, blue: 0.85), in: Circle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel("取消收藏\(market.name)")
                                 }
                                 .padding(14).frame(minHeight: 94).background(Color.white.opacity(0.82), in: RoundedRectangle(cornerRadius: 17))
                                 .contentShape(Rectangle()).onTapGesture { withAnimation { showMainPage = true; homeTab = .region }; selectedMarketID = market.id }
@@ -981,10 +1004,10 @@ struct ContentView: View {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 7) {
-                        Text("FIELD NOTES")
+                        Text("附近赶圩指南")
                             .font(.system(size: 9, weight: .black, design: .rounded))
-                            .tracking(2.0)
-                            .foregroundColor(Color(red: 0.97, green: 0.70, blue: 0.35))
+                            .tracking(1.5)
+                            .foregroundColor(Color(red: 0.35, green: 0.36, blue: 0.39))
                         Capsule().fill(Color.white.opacity(0.22)).frame(width: 24, height: 1)
                         Text("圩日地图")
                             .font(.system(size: 10, weight: .medium))
@@ -992,7 +1015,7 @@ struct ContentView: View {
                     }
                     Text("附近圩日")
                         .font(.system(size: 25, weight: .black, design: .rounded))
-                        .foregroundColor(Color(uiColor: .systemBackground))
+                        .foregroundColor(Color.primary)
                     Text(loadingMarkets ? "正在更新集市" : "\(filteredMarkets.count) 个目的地 · 找一场附近的热闹")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundColor(Color(red: 0.45, green: 0.49, blue: 0.43))
@@ -1459,7 +1482,7 @@ private struct MarketListRow: View {
             Button(action: action) {
                 VStack(alignment: .leading, spacing: 9) {
                     HStack(spacing: 6) {
-                        Text(row.market.size.uppercased())
+                        Text(row.market.size)
                             .font(.system(size: 9, weight: .heavy, design: .rounded))
                             .tracking(0.8)
                             .foregroundColor(Color(red: 0.75, green: 0.35, blue: 0.18))
