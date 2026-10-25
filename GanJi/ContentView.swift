@@ -346,10 +346,10 @@ struct ContentView: View {
                         .font(.system(size: 12, weight: .semibold, design: .rounded))
                         .tracking(1.1)
                         .foregroundColor(Color(red: 0.56, green: 0.31, blue: 0.19))
-                    Text(homeTab == .favorites ? "收藏簿" : (homeTab == .region ? "探索地区" : "圩日手账"))
+                    Text(homeTab == .favorites ? "收藏簿" : (homeTab == .region ? "探索地区" : "去圩睇靓女"))
                         .font(.system(size: 32, weight: .black, design: .rounded))
                         .foregroundColor(Color(red: 0.15, green: 0.19, blue: 0.17))
-                    Text(homeTab == .favorites ? "把常去的圩日收进来" : (homeTab == .region ? "选择你的赶集目的地" : "把附近的热闹记下来"))
+                    Text(homeTab == .favorites ? "把常去的圩日收进来" : (homeTab == .region ? "选择你的趁圩目的地" : "把圩日的热闹记下来"))
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(Color(red: 0.43, green: 0.45, blue: 0.40))
                 }
@@ -368,7 +368,7 @@ struct ContentView: View {
                         HStack(alignment: .center) {
                             VStack(alignment: .leading, spacing: 5) {
                                 Text("圩日记事").font(.system(size: 10, weight: .heavy, design: .rounded)).tracking(1.8).foregroundColor(.white.opacity(0.82))
-                                Text("今天去哪赶圩？").font(.system(size: 21, weight: .bold, design: .rounded)).foregroundColor(.white)
+                                Text("今天去哪趁圩？").font(.system(size: 21, weight: .bold, design: .rounded)).foregroundColor(.white)
                                 Text("按开圩日期整理你的行程").font(.system(size: 12, weight: .medium)).foregroundColor(.white.opacity(0.88))
                                 HStack(alignment: .top, spacing: 8) {
                                     homeCalendarInfo(title: "生肖", value: LunarCalendar.zodiacName(Date()))
@@ -455,7 +455,7 @@ struct ContentView: View {
                             let rows = homeMarkets(for: offset)
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                    Text(["今日安排", "明日预告", "后日预告"][offset])
+                                    Text(["今日趁圩", "明日趁圩", "后日趁圩"][offset])
                                         .font(.system(size: 20, weight: .bold, design: .rounded))
                                         .foregroundColor(Color.primary)
                                     Text(String(format: "%02d", rows.count)).font(.system(size: 12, weight: .bold, design: .monospaced)).foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
