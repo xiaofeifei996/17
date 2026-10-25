@@ -1026,16 +1026,12 @@ struct ContentView: View {
 
     private var regionOptions: [RegionOption] {
         let fallback = [
-            // Locally bundled areas are a fallback when the national division service is unavailable.
-            RegionOption(code: 450802, name: "港北区", city: "贵港市", province: "广西壮族自治区", kind: .county),
-            RegionOption(code: 450803, name: "港南区", city: "贵港市", province: "广西壮族自治区", kind: .county),
-            RegionOption(code: 450804, name: "覃塘区", city: "贵港市", province: "广西壮族自治区", kind: .county),
             RegionOption(code: 450821, name: "平南县", city: "贵港市", province: "广西壮族自治区", kind: .county),
             RegionOption(code: 450881, name: "桂平市", city: "贵港市", province: "广西壮族自治区", kind: .county),
             RegionOption(code: 450924, name: "兴业县", city: "玉林市", province: "广西壮族自治区", kind: .county),
             RegionOption(code: 451324, name: "金秀瑶族自治县", city: "来宾市", province: "广西壮族自治区", kind: .county)
         ]
-        var combined = fallback + nationalRegionOptions
+        var combined = nationalRegionOptions + fallback
         // Derive parent province/city rows from the locally-known county entries as a safe offline fallback.
         for item in fallback {
             let provinceCode = (item.code / 10000) * 10000
@@ -1188,62 +1184,20 @@ struct ContentView: View {
             let placemark = item.placemark
             let province = placemark.administrativeArea ?? ""
             let city = placemark.locality ?? ""
-            // In China, MapKit may put the prefecture-level city in subAdministrativeArea;
-            // prefer subLocality for the county/district when available.
-            let district = placemark.subLocality ?? placemark.subAdministrativeArea ?? ""
+            let district = placemark.subAdministrativeArea ?? placemark.subLocality ?? ""
             let countyOptions = regionOptions.filter { $0.kind == .county }
-
-            // Use every available label, not just one MapKit hierarchy field. Search results
-            // often look like “木格镇（港南区）” while placemark fields are incomplete.
-            let sourceFields = [
-                completion.title, completion.subtitle, placemark.name ?? "", province, city,
-                placemark.subAdministrativeArea ?? "", placemark.subLocality ?? "",
-                placemark.thoroughfare ?? "", placemark.locality ?? ""
-            ].filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            let context = sourceFields.joined(separator: " ")
-            func normalizedAdminName(_ value: String) -> String {
-                var result = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                for suffix in ["壮族自治区", "回族自治区", "维吾尔自治区", "特别行政区", "自治区", "自治州", "自治县", "地区", "省", "市", "区", "县", "旗"] {
-                    result = result.replacingOccurrences(of: suffix, with: "")
-                }
-                return result.replacingOccurrences(of: " ", with: "")
-                    .replacingOccurrences(of: "　", with: "")
-                    .replacingOccurrences(of: "·", with: "")
+            let normalizedProvince = province.replacingOccurrences(of: "省", with: "").replacingOccurrences(of: "市", with: "")
+            let normalizedCity = city.replacingOccurrences(of: "市", with: "")
+            let normalizedDistrict = district.replacingOccurrences(of: "区", with: "").replacingOccurrences(of: "县", with: "").replacingOccurrences(of: "市", with: "")
+            let match = countyOptions.first { option in
+                let op = option.province.replacingOccurrences(of: "省", with: "").replacingOccurrences(of: "市", with: "")
+                let oc = option.city.replacingOccurrences(of: "市", with: "")
+                let oa = option.name.replacingOccurrences(of: "区", with: "").replacingOccurrences(of: "县", with: "").replacingOccurrences(of: "市", with: "")
+                let provinceMatch = normalizedProvince.isEmpty || op.contains(normalizedProvince) || normalizedProvince.contains(op)
+                let cityMatch = normalizedCity.isEmpty || oc.contains(normalizedCity) || normalizedCity.contains(oc)
+                let districtMatch = !normalizedDistrict.isEmpty && (oa == normalizedDistrict || option.name == district)
+                return provinceMatch && cityMatch && districtMatch
             }
-            let normalizedProvince = normalizedAdminName(province)
-            let normalizedCity = normalizedAdminName(city)
-            let normalizedDistrictFields = [district, placemark.subLocality ?? "", placemark.subAdministrativeArea ?? ""]
-                .map(normalizedAdminName).filter { !$0.isEmpty }
-
-            // Rank candidates from strongest evidence to weaker text/context evidence.
-            let rankedMatches: [(option: RegionOption, score: Int)] = countyOptions.compactMap { option in
-                let areaName = normalizedAdminName(option.name)
-                guard !areaName.isEmpty, areaName.count >= 2 else { return nil }
-                var score = 0
-                if normalizedDistrictFields.contains(areaName) { score += 100 }
-                if normalizedAdminName(completion.subtitle).contains(areaName) { score += 90 }
-                if normalizedAdminName(completion.title).contains(areaName) { score += 65 }
-                if normalizedAdminName(context).contains(areaName) { score += 55 }
-                guard score > 0 else { return nil }
-
-                let optionCity = normalizedAdminName(option.city)
-                if !optionCity.isEmpty && !normalizedCity.isEmpty && optionCity == normalizedCity {
-                    score += 30
-                } else if !optionCity.isEmpty && normalizedAdminName(context).contains(optionCity) {
-                    score += 20
-                }
-                let optionProvince = normalizedAdminName(option.province)
-                if !optionProvince.isEmpty && !normalizedProvince.isEmpty && optionProvince == normalizedProvince {
-                    score += 15
-                } else if !optionProvince.isEmpty && normalizedAdminName(context).contains(optionProvince) {
-                    score += 10
-                }
-                return (option, score)
-            }.sorted { lhs, rhs in
-                if lhs.score != rhs.score { return lhs.score > rhs.score }
-                return lhs.option.name.count > rhs.option.name.count
-            }
-            let match = rankedMatches.first?.option
             if let match = match {
                 // A selected place is a location choice, not a market-name filter.
                 // Clear the search query immediately so the market list is not hidden
@@ -1256,9 +1210,7 @@ struct ContentView: View {
                 }
                 placeSearchMessage = "已选择：\(match.province)\(match.city)\(match.name)，正在加载该区县集市。镇级地点会查询所属区县数据。"
             } else {
-                let detected = [province, city, district].filter { !$0.isEmpty }.joined(separator: " · ")
-                let detail = detected.isEmpty ? "未识别到行政区划" : "识别到：\(detected)"
-                placeSearchMessage = "已找到“\(completion.title)”；\(detail)，但本地/在线区划表没有匹配到可用区县代码。请先更新区划数据，或通过“切换地区”选择区县。"
+                placeSearchMessage = "找到地点：\(completion.title)（\(completion.subtitle)），但未能可靠匹配市集接口所需的区县代码。请通过“切换地区”手动选择区县后再查询。"
             }
         } catch {
             placeSearchMessage = "地点搜索失败，请检查网络后重试。"
