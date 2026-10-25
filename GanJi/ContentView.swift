@@ -1120,7 +1120,7 @@ struct ContentView: View {
         }
         .padding(.horizontal, 14)
         .padding(.top, 14)
-        .padding(.bottom, 4)
+        .padding(.bottom, 0)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.95), lineWidth: 1))
