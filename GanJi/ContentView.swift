@@ -479,10 +479,17 @@ struct ContentView: View {
                                                 withAnimation { showMainPage = true; homeTab = .region }
                                             } label: {
                                                 HStack(spacing: 13) {
-                                                    VStack(spacing: 2) {
-                                                        Text(row.market.repeatType == 6 ? "属相" : "圩日").font(.system(size: 9, weight: .bold))
-                                                        Text(row.market.repeatType == 6 ? "集" : row.market.displaySchedule.components(separatedBy: "、").first ?? "—")
-                                                            .font(.system(size: 12, weight: .black, design: .rounded)).lineLimit(1).minimumScaleFactor(0.7)
+                                                    VStack(spacing: 4) {
+                                                        if row.market.repeatType == 6 {
+                                                            Image(systemName: "storefront.fill")
+                                                                .font(.system(size: 19, weight: .semibold))
+                                                            Text("集市")
+                                                                .font(.system(size: 9, weight: .bold))
+                                                        } else {
+                                                            Text("圩日").font(.system(size: 9, weight: .bold))
+                                                            Text(row.market.displaySchedule.components(separatedBy: "、").first ?? "—")
+                                                                .font(.system(size: 12, weight: .black, design: .rounded)).lineLimit(1).minimumScaleFactor(0.7)
+                                                        }
                                                     }
                                                     .foregroundColor(Color(red: 0.00, green: 0.48, blue: 1.00))
                                                     .frame(width: 48, height: 48)
