@@ -1508,9 +1508,9 @@ private struct MarketListRow: View {
             RoundedRectangle(cornerRadius: 3)
                 .fill(selected ? Color(red: 0.80, green: 0.38, blue: 0.20) : Color(red: 0.77, green: 0.79, blue: 0.69))
                 .frame(width: 4)
-                .padding(.vertical, 8)
+                .padding(.vertical, 4)
             Button(action: action) {
-                VStack(alignment: .leading, spacing: 9) {
+                VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 6) {
                         Text(row.market.size)
                             .font(.system(size: 9, weight: .heavy, design: .rounded))
@@ -1540,7 +1540,7 @@ private struct MarketListRow: View {
                         .foregroundColor(Color(red: 0.48, green: 0.52, blue: 0.44))
                         .lineLimit(1)
                 }
-                .padding(.leading, 12).padding(.trailing, 8).padding(.vertical, 8)
+                .padding(.leading, 12).padding(.trailing, 8).padding(.vertical, 4)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
