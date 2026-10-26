@@ -864,9 +864,23 @@ struct ContentView: View {
                             mapControlDragOrigin = mapControlOffset
                         case .second(true, let drag):
                             if let drag = drag {
+                                // Keep the floating control within all screen edges and above the bottom dock/sheet.
+                                // Its resting position is anchored 16pt from the trailing edge, with 104pt height.
+                                let proposedX = mapControlDragOrigin.width + drag.translation.width
+                                let proposedY = mapControlDragOrigin.height + drag.translation.height
+                                let screenSize = UIScreen.main.bounds.size
+                                let controlWidth: CGFloat = 68
+                                let controlHeight: CGFloat = 104
+                                let sideInset: CGFloat = 16
+                                let topSafeInset: CGFloat = 60
+                                let minX = -(screenSize.width - controlWidth - sideInset)
+                                let maxX = sideInset
+                                let bottomPadding: CGFloat = sheetExpanded ? 470 : 335
+                                let minY = -(screenSize.height - bottomPadding - controlHeight - topSafeInset)
+                                let maxDownwardOffset: CGFloat = sheetExpanded ? 35 : 95
                                 mapControlOffset = CGSize(
-                                    width: mapControlDragOrigin.width + drag.translation.width,
-                                    height: mapControlDragOrigin.height + drag.translation.height
+                                    width: min(max(proposedX, minX), maxX),
+                                    height: min(max(proposedY, minY), maxDownwardOffset)
                                 )
                             }
                         default:
