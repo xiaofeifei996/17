@@ -1098,12 +1098,10 @@ struct ContentView: View {
             height: isKeyboardVisible
                 // While typing, expand upward into the available space above the keyboard.
                 ? max(360, screenHeight - 24)
-                // With the keyboard dismissed, keep search mode the same compact height
-                // as the collapsed nearby-market panel. This prevents a tall empty sheet
-                // when the search returns only a few places.
-                : (!searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? min(screenHeight * 0.48, 430)
-                    : nil),
+                // With the keyboard dismissed, use the content's natural height.
+                // Do not reserve a fixed 48%-of-screen area: that is the blank region
+                // below the last search result. Nearby mode keeps its existing sizing.
+                : nil,
             alignment: .top
         )
         .frame(maxWidth: .infinity, alignment: .leading)
