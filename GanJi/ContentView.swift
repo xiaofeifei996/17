@@ -823,6 +823,8 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
+            // Hide the floating control while the market list is open; restore it when the list closes.
+            if !isMarketSheetVisible {
             // One Apple Maps-inspired floating control: market list + current location.
             VStack(spacing: 0) {
                 Button {
@@ -877,7 +879,11 @@ struct ContentView: View {
                                 let maxX = sideInset
                                 let bottomPadding: CGFloat = sheetExpanded ? 470 : 335
                                 let minY = -(screenSize.height - bottomPadding - controlHeight - topSafeInset)
-                                let maxDownwardOffset: CGFloat = sheetExpanded ? 35 : 95
+                                // Allow the control to move all the way down to the actual
+                                // bottom boundary of the map area (just above the Dock/sheet),
+                                // rather than stopping at an arbitrary 95pt offset.
+                                let bottomClearance: CGFloat = 12
+                                let maxDownwardOffset = max(0, bottomPadding - controlHeight - bottomClearance)
                                 mapControlOffset = CGSize(
                                     width: min(max(proposedX, minX), maxX),
                                     height: min(max(proposedY, minY), maxDownwardOffset)
@@ -891,6 +897,7 @@ struct ContentView: View {
                         mapControlDragOrigin = mapControlOffset
                     }
             )
+            }
         }
     }
 
