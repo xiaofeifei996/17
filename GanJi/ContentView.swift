@@ -1086,7 +1086,10 @@ struct ContentView: View {
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
             height: isKeyboardVisible
-                ? max(screenHeight - keyboardHeight - 12, 280)
+                // Keep the stable top-anchored keyboard layout, but give the panel
+                // additional vertical room. Clamp to the available view height so
+                // repeated keyboard transitions cannot push it off-screen.
+                ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 80, 360))
                 : nil,
             alignment: .top
         )
