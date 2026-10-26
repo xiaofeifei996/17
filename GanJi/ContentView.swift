@@ -140,7 +140,11 @@ struct ContentView: View {
                 // returns to its previous expanded/collapsed state automatically.
                 if isMarketSheetVisible && showMainPage {
                     marketSheet(screenHeight: geo.size.height)
-                        .frame(maxHeight: isKeyboardVisible ? geo.size.height * 0.78 : .infinity, alignment: .bottom)
+                        // When the keyboard is open, give the panel a real height rather
+                        // than only a maxHeight cap. Keep its top edge anchored so it grows
+                        // downward instead of shifting the whole panel lower on the map.
+                        .frame(height: isKeyboardVisible ? geo.size.height * 0.94 : nil, alignment: .top)
+                        .frame(maxHeight: .infinity, alignment: .top)
                         // Search and nearby market browsing share one panel above the persistent Dock.
                         .padding(.bottom, isKeyboardVisible ? 0 : 66)
                         .zIndex(3)
@@ -1046,7 +1050,7 @@ struct ContentView: View {
                     }
                     .padding(.bottom, 2)
                 }
-                .frame(maxHeight: min(screenHeight * 0.32, 250))
+                .frame(maxHeight: isKeyboardVisible ? min(screenHeight * 0.48, 390) : min(screenHeight * 0.32, 250))
             }
             }
         }
