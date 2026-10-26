@@ -1100,12 +1100,10 @@ struct ContentView: View {
                 // The root ignores keyboard safe-area changes, so use the same stable
                 // screen coordinate space for every keyboard show/hide cycle.
                 ? max(360, screenHeight - 24)
-                // Give destination-search mode the same outer panel footprint as the
-                // nearby-market sheet instead of letting its shorter result content
-                // shrink the entire panel and make it jump when modes change.
-                : (!searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    ? min(max(screenHeight * 0.48, 620), 800)
-                    : nil),
+                // When the keyboard is dismissed, return search mode to its natural
+                // content height. A fixed 620-800pt height leaves a large blank panel
+                // below a short list of place results.
+                : nil,
             alignment: .top
         )
         .frame(maxWidth: .infinity, alignment: .leading)
