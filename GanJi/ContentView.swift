@@ -144,11 +144,11 @@ struct ContentView: View {
                         // Keep the container's coordinate space stable while the keyboard
                         // animates. The root ignores keyboard safe-area changes, so repeated
                         // show/hide cycles cannot accumulate vertical offsets.
-                        .frame(
-                            maxHeight: .infinity,
-                            alignment: isKeyboardVisible ? .top : .bottom
-                        )
-                        .padding(.bottom, isKeyboardVisible ? 0 : 66)
+                        // Keep one stable anchor for every keyboard transition.
+                        // The keyboard height changes the bottom inset; we never flip
+                        // between top/bottom alignment, which can cause layout jumps.
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, isKeyboardVisible ? keyboardHeight : 66)
                         .zIndex(3)
                 }
                 if !showMainPage {
