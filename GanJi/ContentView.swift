@@ -966,7 +966,7 @@ struct ContentView: View {
                         .foregroundColor(Color(red: 0.30, green: 0.38, blue: 0.29))
                     ScrollView(.vertical, showsIndicators: true) {
                         LazyVStack(spacing: 6) {
-                            ForEach(Array(placeSearch.results.prefix(8).enumerated()), id: \.offset) { entry in
+                            ForEach(Array(placeSearch.results.prefix(6).enumerated()), id: \.offset) { entry in
                                 let completion = entry.element
                                 Button { Task { await selectPlace(completion) } } label: {
                                     HStack(spacing: 10) {
@@ -995,7 +995,7 @@ struct ContentView: View {
                     .frame(
                         height: isKeyboardVisible
                             ? nil
-                            : min(CGFloat(min(placeSearch.results.count, 8)) * 62 + CGFloat(max(0, min(placeSearch.results.count, 8) - 1)) * 6, 520),
+                            : min(CGFloat(min(placeSearch.results.count, 6)) * 58 + CGFloat(max(0, min(placeSearch.results.count, 6) - 1)) * 5, 345),
                         alignment: .top
                     )
                     .fixedSize(horizontal: false, vertical: !isKeyboardVisible)
