@@ -177,9 +177,10 @@ struct ContentView: View {
                 let height = frame?.height ?? 0
                 withAnimation(.easeOut(duration: 0.22)) {
                     keyboardHeight = height
-                    // Remember the keyboard-time panel height so dismissing the
-                    // keyboard moves the panel back to the bottom without shrinking it.
-                    retainedSearchPanelHeight = min(geo.size.height - 12, max(geo.size.height - height + 230, 360))
+                    // Size the panel against the full device screen, not the possibly
+                    // keyboard-reduced GeometryReader height. Leave only a small
+                    // gap above the keyboard so more destination rows are visible.
+                    retainedSearchPanelHeight = min(UIScreen.main.bounds.height - 12, max(UIScreen.main.bounds.height - height - 42, 360))
                     isKeyboardVisible = true
                 }
             }
@@ -1090,11 +1091,10 @@ struct ContentView: View {
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
             height: isKeyboardVisible
-                // Keep the stable top-anchored keyboard layout, but give the panel
-                // additional vertical room (90pt more than before), using the spare area above
-                // the keyboard. Clamp to the available view height so
-                // repeated keyboard transitions cannot push it off-screen.
-                ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 230, 360))
+                // Use the full screen bounds because GeometryReader can report a reduced
+                // height while the keyboard is visible. Extend the panel to just
+                // above the keyboard, leaving a small 42pt breathing gap.
+                ? min(UIScreen.main.bounds.height - 12, max(UIScreen.main.bounds.height - keyboardHeight - 42, 360))
                 // Once a keyboard-sized panel exists, retain that height when the
                 // keyboard hides; the root alignment moves it back to the bottom.
                 : retainedSearchPanelHeight,
