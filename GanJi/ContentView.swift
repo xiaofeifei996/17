@@ -1083,9 +1083,9 @@ struct ContentView: View {
         .frame(
             height: isKeyboardVisible
                 // The panel occupies only the space above the keyboard. Keep its
-                // height bounded so it cannot grow beyond the visible region as the
-                // keyboard is repeatedly shown and hidden.
-                ? max(180, min(screenHeight - keyboardHeight - 12, screenHeight * 0.58))
+                // height bounded to use more of the available area above the keyboard,
+                // while preserving the stable bottom-anchored positioning.
+                ? max(180, min(screenHeight - keyboardHeight - 12, max(screenHeight * 0.72, 440)))
                 : nil,
             alignment: .top
         )
