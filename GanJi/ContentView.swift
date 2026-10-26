@@ -148,7 +148,10 @@ struct ContentView: View {
                         // The keyboard height changes the bottom inset; we never flip
                         // between top/bottom alignment, which can cause layout jumps.
                         .frame(maxHeight: .infinity, alignment: .bottom)
-                        .padding(.bottom, isKeyboardVisible ? keyboardBottomInset : 66)
+                        // Keep the panel above the keyboard instead of adding padding
+                        // below a full-height frame (which leaves the panel behind it).
+                        .offset(y: isKeyboardVisible ? -keyboardBottomInset : 0)
+                        .padding(.bottom, isKeyboardVisible ? 0 : 66)
                         .zIndex(3)
                 }
                 if !showMainPage {
@@ -1087,12 +1090,10 @@ struct ContentView: View {
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
             height: isKeyboardVisible
-                // Keep the stable top-anchored keyboard layout, but give the panel
-                // additional vertical room. Clamp to the available view height so
-                // repeated keyboard transitions cannot push it off-screen.
-                ? min(screenHeight - 12, max(screenHeight - keyboardBottomInset + 240, 460))
-                // On dismissal, return to intrinsic height. Never reuse a cached
-                // keyboard-era height, which can mismatch the root's bottom alignment.
+                // The panel bottom is translated to the keyboard's top edge, so its
+                // height must fit only in the remaining visible area above the keyboard.
+                ? max(300, screenHeight - keyboardBottomInset - 80)
+                // On dismissal, return to intrinsic height and the original dock offset.
                 : nil,
             alignment: .top
         )
