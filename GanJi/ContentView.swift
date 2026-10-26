@@ -143,7 +143,7 @@ struct ContentView: View {
                         // With the keyboard hidden, preserve the original bottom-docked position.
                         // While the keyboard is visible, give the panel a larger real height and
                         // anchor its top edge so the panel expands into the map area.
-                        .frame(height: isKeyboardVisible ? geo.size.height * 0.94 : nil, alignment: .top)
+                        .frame(height: isKeyboardVisible ? geo.size.height * 0.98 : nil, alignment: .top)
                         .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
                         // Keep the normal bottom inset when the keyboard is hidden.
                         .padding(.bottom, isKeyboardVisible ? 0 : 66)
@@ -962,7 +962,7 @@ struct ContentView: View {
                             }
                         }
                     }
-                    .frame(maxHeight: isKeyboardVisible ? 230 : 220)
+                    .frame(maxHeight: isKeyboardVisible ? 260 : 220)
                 } else if let message = placeSearchMessage {
                     Text(message).font(.system(size: 11)).foregroundColor(.secondary)
                 } else {
