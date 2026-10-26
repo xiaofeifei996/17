@@ -36,7 +36,7 @@ struct ContentView: View {
     @State private var selectedFilter: MarketFilter = .all
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var searchText = ""
-    @FocusState private var isPlaceSearchFocused = false
+    @FocusState private var isPlaceSearchFocused: Bool
     @State private var isMarketSheetVisible = true
     @State private var isKeyboardVisible = false
     @State private var keyboardHeight: CGFloat = 0
@@ -131,49 +131,48 @@ struct ContentView: View {
         }
     }
 
+    private func pageLayers(screenHeight: CGFloat) -> some View {
+    ZStack(alignment: .top) {
+        // Draw the map behind both the top status-bar safe area and the bottom edge.
+        mapLayer
+            .ignoresSafeArea()
+        // Keep the map visible when searching. Do not place a tall white
+        // background behind the whole bottom lane: when SwiftUI resizes for
+        // the keyboard, that layer expands upward and creates the huge blank
+        // white area seen in v97. The search capsule and suggestions each have
+        // their own opaque backgrounds below.
+        // While the place-search field is active, hide the market list visually
+        // so no market rows appear in the narrow strip above the keyboard.
+        // Keep isMarketSheetVisible unchanged: when search focus ends, the panel
+        // returns to its previous expanded/collapsed state automatically.
+        if isMarketSheetVisible && showMainPage {
+            marketSheet(screenHeight: screenHeight)
+                // Keep the container's coordinate space stable while the keyboard
+                // animates. The root ignores keyboard safe-area changes, so repeated
+                // show/hide cycles cannot accumulate vertical offsets.
+                // Keep a single predictable anchor: top while the keyboard is
+                // present, bottom when it is dismissed. Never offset the panel
+                // by the keyboard height; that mixes coordinate spaces and can
+                // push the panel behind the keyboard.
+                .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
+                .padding(.bottom, isKeyboardVisible ? 0 : 66)
+                .zIndex(3)
+        }
+        if !showMainPage {
+            homePage
+                .padding(.bottom, 58)
+                .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+                .zIndex(10)
+        }
+        // One persistent Dock shared by every top-level page. Keeping the
+        // same SwiftUI view alive avoids the Dock flashing when switching to Map.
+        persistentDockLayer
+    }
+    }
+
     var body: some View {
         GeometryReader { geo in
-            ZStack(alignment: .top) {
-                // Draw the map behind both the top status-bar safe area and the bottom edge.
-                mapLayer
-                    .ignoresSafeArea()
-                // Keep the map visible when searching. Do not place a tall white
-                // background behind the whole bottom lane: when SwiftUI resizes for
-                // the keyboard, that layer expands upward and creates the huge blank
-                // white area seen in v97. The search capsule and suggestions each have
-                // their own opaque backgrounds below.
-                // While the place-search field is active, hide the market list visually
-                // so no market rows appear in the narrow strip above the keyboard.
-                // Keep isMarketSheetVisible unchanged: when search focus ends, the panel
-                // returns to its previous expanded/collapsed state automatically.
-                if isMarketSheetVisible && showMainPage {
-                    marketSheet(screenHeight: geo.size.height)
-                        // Keep the container's coordinate space stable while the keyboard
-                        // animates. The root ignores keyboard safe-area changes, so repeated
-                        // show/hide cycles cannot accumulate vertical offsets.
-                        // Keep a single predictable anchor: top while the keyboard is
-                        // present, bottom when it is dismissed. Never offset the panel
-                        // by the keyboard height; that mixes coordinate spaces and can
-                        // push the panel behind the keyboard.
-                        .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
-                        .padding(.bottom, isKeyboardVisible ? 0 : 66)
-                        .zIndex(3)
-                }
-                if !showMainPage {
-                    homePage
-                        .padding(.bottom, 58)
-                        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
-                        .zIndex(10)
-                }
-                // One persistent Dock shared by every top-level page. Keeping the
-                // same SwiftUI view alive avoids the Dock flashing when switching to Map.
-                VStack(spacing: 0) {
-                    Spacer(minLength: 0)
-                    sharedDock
-                }
-                .ignoresSafeArea(edges: .bottom)
-                .zIndex(11)
-            }
+            pageLayers(screenHeight: geo.size.height)
             .background(Color.clear)
             // Prevent GeometryReader/ZStack from changing height when iOS adjusts the
             // keyboard safe area. We position the panel using the keyboard frame instead.
@@ -636,145 +635,23 @@ struct ContentView: View {
         }
     }
 
-    // Destination search: a dedicated location header, prominent input, and structured results.
-    // Keep the existing search state, region picker, result selection, and keyboard behavior.
+    private var persistentDockLayer: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 0)
+            sharedDock
+        }
+        .ignoresSafeArea(edges: .bottom)
+        .zIndex(11)
+    }
+
+    // Destination search panel split into smaller views to keep SwiftUI type-checking tractable.
     private var mapSearchAndDock: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: "location.circle.fill")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("当前服务地区")
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(Color(red: 0.48, green: 0.53, blue: 0.61))
-                        Text(homeRegionDisplayName.split(separator: "·").last.map(String.init)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? homeRegionDisplayName)
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(Color(red: 0.14, green: 0.19, blue: 0.27))
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 4)
-                    Button { showRegionPicker = true } label: {
-                        HStack(spacing: 5) {
-                            Text("切换地区")
-                                .font(.system(size: 12, weight: .semibold))
-                            Image(systemName: "arrow.up.right")
-                                .font(.system(size: 10, weight: .bold))
-                        }
-                        .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 8)
-                        .background(Color(red: 0.92, green: 0.95, blue: 1.0))
-                        .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("切换地区，当前地区：\(homeRegionDisplayName)")
-                }
-
-                HStack(spacing: 11) {
-                    Image(systemName: "magnifyingglass")
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(Color(red: 0.16, green: 0.39, blue: 0.91))
-                    TextField("输入城市、区县或具体地点", text: $searchText)
-                        .focused($isPlaceSearchFocused)
-                        .simultaneousGesture(TapGesture().onEnded {
-                            isPlaceSearchFocused = true
-                        })
-                        .font(.system(size: 15, weight: .medium))
-                        .submitLabel(.search)
-                        .onChange(of: searchText) { value in
-                            placeSearch.query(value)
-                            placeSearchMessage = nil
-                            if value.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
-                                Task { await loadNationalRegions() }
-                            }
-                        }
-                    if !searchText.isEmpty {
-                        Button { searchText = "" } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(Color(red: 0.58, green: 0.62, blue: 0.69))
-                        }
-                        .accessibilityLabel("清除搜索")
-                    }
-                }
-                .padding(.horizontal, 15)
-                .frame(height: 50)
-                .background(Color(red: 0.95, green: 0.96, blue: 0.98))
-                .clipShape(RoundedRectangle(cornerRadius: 15))
-                .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.87, green: 0.89, blue: 0.93), lineWidth: 1))
-
-                if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("搜索结果")
-                            .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(Color(red: 0.14, green: 0.19, blue: 0.27))
-                        Spacer()
-                        Text("选择地点以查看当地圩日")
-                            .font(.system(size: 11))
-                            .foregroundColor(Color(red: 0.53, green: 0.57, blue: 0.64))
-                    }
-                    .padding(.horizontal, 3)
-                    .padding(.top, 1)
-
-                    ScrollView(.vertical, showsIndicators: true) {
-                        LazyVStack(spacing: 8) {
-                            ForEach(Array(placeSearch.results.prefix(12).enumerated()), id: \.offset) { entry in
-                                let completion = entry.element
-                                Button {
-                                    Task { await selectPlace(completion) }
-                                } label: {
-                                    HStack(spacing: 12) {
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .fill(Color(red: 0.91, green: 0.95, blue: 1.0))
-                                                .frame(width: 42, height: 42)
-                                            Image(systemName: "mappin.and.ellipse")
-                                                .font(.system(size: 17, weight: .semibold))
-                                                .foregroundColor(Color(red: 0.13, green: 0.40, blue: 0.94))
-                                        }
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(completion.title)
-                                                .font(.system(size: 14, weight: .semibold))
-                                                .foregroundColor(Color(red: 0.13, green: 0.17, blue: 0.24))
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .lineLimit(1)
-                                            if !completion.subtitle.isEmpty {
-                                                Text(completion.subtitle)
-                                                    .font(.system(size: 11))
-                                                    .foregroundColor(Color(red: 0.48, green: 0.53, blue: 0.61))
-                                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                                    .lineLimit(2)
-                                            }
-                                        }
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 11, weight: .bold))
-                                            .foregroundColor(Color(red: 0.64, green: 0.68, blue: 0.74))
-                                    }
-                                    .padding(.horizontal, 11)
-                                    .padding(.vertical, 10)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    .background(Color(red: 0.98, green: 0.985, blue: 1.0))
-                                    .clipShape(RoundedRectangle(cornerRadius: 15))
-                                    .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.91, green: 0.93, blue: 0.96), lineWidth: 1))
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.bottom, 2)
-                    }
-                    .frame(maxHeight: isKeyboardVisible ? 240 : 340)
-                }
-                if let message = placeSearchMessage {
-                    Text(message)
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 3)
-                        .padding(.vertical, 4)
-                }
+                homeRegionHeader
+                placeSearchField
+                placeSearchResults
+                placeSearchMessageView
             }
             .padding(14)
             .background(Color.white)
@@ -783,9 +660,148 @@ struct ContentView: View {
             .shadow(color: Color.black.opacity(0.08), radius: 16, x: 0, y: 5)
             .padding(.horizontal, 14)
             .padding(.top, 10)
-            .padding(.bottom, 0)
         }
         .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var homeRegionHeader: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "location.circle.fill")
+                .font(.system(size: 17, weight: .semibold))
+                .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
+            VStack(alignment: .leading, spacing: 2) {
+                Text("当前服务地区")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundColor(Color(red: 0.48, green: 0.53, blue: 0.61))
+                Text(homeRegionDisplayName.split(separator: "·").last.map(String.init)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? homeRegionDisplayName)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(Color(red: 0.14, green: 0.19, blue: 0.27))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Button { showRegionPicker = true } label: {
+                HStack(spacing: 5) {
+                    Text("切换地区").font(.system(size: 12, weight: .semibold))
+                    Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .bold))
+                }
+                .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
+                .padding(.horizontal, 11).padding(.vertical, 8)
+                .background(Color(red: 0.92, green: 0.95, blue: 1.0))
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("切换地区，当前地区：\(homeRegionDisplayName)")
+        }
+    }
+
+    private var placeSearchField: some View {
+        HStack(spacing: 11) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundColor(Color(red: 0.16, green: 0.39, blue: 0.91))
+            TextField("输入城市、区县或具体地点", text: $searchText)
+                .focused($isPlaceSearchFocused)
+                .simultaneousGesture(TapGesture().onEnded { isPlaceSearchFocused = true })
+                .font(.system(size: 15, weight: .medium))
+                .submitLabel(.search)
+                .onChange(of: searchText) { value in
+                    placeSearch.query(value)
+                    placeSearchMessage = nil
+                    if value.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
+                        Task { await loadNationalRegions() }
+                    }
+                }
+            if !searchText.isEmpty {
+                Button { searchText = "" } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 16))
+                        .foregroundColor(Color(red: 0.58, green: 0.62, blue: 0.69))
+                }
+                .accessibilityLabel("清除搜索")
+            }
+        }
+        .padding(.horizontal, 15)
+        .frame(height: 50)
+        .background(Color(red: 0.95, green: 0.96, blue: 0.98))
+        .clipShape(RoundedRectangle(cornerRadius: 15))
+        .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.87, green: 0.89, blue: 0.93), lineWidth: 1))
+    }
+
+    @ViewBuilder
+    private var placeSearchResults: some View {
+        if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            HStack(alignment: .firstTextBaseline) {
+                Text("搜索结果")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Color(red: 0.14, green: 0.19, blue: 0.27))
+                Spacer()
+                Text("选择地点以查看当地圩日")
+                    .font(.system(size: 11))
+                    .foregroundColor(Color(red: 0.53, green: 0.57, blue: 0.64))
+            }
+            .padding(.horizontal, 3).padding(.top, 1)
+            ScrollView(.vertical, showsIndicators: true) {
+                LazyVStack(spacing: 8) {
+                    ForEach(Array(placeSearch.results.prefix(12).enumerated()), id: \.offset) { entry in
+                        placeSearchResultRow(entry.element)
+                    }
+                }
+                .padding(.bottom, 2)
+            }
+            .frame(maxHeight: isKeyboardVisible ? 240 : 340)
+        }
+    }
+
+    private func placeSearchResultRow(_ completion: MKLocalSearchCompletion) -> some View {
+        Button {
+            Task { await selectPlace(completion) }
+        } label: {
+            HStack(spacing: 12) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(Color(red: 0.91, green: 0.95, blue: 1.0))
+                        .frame(width: 42, height: 42)
+                    Image(systemName: "mappin.and.ellipse")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(Color(red: 0.13, green: 0.40, blue: 0.94))
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(completion.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Color(red: 0.13, green: 0.17, blue: 0.24))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .lineLimit(1)
+                    if !completion.subtitle.isEmpty {
+                        Text(completion.subtitle)
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(red: 0.48, green: 0.53, blue: 0.61))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .lineLimit(2)
+                    }
+                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(Color(red: 0.64, green: 0.68, blue: 0.74))
+            }
+            .padding(.horizontal, 11).padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(red: 0.98, green: 0.985, blue: 1.0))
+            .clipShape(RoundedRectangle(cornerRadius: 15))
+            .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.91, green: 0.93, blue: 0.96), lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private var placeSearchMessageView: some View {
+        if let message = placeSearchMessage {
+            Text(message)
+                .font(.system(size: 12))
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 3).padding(.vertical, 4)
+        }
     }
 
     private var mapLayer: some View {
