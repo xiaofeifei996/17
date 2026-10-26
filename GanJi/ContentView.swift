@@ -140,12 +140,12 @@ struct ContentView: View {
                 // returns to its previous expanded/collapsed state automatically.
                 if isMarketSheetVisible && showMainPage {
                     marketSheet(screenHeight: geo.size.height)
-                        // When the keyboard is open, give the panel a real height rather
-                        // than only a maxHeight cap. Keep its top edge anchored so it grows
-                        // downward instead of shifting the whole panel lower on the map.
+                        // With the keyboard hidden, preserve the original bottom-docked position.
+                        // While the keyboard is visible, give the panel a larger real height and
+                        // anchor its top edge so the panel expands into the map area.
                         .frame(height: isKeyboardVisible ? geo.size.height * 0.94 : nil, alignment: .top)
-                        .frame(maxHeight: .infinity, alignment: .top)
-                        // Search and nearby market browsing share one panel above the persistent Dock.
+                        .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
+                        // Keep the normal bottom inset when the keyboard is hidden.
                         .padding(.bottom, isKeyboardVisible ? 0 : 66)
                         .zIndex(3)
                 }
@@ -171,11 +171,10 @@ struct ContentView: View {
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                // Restore the normal compact panel geometry after the keyboard leaves.
-                // Do not leave the keyboard-sized frame attached to the sheet.
+                // The conditional frame and bottom alignment restore the normal position
+                // when the keyboard leaves, without changing the user's expanded state.
                 withAnimation(.easeOut(duration: 0.22)) {
                     isKeyboardVisible = false
-                    sheetExpanded = false
                 }
             }
             .onAppear {
