@@ -1096,12 +1096,16 @@ struct ContentView: View {
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
             height: isKeyboardVisible
-                // Keep the panel substantially taller while the keyboard is open.
-                // Geometry may already exclude the keyboard area, so subtracting
-                // keyboardHeight again can collapse this to the 240pt minimum.
-                // Use the available geometry as the stable height basis instead.
+                // Keep the panel tall enough to show search results above the keyboard.
+                // The root ignores keyboard safe-area changes, so use the same stable
+                // screen coordinate space for every keyboard show/hide cycle.
                 ? max(360, screenHeight - 24)
-                : nil,
+                // Give destination-search mode the same outer panel footprint as the
+                // nearby-market sheet instead of letting its shorter result content
+                // shrink the entire panel and make it jump when modes change.
+                : (!searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    ? min(max(screenHeight * 0.48, 620), 800)
+                    : nil),
             alignment: .top
         )
         .frame(maxWidth: .infinity, alignment: .leading)
