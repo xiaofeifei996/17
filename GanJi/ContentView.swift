@@ -1494,10 +1494,6 @@ private struct MarketListRow: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(selected ? Color(red: 0.80, green: 0.38, blue: 0.20) : Color(red: 0.77, green: 0.79, blue: 0.69))
-                .frame(width: 4)
-                .padding(.vertical, 4)
             Button(action: action) {
                 VStack(alignment: .leading, spacing: 5) {
                     HStack(spacing: 6) {
@@ -1547,9 +1543,7 @@ private struct MarketListRow: View {
                 .accessibilityLabel(isFavorite ? "取消收藏" : "收藏圩日")
             }
         }
-        .background(selected ? Color(red: 0.93, green: 0.93, blue: 0.85) : Color.white.opacity(0.82))
-        .clipShape(RoundedRectangle(cornerRadius: 17, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 17, style: .continuous).stroke(Color(red: 0.88, green: 0.88, blue: 0.81), lineWidth: 0.8))
+        // Keep the row visually lightweight: no card fill, outline, or left accent stripe.
     }
 }
 
