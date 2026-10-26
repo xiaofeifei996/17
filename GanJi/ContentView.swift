@@ -141,11 +141,14 @@ struct ContentView: View {
                 // returns to its previous expanded/collapsed state automatically.
                 if isMarketSheetVisible && showMainPage {
                     marketSheet(screenHeight: geo.size.height)
-                        // Keep the panel bottom-anchored in one stable coordinate space.
-                        // Apply the keyboard clearance BEFORE the flexible frame so the
-                        // panel's bottom sits directly above the keyboard on every cycle.
-                        .padding(.bottom, isKeyboardVisible ? keyboardHeight : 66)
-                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        // Keep the container's coordinate space stable while the keyboard
+                        // animates. The root ignores keyboard safe-area changes, so repeated
+                        // show/hide cycles cannot accumulate vertical offsets.
+                        .frame(
+                            maxHeight: .infinity,
+                            alignment: isKeyboardVisible ? .top : .bottom
+                        )
+                        .padding(.bottom, isKeyboardVisible ? 0 : 66)
                         .zIndex(3)
                 }
                 if !showMainPage {
@@ -1082,10 +1085,10 @@ struct ContentView: View {
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
             height: isKeyboardVisible
-                // The panel occupies only the space above the keyboard. Keep its
-                // height bounded to use more of the available area above the keyboard,
-                // while preserving the stable bottom-anchored positioning.
-                ? max(180, min(screenHeight - keyboardHeight - 12, max(screenHeight * 0.72, 440)))
+                // Keep the stable top-anchored keyboard layout, but give the panel
+                // additional vertical room. Clamp to the available view height so
+                // repeated keyboard transitions cannot push it off-screen.
+                ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 100, 360))
                 : nil,
             alignment: .top
         )
