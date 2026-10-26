@@ -1079,9 +1079,8 @@ struct ContentView: View {
         }
         .padding(.horizontal, 14)
         .padding(.top, 14)
-        // Give the search state extra bottom breathing room so the hint/results
-        // do not sit against the panel's rounded lower edge.
-        .padding(.bottom, searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0 : 16)
+        // Remove the extra horizontal strip beneath the search results.
+        .padding(.bottom, 0)
         // Apply the keyboard height before drawing the background. This is important:
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
