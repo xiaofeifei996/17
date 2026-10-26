@@ -1079,8 +1079,9 @@ struct ContentView: View {
         }
         .padding(.horizontal, 14)
         .padding(.top, 14)
-        // Remove the extra horizontal strip beneath the search results.
-        .padding(.bottom, 0)
+        // Give the panel a little more height and keep the helper text comfortably
+        // inset from the rounded bottom edge, especially on compact screens.
+        .padding(.bottom, 14)
         // Apply the keyboard height before drawing the background. This is important:
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
