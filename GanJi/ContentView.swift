@@ -139,14 +139,26 @@ struct ContentView: View {
                 // Keep isMarketSheetVisible unchanged: when search focus ends, the panel
                 // returns to its previous expanded/collapsed state automatically.
                 if isMarketSheetVisible && showMainPage {
-                    marketSheet(screenHeight: geo.size.height)
-                        // Keep the same outer alignment behavior for both search results and
-                        // nearby-market content. The actual keyboard height is applied inside
-                        // marketSheet so its background and content grow together.
-                        .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
-                        // Keep the normal bottom inset when the keyboard is hidden.
-                        .padding(.bottom, isKeyboardVisible ? 0 : 66)
-                        .zIndex(3)
+                    // Use a stable parent layout for each keyboard state. Avoid applying an
+                    // infinite-height frame directly to the sheet: its changing intrinsic
+                    // height combined with keyboard safe-area animations can accumulate a
+                    // vertical offset after repeated show/hide cycles.
+                    Group {
+                        if isKeyboardVisible {
+                            VStack(spacing: 0) {
+                                marketSheet(screenHeight: geo.size.height)
+                                Spacer(minLength: 0)
+                            }
+                        } else {
+                            VStack(spacing: 0) {
+                                Spacer(minLength: 0)
+                                marketSheet(screenHeight: geo.size.height)
+                            }
+                            .padding(.bottom, 66)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .zIndex(3)
                 }
                 if !showMainPage {
                     homePage
@@ -165,16 +177,14 @@ struct ContentView: View {
             }
             .background(Color.clear)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-                withAnimation(.easeOut(duration: 0.22)) {
-                    isKeyboardVisible = true
-                }
+                // Let the keyboard's own transition drive the safe-area animation. Animating
+                // this state separately can race with SwiftUI's resize and leave the panel offset.
+                isKeyboardVisible = true
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                // The conditional frame and bottom alignment restore the normal position
-                // when the keyboard leaves, without changing the user's expanded state.
-                withAnimation(.easeOut(duration: 0.22)) {
-                    isKeyboardVisible = false
-                }
+                // Restore the bottom-anchored layout immediately after the keyboard transition.
+                // The user's expanded/collapsed list state is intentionally preserved.
+                isKeyboardVisible = false
             }
             .onAppear {
                 locator.start()
