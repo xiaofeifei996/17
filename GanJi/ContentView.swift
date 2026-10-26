@@ -140,10 +140,9 @@ struct ContentView: View {
                 // returns to its previous expanded/collapsed state automatically.
                 if isMarketSheetVisible && showMainPage {
                     marketSheet(screenHeight: geo.size.height)
-                        // With the keyboard hidden, preserve the original bottom-docked position.
-                        // While the keyboard is visible, give the panel a larger real height and
-                        // anchor its top edge so the panel expands into the map area.
-                        .frame(height: isKeyboardVisible ? geo.size.height * 0.98 : nil, alignment: .top)
+                        // Keep the same outer alignment behavior for both search results and
+                        // nearby-market content. The actual keyboard height is applied inside
+                        // marketSheet so its background and content grow together.
                         .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
                         // Keep the normal bottom inset when the keyboard is hidden.
                         .padding(.bottom, isKeyboardVisible ? 0 : 66)
@@ -962,7 +961,9 @@ struct ContentView: View {
                             }
                         }
                     }
-                    .frame(maxHeight: isKeyboardVisible ? 260 : 220)
+                    // When the keyboard is open, let search results fill the same panel
+                    // height as the nearby-market list instead of stopping at a fixed cap.
+                    .frame(maxHeight: isKeyboardVisible ? .infinity : 220)
                 } else if let message = placeSearchMessage {
                     Text(message).font(.system(size: 11)).foregroundColor(.secondary)
                 } else {
@@ -1034,7 +1035,7 @@ struct ContentView: View {
                     }
                     .padding(.bottom, 4)
                 }
-                .frame(maxHeight: min(screenHeight * 0.68, 520))
+                .frame(maxHeight: isKeyboardVisible ? .infinity : min(screenHeight * 0.68, 520))
             } else {
                 // Compact nearby-market list uses vertical scrolling; no horizontal carousel.
                 ScrollView(.vertical, showsIndicators: false) {
@@ -1056,7 +1057,7 @@ struct ContentView: View {
                     }
                     .padding(.bottom, 2)
                 }
-                .frame(maxHeight: isKeyboardVisible ? min(screenHeight * 0.48, 390) : min(screenHeight * 0.32, 250))
+                .frame(maxHeight: isKeyboardVisible ? .infinity : min(screenHeight * 0.32, 250))
             }
             }
         }
@@ -1065,6 +1066,9 @@ struct ContentView: View {
         // Give the search state extra bottom breathing room so the hint/results
         // do not sit against the panel's rounded lower edge.
         .padding(.bottom, searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0 : 16)
+        // Apply the keyboard height before drawing the background. This is important:
+        // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
+        .frame(height: isKeyboardVisible ? screenHeight * 0.98 : nil, alignment: .top)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.95), lineWidth: 1))
