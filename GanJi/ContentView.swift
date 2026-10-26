@@ -1543,7 +1543,12 @@ private struct MarketListRow: View {
                 .accessibilityLabel(isFavorite ? "取消收藏" : "收藏圩日")
             }
         }
-        // Keep the row visually lightweight: no card fill, outline, or left accent stripe.
+        .background(
+            selected
+                ? Color(red: 0.93, green: 0.93, blue: 0.85)
+                : Color.white.opacity(0.82),
+            in: RoundedRectangle(cornerRadius: 17, style: .continuous)
+        )
     }
 }
 
