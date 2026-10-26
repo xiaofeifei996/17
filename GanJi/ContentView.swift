@@ -39,6 +39,8 @@ struct ContentView: View {
     @State private var isMarketSheetVisible = true
     @State private var isKeyboardVisible = false
     @State private var keyboardHeight: CGFloat = 0
+    // Preserve the expanded search panel height after the keyboard dismisses.
+    @State private var retainedSearchPanelHeight: CGFloat? = nil
     @StateObject private var placeSearch = PlaceSearchModel()
     @State private var placeSearchMessage: String?
     @State private var selectedAreaCode: Int = 450881
@@ -175,6 +177,9 @@ struct ContentView: View {
                 let height = frame?.height ?? 0
                 withAnimation(.easeOut(duration: 0.22)) {
                     keyboardHeight = height
+                    // Remember the keyboard-time panel height so dismissing the
+                    // keyboard moves the panel back to the bottom without shrinking it.
+                    retainedSearchPanelHeight = min(geo.size.height - 12, max(geo.size.height - height + 140, 360))
                     isKeyboardVisible = true
                 }
             }
@@ -1089,7 +1094,9 @@ struct ContentView: View {
                 // additional vertical room. Clamp to the available view height so
                 // repeated keyboard transitions cannot push it off-screen.
                 ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 140, 360))
-                : nil,
+                // Once a keyboard-sized panel exists, retain that height when the
+                // keyboard hides; the root alignment moves it back to the bottom.
+                : retainedSearchPanelHeight,
             alignment: .top
         )
         .frame(maxWidth: .infinity, alignment: .leading)
