@@ -38,7 +38,9 @@ struct ContentView: View {
     @FocusState private var isPlaceSearchFocused: Bool
     @State private var isMarketSheetVisible = true
     @State private var isKeyboardVisible = false
-    @State private var keyboardBottomInset: CGFloat = 0
+    @State private var keyboardHeight: CGFloat = 0
+    // Preserve the expanded search panel height after the keyboard dismisses.
+    @State private var retainedSearchPanelHeight: CGFloat? = nil
     @StateObject private var placeSearch = PlaceSearchModel()
     @State private var placeSearchMessage: String?
     @State private var selectedAreaCode: Int = 450881
@@ -144,13 +146,11 @@ struct ContentView: View {
                         // Keep the container's coordinate space stable while the keyboard
                         // animates. The root ignores keyboard safe-area changes, so repeated
                         // show/hide cycles cannot accumulate vertical offsets.
-                        // Keep one stable anchor for every keyboard transition.
-                        // The keyboard height changes the bottom inset; we never flip
-                        // between top/bottom alignment, which can cause layout jumps.
-                        .frame(maxHeight: .infinity, alignment: .bottom)
-                        // Keep the panel above the keyboard instead of adding padding
-                        // below a full-height frame (which leaves the panel behind it).
-                        .offset(y: isKeyboardVisible ? -keyboardBottomInset : 0)
+                        // Keep a single predictable anchor: top while the keyboard is
+                        // present, bottom when it is dismissed. Never offset the panel
+                        // by the keyboard height; that mixes coordinate spaces and can
+                        // push the panel behind the keyboard.
+                        .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
                         .padding(.bottom, isKeyboardVisible ? 0 : 66)
                         .zIndex(3)
                 }
@@ -173,19 +173,25 @@ struct ContentView: View {
             // Prevent GeometryReader/ZStack from changing height when iOS adjusts the
             // keyboard safe area. We position the panel using the keyboard frame instead.
             .ignoresSafeArea(.keyboard, edges: .bottom)
-            // Use the keyboard's actual screen-space top edge, not its full frame height.
-            // The frame height and GeometryReader height can use different safe-area origins;
-            // mixing them makes the sheet land at a slightly different Y after each cycle.
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
-                updateKeyboardPosition(notification: notification, geometry: geo)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
-                updateKeyboardPosition(notification: notification, geometry: geo)
+                let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
+                let height = frame?.height ?? 0
+                withAnimation(.easeOut(duration: 0.22)) {
+                    keyboardHeight = height
+                    // Use the keyboard frame height only to constrain the panel's
+                    // available height. Position is controlled by the stable top anchor.
+                    retainedSearchPanelHeight = nil
+                    isKeyboardVisible = true
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
                 withAnimation(.easeOut(duration: 0.22)) {
                     isKeyboardVisible = false
-                    keyboardBottomInset = 0
+                    keyboardHeight = 0
+                    // Do not keep the keyboard-sized fixed panel height after dismissal.
+                    // A stale height leaves the sheet in a mismatched layout/hit-test
+                    // geometry, which can make the expand button stop responding.
+                    retainedSearchPanelHeight = nil
                     isPlaceSearchFocused = false
                 }
             }
@@ -1090,10 +1096,9 @@ struct ContentView: View {
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
             height: isKeyboardVisible
-                // The panel bottom is translated to the keyboard's top edge, so its
-                // height must fit only in the remaining visible area above the keyboard.
-                ? max(300, screenHeight - keyboardBottomInset - 80)
-                // On dismissal, return to intrinsic height and the original dock offset.
+                // Fit only in the area above the keyboard. Do not add extra height
+                // or carry a previous keyboard layout into the next presentation.
+                ? max(240, screenHeight - keyboardHeight - 24)
                 : nil,
             alignment: .top
         )
@@ -1109,18 +1114,6 @@ struct ContentView: View {
                 if value.translation.height > 45 { sheetExpanded = false }
             }
         })
-    }
-
-    private func updateKeyboardPosition(notification: Notification, geometry: GeometryProxy) {
-        guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
-        // Both values are measured in global screen coordinates, so safe-area offsets
-        // are accounted for once and are never accumulated from a previous layout pass.
-        let containerBottom = geometry.frame(in: .global).maxY
-        let overlap = max(0, containerBottom - frame.minY)
-        withAnimation(.easeOut(duration: 0.22)) {
-            keyboardBottomInset = overlap
-            isKeyboardVisible = overlap > 0
-        }
     }
 
     // Use only the nationwide administrative dataset; no hard-coded offline regions.
