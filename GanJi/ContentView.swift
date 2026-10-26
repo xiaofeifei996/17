@@ -988,9 +988,17 @@ struct ContentView: View {
                             }
                         }
                     }
-                    // When the keyboard is open, let search results fill the same panel
-                    // height as the nearby-market list instead of stopping at a fixed cap.
-                    .frame(maxHeight: isKeyboardVisible ? .infinity : 220)
+                    // With the keyboard dismissed, size the results viewport to the
+                    // actual number of visible rows. A maxHeight-only constraint lets
+                    // ScrollView accept the parent's full-height proposal and leaves a
+                    // large empty area under the last result.
+                    .frame(
+                        height: isKeyboardVisible
+                            ? nil
+                            : min(CGFloat(min(placeSearch.results.count, 8)) * 62 + CGFloat(max(0, min(placeSearch.results.count, 8) - 1)) * 6, 520),
+                        alignment: .top
+                    )
+                    .fixedSize(horizontal: false, vertical: !isKeyboardVisible)
                 } else if let message = placeSearchMessage {
                     Text(message).font(.system(size: 11)).foregroundColor(.secondary)
                 } else {
@@ -1105,6 +1113,9 @@ struct ContentView: View {
             alignment: .top
         )
         .frame(maxWidth: .infinity, alignment: .leading)
+        // Search mode should hug its content when the keyboard is closed; nearby mode
+        // keeps its existing sizing and keyboard mode remains flexible.
+        .fixedSize(horizontal: false, vertical: !isKeyboardVisible && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
         .background(Color(uiColor: .systemGroupedBackground), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.95), lineWidth: 1))
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
