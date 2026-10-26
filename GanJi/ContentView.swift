@@ -30,7 +30,6 @@ private struct TopRoundedShape: Shape {
     }
 }
 
-@MainActor
 struct ContentView: View {
     @StateObject private var locator = LocationModel()
     @State private var selectedFilter: MarketFilter = .all
@@ -68,7 +67,6 @@ struct ContentView: View {
     @State private var favoriteMarkets: [Market] = (try? JSONDecoder().decode([Market].self, from: UserDefaults.standard.data(forKey: "GanJiFavoriteMarketsData") ?? Data())) ?? []
     @State private var homeTab: HomeTab = .home
     @State private var pendingUserCentering = false
-    @State private var userTrackingMode: MapUserTrackingMode = .none
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 23.12, longitude: 110.31),
         span: MKCoordinateSpan(latitudeDelta: 0.32, longitudeDelta: 0.34)
@@ -108,6 +106,19 @@ struct ContentView: View {
            let saved = favoriteMarkets.first(where: { $0.id == selectedID }) {
             markets.append(saved)
         }
+        // Render the user's current position as a custom map annotation instead of
+        // MapKit's default blue dot, so we can show the soft accuracy halo and direction cone.
+        if let lat = locator.latitude, let lon = locator.longitude {
+            markets.append(Market(
+                id: "__user_location__",
+                name: "",
+                province: "", city: "", area: "",
+                provinceCode: nil, cityCode: nil, areaCode: nil, sourceAreaCode: nil,
+                lat: lat, lon: lon,
+                marketType: nil, repeatType: nil, repeatValue: [],
+                remark: "", place: "", address: "", status: nil
+            ))
+        }
         return markets
     }
 
@@ -132,44 +143,49 @@ struct ContentView: View {
         }
     }
 
-    // Keep the root view's result-builder expression small. Breaking the layers
-    // into separate computed views helps Swift's type checker on Xcode 16.
-    private func pageLayers(screenHeight: CGFloat) -> some View {
-        ZStack(alignment: .top) {
-            mapBackgroundLayer
-            marketSheetLayer(screenHeight: screenHeight)
-            homePageLayer
-            persistentDockLayer
-        }
-    }
-
-    private var mapBackgroundLayer: some View {
-        mapLayer.ignoresSafeArea()
-    }
-
-    @ViewBuilder
-    private func marketSheetLayer(screenHeight: CGFloat) -> some View {
-        if isMarketSheetVisible && showMainPage {
-            marketSheet(screenHeight: screenHeight)
-                .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
-                .padding(.bottom, isKeyboardVisible ? 0 : 66)
-                .zIndex(3)
-        }
-    }
-
-    @ViewBuilder
-    private var homePageLayer: some View {
-        if !showMainPage {
-            homePage
-                .padding(.bottom, 58)
-                .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
-                .zIndex(10)
-        }
-    }
-
     var body: some View {
         GeometryReader { geo in
-            pageLayers(screenHeight: geo.size.height)
+            ZStack(alignment: .top) {
+                // Draw the map behind both the top status-bar safe area and the bottom edge.
+                mapLayer
+                    .ignoresSafeArea()
+                // Keep the map visible when searching. Do not place a tall white
+                // background behind the whole bottom lane: when SwiftUI resizes for
+                // the keyboard, that layer expands upward and creates the huge blank
+                // white area seen in v97. The search capsule and suggestions each have
+                // their own opaque backgrounds below.
+                // While the place-search field is active, hide the market list visually
+                // so no market rows appear in the narrow strip above the keyboard.
+                // Keep isMarketSheetVisible unchanged: when search focus ends, the panel
+                // returns to its previous expanded/collapsed state automatically.
+                if isMarketSheetVisible && showMainPage {
+                    marketSheet(screenHeight: geo.size.height)
+                        // Keep the container's coordinate space stable while the keyboard
+                        // animates. The root ignores keyboard safe-area changes, so repeated
+                        // show/hide cycles cannot accumulate vertical offsets.
+                        // Keep a single predictable anchor: top while the keyboard is
+                        // present, bottom when it is dismissed. Never offset the panel
+                        // by the keyboard height; that mixes coordinate spaces and can
+                        // push the panel behind the keyboard.
+                        .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
+                        .padding(.bottom, isKeyboardVisible ? 0 : 66)
+                        .zIndex(3)
+                }
+                if !showMainPage {
+                    homePage
+                        .padding(.bottom, 58)
+                        .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
+                        .zIndex(10)
+                }
+                // One persistent Dock shared by every top-level page. Keeping the
+                // same SwiftUI view alive avoids the Dock flashing when switching to Map.
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    sharedDock
+                }
+                .ignoresSafeArea(edges: .bottom)
+                .zIndex(11)
+            }
             .background(Color.clear)
             // Prevent GeometryReader/ZStack from changing height when iOS adjusts the
             // keyboard safe area. We position the panel using the keyboard frame instead.
@@ -632,27 +648,145 @@ struct ContentView: View {
         }
     }
 
-    private var persistentDockLayer: some View {
-        dockStack
-            .ignoresSafeArea(edges: .bottom)
-            .zIndex(11)
-    }
-
-    private var dockStack: some View {
-        VStack(spacing: 0) {
-            Spacer(minLength: 0)
-            sharedDock
-        }
-    }
-
-    // Destination search panel split into smaller views to keep SwiftUI type-checking tractable.
+    // Destination search: a dedicated location header, prominent input, and structured results.
+    // Keep the existing search state, region picker, result selection, and keyboard behavior.
     private var mapSearchAndDock: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 12) {
-                homeRegionHeader
-                placeSearchField
-                placeSearchResults
-                placeSearchMessageView
+                HStack(spacing: 8) {
+                    Image(systemName: "location.circle.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("当前服务地区")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(Color(red: 0.48, green: 0.53, blue: 0.61))
+                        Text(homeRegionDisplayName.split(separator: "·").last.map(String.init)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? homeRegionDisplayName)
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Color(red: 0.14, green: 0.19, blue: 0.27))
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                    Button { showRegionPicker = true } label: {
+                        HStack(spacing: 5) {
+                            Text("切换地区")
+                                .font(.system(size: 12, weight: .semibold))
+                            Image(systemName: "arrow.up.right")
+                                .font(.system(size: 10, weight: .bold))
+                        }
+                        .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 8)
+                        .background(Color(red: 0.92, green: 0.95, blue: 1.0))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("切换地区，当前地区：\(homeRegionDisplayName)")
+                }
+
+                HStack(spacing: 11) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(Color(red: 0.16, green: 0.39, blue: 0.91))
+                    TextField("输入城市、区县或具体地点", text: $searchText)
+                        .focused($isPlaceSearchFocused)
+                        .simultaneousGesture(TapGesture().onEnded {
+                            isPlaceSearchFocused = true
+                        })
+                        .font(.system(size: 15, weight: .medium))
+                        .submitLabel(.search)
+                        .onChange(of: searchText) { value in
+                            placeSearch.query(value)
+                            placeSearchMessage = nil
+                            if value.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
+                                Task { await loadNationalRegions() }
+                            }
+                        }
+                    if !searchText.isEmpty {
+                        Button { searchText = "" } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(Color(red: 0.58, green: 0.62, blue: 0.69))
+                        }
+                        .accessibilityLabel("清除搜索")
+                    }
+                }
+                .padding(.horizontal, 15)
+                .frame(height: 50)
+                .background(Color(red: 0.95, green: 0.96, blue: 0.98))
+                .clipShape(RoundedRectangle(cornerRadius: 15))
+                .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.87, green: 0.89, blue: 0.93), lineWidth: 1))
+
+                if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("搜索结果")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(Color(red: 0.14, green: 0.19, blue: 0.27))
+                        Spacer()
+                        Text("选择地点以查看当地圩日")
+                            .font(.system(size: 11))
+                            .foregroundColor(Color(red: 0.53, green: 0.57, blue: 0.64))
+                    }
+                    .padding(.horizontal, 3)
+                    .padding(.top, 1)
+
+                    ScrollView(.vertical, showsIndicators: true) {
+                        LazyVStack(spacing: 8) {
+                            ForEach(Array(placeSearch.results.prefix(12).enumerated()), id: \.offset) { entry in
+                                let completion = entry.element
+                                Button {
+                                    Task { await selectPlace(completion) }
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        ZStack {
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .fill(Color(red: 0.91, green: 0.95, blue: 1.0))
+                                                .frame(width: 42, height: 42)
+                                            Image(systemName: "mappin.and.ellipse")
+                                                .font(.system(size: 17, weight: .semibold))
+                                                .foregroundColor(Color(red: 0.13, green: 0.40, blue: 0.94))
+                                        }
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(completion.title)
+                                                .font(.system(size: 14, weight: .semibold))
+                                                .foregroundColor(Color(red: 0.13, green: 0.17, blue: 0.24))
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .lineLimit(1)
+                                            if !completion.subtitle.isEmpty {
+                                                Text(completion.subtitle)
+                                                    .font(.system(size: 11))
+                                                    .foregroundColor(Color(red: 0.48, green: 0.53, blue: 0.61))
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                    .lineLimit(2)
+                                            }
+                                        }
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(Color(red: 0.64, green: 0.68, blue: 0.74))
+                                    }
+                                    .padding(.horizontal, 11)
+                                    .padding(.vertical, 10)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(Color(red: 0.98, green: 0.985, blue: 1.0))
+                                    .clipShape(RoundedRectangle(cornerRadius: 15))
+                                    .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.91, green: 0.93, blue: 0.96), lineWidth: 1))
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.bottom, 2)
+                    }
+                    .frame(maxHeight: isKeyboardVisible ? 240 : 340)
+                }
+                if let message = placeSearchMessage {
+                    Text(message)
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 3)
+                        .padding(.vertical, 4)
+                }
             }
             .padding(14)
             .background(Color.white)
@@ -661,153 +795,17 @@ struct ContentView: View {
             .shadow(color: Color.black.opacity(0.08), radius: 16, x: 0, y: 5)
             .padding(.horizontal, 14)
             .padding(.top, 10)
+            .padding(.bottom, 0)
         }
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var homeRegionHeader: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "location.circle.fill")
-                .font(.system(size: 17, weight: .semibold))
-                .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
-            VStack(alignment: .leading, spacing: 2) {
-                Text("当前服务地区")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundColor(Color(red: 0.48, green: 0.53, blue: 0.61))
-                Text(homeRegionDisplayName.split(separator: "·").last.map(String.init)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? homeRegionDisplayName)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(Color(red: 0.14, green: 0.19, blue: 0.27))
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 4)
-            Button { showRegionPicker = true } label: {
-                HStack(spacing: 5) {
-                    Text("切换地区").font(.system(size: 12, weight: .semibold))
-                    Image(systemName: "arrow.up.right").font(.system(size: 10, weight: .bold))
-                }
-                .foregroundColor(Color(red: 0.12, green: 0.40, blue: 0.98))
-                .padding(.horizontal, 11).padding(.vertical, 8)
-                .background(Color(red: 0.92, green: 0.95, blue: 1.0))
-                .clipShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("切换地区，当前地区：\(homeRegionDisplayName)")
-        }
-    }
-
-    private var placeSearchField: some View {
-        HStack(spacing: 11) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(Color(red: 0.16, green: 0.39, blue: 0.91))
-            TextField("输入城市、区县或具体地点", text: $searchText)
-                .focused($isPlaceSearchFocused)
-                .simultaneousGesture(TapGesture().onEnded { isPlaceSearchFocused = true })
-                .font(.system(size: 15, weight: .medium))
-                .submitLabel(.search)
-                .onChange(of: searchText) { value in
-                    placeSearch.query(value)
-                    placeSearchMessage = nil
-                    if value.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2 {
-                        Task { await loadNationalRegions() }
-                    }
-                }
-            if !searchText.isEmpty {
-                Button { searchText = "" } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
-                        .foregroundColor(Color(red: 0.58, green: 0.62, blue: 0.69))
-                }
-                .accessibilityLabel("清除搜索")
-            }
-        }
-        .padding(.horizontal, 15)
-        .frame(height: 50)
-        .background(Color(red: 0.95, green: 0.96, blue: 0.98))
-        .clipShape(RoundedRectangle(cornerRadius: 15))
-        .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.87, green: 0.89, blue: 0.93), lineWidth: 1))
-    }
-
-    @ViewBuilder
-    private var placeSearchResults: some View {
-        if !placeSearch.results.isEmpty && !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            HStack(alignment: .firstTextBaseline) {
-                Text("搜索结果")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color(red: 0.14, green: 0.19, blue: 0.27))
-                Spacer()
-                Text("选择地点以查看当地圩日")
-                    .font(.system(size: 11))
-                    .foregroundColor(Color(red: 0.53, green: 0.57, blue: 0.64))
-            }
-            .padding(.horizontal, 3).padding(.top, 1)
-            ScrollView(.vertical, showsIndicators: true) {
-                LazyVStack(spacing: 8) {
-                    ForEach(Array(placeSearch.results.prefix(12).enumerated()), id: \.offset) { entry in
-                        placeSearchResultRow(entry.element)
-                    }
-                }
-                .padding(.bottom, 2)
-            }
-            .frame(maxHeight: isKeyboardVisible ? 240 : 340)
-        }
-    }
-
-    private func placeSearchResultRow(_ completion: MKLocalSearchCompletion) -> some View {
-        Button {
-            Task { await selectPlace(completion) }
-        } label: {
-            HStack(spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color(red: 0.91, green: 0.95, blue: 1.0))
-                        .frame(width: 42, height: 42)
-                    Image(systemName: "mappin.and.ellipse")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(Color(red: 0.13, green: 0.40, blue: 0.94))
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(completion.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Color(red: 0.13, green: 0.17, blue: 0.24))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .lineLimit(1)
-                    if !completion.subtitle.isEmpty {
-                        Text(completion.subtitle)
-                            .font(.system(size: 11))
-                            .foregroundColor(Color(red: 0.48, green: 0.53, blue: 0.61))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .lineLimit(2)
-                    }
-                }
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .bold))
-                    .foregroundColor(Color(red: 0.64, green: 0.68, blue: 0.74))
-            }
-            .padding(.horizontal, 11).padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(red: 0.98, green: 0.985, blue: 1.0))
-            .clipShape(RoundedRectangle(cornerRadius: 15))
-            .overlay(RoundedRectangle(cornerRadius: 15).stroke(Color(red: 0.91, green: 0.93, blue: 0.96), lineWidth: 1))
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    @ViewBuilder
-    private var placeSearchMessageView: some View {
-        if let message = placeSearchMessage {
-            Text(message)
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 3).padding(.vertical, 4)
-        }
-    }
-
     private var mapLayer: some View {
-        Map(coordinateRegion: $region, showsUserLocation: true, userTrackingMode: $userTrackingMode, annotationItems: mapMarkets) { market in
+        Map(coordinateRegion: $region, showsUserLocation: false, annotationItems: mapMarkets) { market in
             MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: market.lat, longitude: market.lon)) {
+                if market.id == "__user_location__" {
+                    UserLocationMapMarker()
+                } else {
                 Button {
                     selectedMarketID = market.id
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { sheetExpanded = false }
@@ -838,11 +836,9 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
+                }
             }
         }
-        // Use MapKit's native user-location annotation only. A screen-fixed custom
-        // dot/cone drifts away from the real coordinate when the map is panned or zoomed,
-        // and creates the duplicate blue dot visible in the previous build.
         .overlay(alignment: .bottomTrailing) {
             // Hide the floating control while the market list is open; restore it when the list closes.
             if !isMarketSheetVisible {
@@ -1608,9 +1604,6 @@ struct ContentView: View {
 
     private func centerOnUser() {
         pendingUserCentering = true
-        // Ask MapKit to own the user-location indicator and heading presentation.
-        // This avoids a second, manually drawn dot/cone drifting over the real location.
-        userTrackingMode = .followWithHeading
         if let lat = locator.latitude, let lon = locator.longitude {
             withAnimation(.easeInOut(duration: 0.35)) {
                 region.center = CLLocationCoordinate2D(latitude: lat, longitude: lon)
@@ -1622,4 +1615,165 @@ struct ContentView: View {
         }
     }
 }
+
+/// Apple Maps-inspired current-location marker with a translucent accuracy halo
+/// and a softly fading directional cone.
+private struct UserLocationMapMarker: View {
+    var body: some View {
+        ZStack {
+            LocationDirectionCone()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.05, green: 0.52, blue: 0.98).opacity(0.34),
+                            Color(red: 0.20, green: 0.63, blue: 1.0).opacity(0.16),
+                            Color(red: 0.20, green: 0.63, blue: 1.0).opacity(0.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: 94, height: 104)
+                .rotationEffect(.degrees(-38))
+                .offset(x: -16, y: 39)
+
+            Circle()
+                .fill(Color(red: 0.10, green: 0.55, blue: 1.0).opacity(0.10))
+                .frame(width: 66, height: 66)
+            Circle()
+                .fill(Color(red: 0.10, green: 0.55, blue: 1.0).opacity(0.13))
+                .frame(width: 48, height: 48)
+            Circle()
+                .fill(Color.white)
+                .frame(width: 44, height: 44)
+                .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
+            Circle()
+                .fill(Color(red: 0.02, green: 0.52, blue: 0.98))
+                .frame(width: 28, height: 28)
+        }
+        .frame(width: 112, height: 112)
+        .accessibilityLabel("当前位置")
+        .allowsHitTesting(false)
+    }
+}
+
+private struct LocationDirectionCone: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.addQuadCurve(
+            to: CGPoint(x: rect.minX, y: rect.maxY),
+            control: CGPoint(x: rect.midX, y: rect.maxY - 8)
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+private struct RegionOption: Identifiable {
+    enum Kind { case county, city, province }
+    let code: Int
+    let name: String
+    let city: String
+    let province: String
+    let kind: Kind
+    var id: Int { code }
+}
+
+private struct MarketListRow: View {
+    let row: MarketDay
+    let distanceText: String
+    let selected: Bool
+    let isFavorite: Bool
+    var showFavoriteButton: Bool = true
+    let toggleFavorite: () -> Void
+    let action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Button(action: action) {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 6) {
+                        Text(row.market.size)
+                            .font(.system(size: 9, weight: .heavy, design: .rounded))
+                            .tracking(0.8)
+                            .foregroundColor(Color(red: 0.75, green: 0.35, blue: 0.18))
+                        Text("·") .foregroundColor(.secondary)
+                        Text(row.dayLabel)
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(Color(red: 0.24, green: 0.45, blue: 0.30))
+                        Spacer(minLength: 2)
+                        Text(distanceText)
+                            .font(.system(size: 11, weight: .semibold, design: .rounded))
+                            .foregroundColor(Color(red: 0.44, green: 0.49, blue: 0.42))
+                    }
+                    HStack(alignment: .center, spacing: 6) {
+                        Text(row.market.name)
+                            .font(.system(size: 17, weight: .bold, design: .rounded))
+                            .foregroundColor(Color(red: 0.13, green: 0.20, blue: 0.15))
+                            .lineLimit(1)
+                        Spacer(minLength: 2)
+                        Image(systemName: "arrow.up.right")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(Color(red: 0.59, green: 0.62, blue: 0.53))
+                    }
+                    Text((row.market.repeatType == 6 ? "属相  " : "圩日  ") + row.animals)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color(red: 0.48, green: 0.52, blue: 0.44))
+                        .lineLimit(1)
+                }
+                .padding(.leading, 12).padding(.trailing, 8).padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if showFavoriteButton {
+                Button(action: toggleFavorite) {
+                    Image(systemName: isFavorite ? "heart.fill" : "heart")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(isFavorite ? Color(red: 0.82, green: 0.27, blue: 0.25) : Color(red: 0.67, green: 0.69, blue: 0.61))
+                        .frame(width: 38, height: 38)
+                        .background(isFavorite ? Color(red: 0.98, green: 0.89, blue: 0.85) : Color(red: 0.94, green: 0.94, blue: 0.89), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .padding(.trailing, 10)
+                .accessibilityLabel(isFavorite ? "取消收藏" : "收藏圩日")
+            }
+        }
+        .background(
+            selected
+                ? Color(red: 0.93, green: 0.93, blue: 0.85)
+                : Color.white.opacity(0.82),
+            in: RoundedRectangle(cornerRadius: 17, style: .continuous)
+        )
+    }
+}
+
+private extension Color {
+    static let ganjiBlue = Color(red: 0.16, green: 0.43, blue: 0.94)
+    static let ganjiOrange = Color(red: 0.96, green: 0.43, blue: 0.20)
+    static let ganjiGreen = Color(red: 0.10, green: 0.63, blue: 0.30)
+}
+
+
+private struct RegionPickerSheetSizing: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.0, *) {
+            content
+                .presentationDetents([.height(430)])
+                .presentationDragIndicator(.hidden)
+        } else {
+            content
+        }
+    }
+}
+
+
+// Included in ContentView.swift so the model is compiled even if the project file
+// has not yet registered PlaceSearchModel.swift as a source file.
+import Foundation
+import MapKit
+import Combine
+
 
