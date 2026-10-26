@@ -141,14 +141,11 @@ struct ContentView: View {
                 // returns to its previous expanded/collapsed state automatically.
                 if isMarketSheetVisible && showMainPage {
                     marketSheet(screenHeight: geo.size.height)
-                        // Keep the container's coordinate space stable while the keyboard
-                        // animates. The root ignores keyboard safe-area changes, so repeated
-                        // show/hide cycles cannot accumulate vertical offsets.
-                        .frame(
-                            maxHeight: .infinity,
-                            alignment: isKeyboardVisible ? .top : .bottom
-                        )
-                        .padding(.bottom, isKeyboardVisible ? 0 : 66)
+                        // Keep the panel bottom-anchored in one stable coordinate space.
+                        // Apply the keyboard clearance BEFORE the flexible frame so the
+                        // panel's bottom sits directly above the keyboard on every cycle.
+                        .padding(.bottom, isKeyboardVisible ? keyboardHeight : 66)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
                         .zIndex(3)
                 }
                 if !showMainPage {
@@ -1085,10 +1082,10 @@ struct ContentView: View {
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
             height: isKeyboardVisible
-                // Expand the panel farther downward over the map while the keyboard
-                // is visible, so the list has more usable height. Clamp to the
-                // available view height to avoid pushing the panel off-screen.
-                ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 180, 440))
+                // The panel occupies only the space above the keyboard. Keep its
+                // height bounded so it cannot grow beyond the visible region as the
+                // keyboard is repeatedly shown and hidden.
+                ? max(180, min(screenHeight - keyboardHeight - 12, screenHeight * 0.58))
                 : nil,
             alignment: .top
         )
