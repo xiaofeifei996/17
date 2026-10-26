@@ -154,6 +154,40 @@ struct ContentView: View {
                         .padding(.bottom, isKeyboardVisible ? 0 : 66)
                         .zIndex(3)
                 }
+                // When the full search/market panel is closed, keep a compact
+                // floating restore control on the map so it can be reopened anytime.
+                if !isMarketSheetVisible && showMainPage {
+                    VStack {
+                        Spacer(minLength: 0)
+                        HStack {
+                            Spacer(minLength: 0)
+                            Button {
+                                withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                                    isMarketSheetVisible = true
+                                }
+                            } label: {
+                                HStack(spacing: 7) {
+                                    Image(systemName: "calendar.badge.clock")
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Text("显示圩日")
+                                        .font(.system(size: 13, weight: .semibold))
+                                }
+                                .foregroundColor(Color(red: 0.13, green: 0.22, blue: 0.18))
+                                .padding(.horizontal, 16)
+                                .frame(height: 46)
+                                .background(Color.white, in: Capsule())
+                                .overlay(Capsule().stroke(Color(red: 0.87, green: 0.88, blue: 0.82), lineWidth: 1))
+                                .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 4)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("重新打开搜索框和圩日列表")
+                        }
+                        .padding(.trailing, 16)
+                        .padding(.bottom, 86)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    .zIndex(4)
+                }
                 if !showMainPage {
                     homePage
                         .padding(.bottom, 58)
@@ -953,6 +987,23 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("切换地区，当前地区：\(homeRegionDisplayName)")
+                Button {
+                    isPlaceSearchFocused = false
+                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                        isKeyboardVisible = false
+                        keyboardHeight = 0
+                        isMarketSheetVisible = false
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(Color(red: 0.28, green: 0.34, blue: 0.29))
+                        .frame(width: 30, height: 32)
+                        .background(Color(red: 0.94, green: 0.95, blue: 0.91), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("关闭搜索框和圩日列表")
             }
             .padding(.horizontal, 13)
             .frame(height: 48)
