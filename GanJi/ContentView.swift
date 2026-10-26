@@ -759,7 +759,7 @@ struct ContentView: View {
             .shadow(color: Color.black.opacity(0.08), radius: 16, x: 0, y: 5)
             .padding(.horizontal, 14)
             .padding(.top, 10)
-            .padding(.bottom, 5)
+            .padding(.bottom, 0)
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -1079,9 +1079,8 @@ struct ContentView: View {
         }
         .padding(.horizontal, 14)
         .padding(.top, 14)
-        // Give the panel a little more height and keep the helper text comfortably
-        // inset from the rounded bottom edge, especially on compact screens.
-        .padding(.bottom, 14)
+        // Bottom spacing is set to 0pt to align the panel with the bottom dock.
+        .padding(.bottom, 0)
         // Apply the keyboard height before drawing the background. This is important:
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
