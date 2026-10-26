@@ -906,6 +906,17 @@ struct ContentView: View {
         .padding(.top, 8)
     }
 
+    // Bottom inset for the search-mode panel.
+    // The panel container stays dock-aligned (0pt) in nearby mode. But in search
+    // mode the panel hugs its content once the keyboard is dismissed, so the last
+    // row (the "输入地点名称…" hint or the last result) would otherwise sit
+    // directly on the panel's bottom edge. Reserve a small inset only in that
+    // state, so the keyboard-up layout and the nearby list are untouched.
+    private var searchPanelBottomInset: CGFloat {
+        let isSearching = !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return isSearching && !isKeyboardVisible ? 16 : 0
+    }
+
     // Region discovery is intentionally a floating map HUD rather than a large
     // opaque bottom sheet. The map remains the primary canvas and market rows
     // form a vertical list above the persistent search and Dock.
@@ -995,7 +1006,7 @@ struct ContentView: View {
                     .frame(
                         height: isKeyboardVisible
                             ? nil
-                            : min(CGFloat(min(placeSearch.results.count, 6)) * 58 + CGFloat(max(0, min(placeSearch.results.count, 6) - 1)) * 5, 345),
+                            : min(CGFloat(min(placeSearch.results.count, 6)) * 58 + CGFloat(max(0, min(placeSearch.results.count, 6) - 1)) * 5, 300),
                         alignment: .top
                     )
                     .fixedSize(horizontal: false, vertical: !isKeyboardVisible)
@@ -1098,8 +1109,9 @@ struct ContentView: View {
         }
         .padding(.horizontal, 14)
         .padding(.top, 14)
-        // Bottom spacing is set to 0pt to align the panel with the bottom dock.
-        .padding(.bottom, 0)
+        // Search mode keeps a small bottom inset so the hint / last result is not
+        // glued to the panel edge; nearby mode stays dock-aligned at 0pt.
+        .padding(.bottom, searchPanelBottomInset)
         // Apply the keyboard height before drawing the background. This is important:
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
