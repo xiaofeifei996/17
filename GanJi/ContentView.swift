@@ -140,7 +140,7 @@ struct ContentView: View {
                 // returns to its previous expanded/collapsed state automatically.
                 if isMarketSheetVisible && showMainPage {
                     marketSheet(screenHeight: geo.size.height)
-                        .frame(maxHeight: isKeyboardVisible ? geo.size.height * 0.62 : .infinity, alignment: .bottom)
+                        .frame(maxHeight: isKeyboardVisible ? geo.size.height * 0.78 : .infinity, alignment: .bottom)
                         // Search and nearby market browsing share one panel above the persistent Dock.
                         .padding(.bottom, isKeyboardVisible ? 0 : 66)
                         .zIndex(3)
@@ -952,7 +952,7 @@ struct ContentView: View {
                             }
                         }
                     }
-                    .frame(maxHeight: isKeyboardVisible ? 150 : 220)
+                    .frame(maxHeight: isKeyboardVisible ? 230 : 220)
                 } else if let message = placeSearchMessage {
                     Text(message).font(.system(size: 11)).foregroundColor(.secondary)
                 } else {
