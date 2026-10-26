@@ -1088,7 +1088,7 @@ struct ContentView: View {
                 // Keep the stable top-anchored keyboard layout, but give the panel
                 // additional vertical room. Clamp to the available view height so
                 // repeated keyboard transitions cannot push it off-screen.
-                ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 80, 360))
+                ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 100, 360))
                 : nil,
             alignment: .top
         )
