@@ -139,26 +139,14 @@ struct ContentView: View {
                 // Keep isMarketSheetVisible unchanged: when search focus ends, the panel
                 // returns to its previous expanded/collapsed state automatically.
                 if isMarketSheetVisible && showMainPage {
-                    // Use a stable parent layout for each keyboard state. Avoid applying an
-                    // infinite-height frame directly to the sheet: its changing intrinsic
-                    // height combined with keyboard safe-area animations can accumulate a
-                    // vertical offset after repeated show/hide cycles.
-                    Group {
-                        if isKeyboardVisible {
-                            VStack(spacing: 0) {
-                                marketSheet(screenHeight: geo.size.height)
-                                Spacer(minLength: 0)
-                            }
-                        } else {
-                            VStack(spacing: 0) {
-                                Spacer(minLength: 0)
-                                marketSheet(screenHeight: geo.size.height)
-                            }
-                            .padding(.bottom, 66)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .zIndex(3)
+                    marketSheet(screenHeight: geo.size.height)
+                        // Keep the same outer alignment behavior for both search results and
+                        // nearby-market content. The actual keyboard height is applied inside
+                        // marketSheet so its background and content grow together.
+                        .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
+                        // Keep the normal bottom inset when the keyboard is hidden.
+                        .padding(.bottom, isKeyboardVisible ? 0 : 66)
+                        .zIndex(3)
                 }
                 if !showMainPage {
                     homePage
@@ -177,14 +165,16 @@ struct ContentView: View {
             }
             .background(Color.clear)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-                // Let the keyboard's own transition drive the safe-area animation. Animating
-                // this state separately can race with SwiftUI's resize and leave the panel offset.
-                isKeyboardVisible = true
+                withAnimation(.easeOut(duration: 0.22)) {
+                    isKeyboardVisible = true
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                // Restore the bottom-anchored layout immediately after the keyboard transition.
-                // The user's expanded/collapsed list state is intentionally preserved.
-                isKeyboardVisible = false
+                // The conditional frame and bottom alignment restore the normal position
+                // when the keyboard leaves, without changing the user's expanded state.
+                withAnimation(.easeOut(duration: 0.22)) {
+                    isKeyboardVisible = false
+                }
             }
             .onAppear {
                 locator.start()
@@ -656,6 +646,9 @@ struct ContentView: View {
                         .foregroundColor(Color(red: 0.16, green: 0.39, blue: 0.91))
                     TextField("输入城市、区县或具体地点", text: $searchText)
                         .focused($isPlaceSearchFocused)
+                        .simultaneousGesture(TapGesture().onEnded {
+                            isPlaceSearchFocused = true
+                        })
                         .font(.system(size: 15, weight: .medium))
                         .submitLabel(.search)
                         .onChange(of: searchText) { value in
@@ -906,6 +899,11 @@ struct ContentView: View {
                     .foregroundColor(Color(red: 0.18, green: 0.39, blue: 0.28))
                 TextField("搜索地点，或查找附近圩日", text: $searchText)
                     .focused($isPlaceSearchFocused)
+                    // Explicitly restore focus on tap so the keyboard opens reliably
+                    // after the panel has switched between keyboard and non-keyboard layouts.
+                    .simultaneousGesture(TapGesture().onEnded {
+                        isPlaceSearchFocused = true
+                    })
                     .font(.system(size: 14, weight: .medium))
                     .submitLabel(.search)
                     .onChange(of: searchText) { value in
