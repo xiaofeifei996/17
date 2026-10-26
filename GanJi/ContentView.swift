@@ -155,40 +155,6 @@ struct ContentView: View {
                         .padding(.bottom, isKeyboardVisible ? 0 : 66)
                         .zIndex(3)
                 }
-                // When the full search/market panel is closed, keep a compact
-                // floating restore control on the map so it can be reopened anytime.
-                if !isMarketSheetVisible && showMainPage {
-                    VStack {
-                        Spacer(minLength: 0)
-                        HStack {
-                            Spacer(minLength: 0)
-                            Button {
-                                withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                                    isMarketSheetVisible = true
-                                }
-                            } label: {
-                                HStack(spacing: 7) {
-                                    Image(systemName: "calendar.badge.clock")
-                                        .font(.system(size: 16, weight: .semibold))
-                                    Text("显示圩日")
-                                        .font(.system(size: 13, weight: .semibold))
-                                }
-                                .foregroundColor(Color(red: 0.13, green: 0.22, blue: 0.18))
-                                .padding(.horizontal, 16)
-                                .frame(height: 46)
-                                .background(Color.white, in: Capsule())
-                                .overlay(Capsule().stroke(Color(red: 0.87, green: 0.88, blue: 0.82), lineWidth: 1))
-                                .shadow(color: .black.opacity(0.16), radius: 12, x: 0, y: 4)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("重新打开搜索框和圩日列表")
-                        }
-                        .padding(.trailing, 16)
-                        .padding(.bottom, 86)
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    .zIndex(4)
-                }
                 if !showMainPage {
                     homePage
                         .padding(.bottom, 58)
@@ -854,14 +820,35 @@ struct ContentView: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            Button(action: centerOnUser) {
-                Image(systemName: "location.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(Color.ganjiBlue)
-                    .frame(width: 44, height: 44)
-                    .background(.white, in: Circle())
-                    .shadow(color: .black.opacity(0.12), radius: 8, x: 0, y: 3)
+            // One Apple Maps-inspired floating control: market list + current location.
+            VStack(spacing: 0) {
+                Button {
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                        isMarketSheetVisible.toggle()
+                    }
+                } label: {
+                    Image(systemName: "map.fill")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(Color.primary)
+                        .frame(width: 52, height: 52)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(isMarketSheetVisible ? "隐藏圩日列表" : "显示圩日列表")
+
+                Button(action: centerOnUser) {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 19, weight: .semibold))
+                        .foregroundColor(Color.ganjiBlue)
+                        .frame(width: 52, height: 52)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("定位到当前位置")
             }
+            .background(.regularMaterial, in: Capsule())
+            .overlay(Capsule().stroke(Color.white.opacity(0.75), lineWidth: 1))
+            .shadow(color: .black.opacity(0.13), radius: 12, x: 0, y: 4)
             .padding(.trailing, 16)
             .padding(.bottom, sheetExpanded ? 470 : 335)
         }
