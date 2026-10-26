@@ -63,6 +63,7 @@ struct ContentView: View {
     @State private var favorites: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "GanJiFavoriteMarketIDs") ?? [])
     @State private var favoriteMarkets: [Market] = (try? JSONDecoder().decode([Market].self, from: UserDefaults.standard.data(forKey: "GanJiFavoriteMarketsData") ?? Data())) ?? []
     @State private var homeTab: HomeTab = .home
+    @State private var pendingUserCentering = false
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 23.12, longitude: 110.31),
         span: MKCoordinateSpan(latitudeDelta: 0.32, longitudeDelta: 0.34)
@@ -235,6 +236,14 @@ struct ContentView: View {
                 if let first = allMarkets.first {
                     region.center = CLLocationCoordinate2D(latitude: first.lat, longitude: first.lon)
                 }
+            }
+            .onChange(of: locator.latitude) { latitude in
+                guard pendingUserCentering, let latitude = latitude, let longitude = locator.longitude else { return }
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    region.center = CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+                    region.span = MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12)
+                }
+                pendingUserCentering = false
             }
             .onChange(of: selectedMarketID) { newValue in
                 guard let id = newValue,
@@ -810,7 +819,7 @@ struct ContentView: View {
     }
 
     private var mapLayer: some View {
-        Map(coordinateRegion: $region, annotationItems: mapMarkets) { market in
+        Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: mapMarkets) { market in
             MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: market.lat, longitude: market.lon)) {
                 Button {
                     selectedMarketID = market.id
@@ -1543,9 +1552,16 @@ struct ContentView: View {
     }
 
     private func centerOnUser() {
+        pendingUserCentering = true
         if let lat = locator.latitude, let lon = locator.longitude {
-            withAnimation { region.center = CLLocationCoordinate2D(latitude: lat, longitude: lon); region.span = MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12) }
-        } else { locator.start() }
+            withAnimation(.easeInOut(duration: 0.35)) {
+                region.center = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+                region.span = MKCoordinateSpan(latitudeDelta: 0.12, longitudeDelta: 0.12)
+            }
+            pendingUserCentering = false
+        } else {
+            locator.start()
+        }
     }
 }
 
