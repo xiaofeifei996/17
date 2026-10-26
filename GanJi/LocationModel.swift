@@ -5,6 +5,8 @@ final class LocationModel: NSObject, ObservableObject, CLLocationManagerDelegate
     @Published var latitude: Double?
     @Published var longitude: Double?
     @Published var denied = false
+    @Published var heading: Double = 0
+    @Published var headingAvailable = false
 
     private let manager = CLLocationManager()
 
@@ -12,9 +14,11 @@ final class LocationModel: NSObject, ObservableObject, CLLocationManagerDelegate
         super.init()
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        manager.headingFilter = 2
     }
 
     func start() {
+        if CLLocationManager.headingAvailable() { manager.startUpdatingHeading() }
         let status = manager.authorizationStatus
         switch status {
         case .notDetermined:
@@ -41,6 +45,15 @@ final class LocationModel: NSObject, ObservableObject, CLLocationManagerDelegate
         latitude = loc.coordinate.latitude
         longitude = loc.coordinate.longitude
     }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        let value = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
+        guard value >= 0 else { return }
+        heading = value
+        headingAvailable = true
+    }
+
+    func locationManagerShouldDisplayHeadingCalibration(_ manager: CLLocationManager) -> Bool { true }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {}
 }
