@@ -174,12 +174,15 @@ struct ContentView: View {
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
                 let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
-                let height = frame?.height ?? 0
+                // Use the keyboard's top edge in screen coordinates. Its raw frame
+                // height can produce a vertical mismatch when safe areas or keyboard
+                // accessory rows differ between devices.
+                let screenBounds = UIScreen.main.bounds
+                let overlap = frame.map { max(0, screenBounds.maxY - $0.minY) } ?? 0
                 withAnimation(.easeOut(duration: 0.22)) {
-                    keyboardHeight = height
-                    // Remember the keyboard-time panel height so dismissing the
-                    // keyboard moves the panel back to the bottom without shrinking it.
-                    retainedSearchPanelHeight = min(geo.size.height - 12, max(geo.size.height - height + 140, 360))
+                    keyboardHeight = overlap
+                    // Preserve the panel's visible height for the return transition.
+                    retainedSearchPanelHeight = min(geo.size.height - 12, max(geo.size.height - overlap + 140, 360))
                     isKeyboardVisible = true
                 }
             }
@@ -1095,10 +1098,10 @@ struct ContentView: View {
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
             height: isKeyboardVisible
-                // Keep the stable top-anchored keyboard layout, but give the panel
-                // additional vertical room. Clamp to the available view height so
-                // repeated keyboard transitions cannot push it off-screen.
-                ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 240, 460))
+                // Size the panel to the usable area above the keyboard. Avoid the
+                // previous extra 240pt, which could over-expand the panel and shift
+                // its visual position on devices with different keyboard heights.
+                ? min(screenHeight - 12, max(screenHeight - keyboardHeight, 360))
                 // Once a keyboard-sized panel exists, retain that height when the
                 // keyboard hides; the root alignment moves it back to the bottom.
                 : retainedSearchPanelHeight,
