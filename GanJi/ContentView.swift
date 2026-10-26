@@ -174,20 +174,20 @@ struct ContentView: View {
             .ignoresSafeArea(.keyboard, edges: .bottom)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
                 let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
-                // Use the keyboard's top edge in screen coordinates. Its raw frame
-                // height can produce a vertical mismatch when safe areas or keyboard
-                // accessory rows differ between devices.
-                let screenBounds = UIScreen.main.bounds
-                let overlap = frame.map { max(0, screenBounds.maxY - $0.minY) } ?? 0
-                withAnimation(.easeOut(duration: 0.22)) {
-                    keyboardHeight = overlap
-                    // Preserve the panel's visible height for the return transition.
-                    retainedSearchPanelHeight = min(geo.size.height - 12, max(geo.size.height - overlap + 140, 360))
+                let height = frame?.height ?? 0
+                let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.28
+                // Match the system keyboard's timing instead of racing it with a fixed duration.
+                withAnimation(.easeOut(duration: max(0.18, min(duration, 0.42)))) {
+                    keyboardHeight = height
+                    // Remember the keyboard-time panel height so dismissing the
+                    // keyboard moves the panel back to the bottom without shrinking it.
+                    retainedSearchPanelHeight = min(geo.size.height - 12, max(geo.size.height - height + 140, 360))
                     isKeyboardVisible = true
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                withAnimation(.easeOut(duration: 0.22)) {
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { notification in
+                let duration = notification.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double ?? 0.28
+                withAnimation(.easeOut(duration: max(0.18, min(duration, 0.42))) ) {
                     isKeyboardVisible = false
                     keyboardHeight = 0
                     // Do not keep the keyboard-sized fixed panel height after dismissal.
@@ -211,7 +211,7 @@ struct ContentView: View {
                 // Selecting a row should expose the map area above the bottom sheet.
                 // Collapse the sheet and place the selected annotation in the visible
                 // map area's center rather than the physical screen's center.
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) {
+                withAnimation(.spring(response: 0.36, dampingFraction: 0.90)) {
                     sheetExpanded = false
                     let span = 0.09
                     let latitudeOffset = span * 0.5
@@ -782,7 +782,7 @@ struct ContentView: View {
             MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: market.lat, longitude: market.lon)) {
                 Button {
                     selectedMarketID = market.id
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { sheetExpanded = false }
+                    withAnimation(.spring(response: 0.32, dampingFraction: 0.90)) { sheetExpanded = false }
                 } label: {
                     VStack(spacing: 0) {
                         ZStack {
@@ -810,6 +810,7 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
+                .animation(.easeInOut(duration: 0.20), value: selectedMarketID)
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -1023,7 +1024,7 @@ struct ContentView: View {
                 }
                 Spacer(minLength: 4)
                 Button {
-                    withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) { sheetExpanded.toggle() }
+                    withAnimation(.spring(response: 0.34, dampingFraction: 0.90)) { sheetExpanded.toggle() }
                 } label: {
                     VStack(spacing: 4) {
                         Image(systemName: sheetExpanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.right.and.arrow.down.left")
@@ -1060,11 +1061,13 @@ struct ContentView: View {
                             MarketListRow(row: row, distanceText: distanceText(for: row), selected: selectedMarketID == row.market.id, isFavorite: favorites.contains(row.market.id), toggleFavorite: { toggleFavorite(row.market.id) }) {
                                 selectedMarketID = row.market.id
                             }
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
                     }
                     .padding(.bottom, 4)
                 }
                 .frame(maxHeight: isKeyboardVisible ? .infinity : min(screenHeight * 0.68, 520))
+                .animation(.easeOut(duration: 0.20), value: sheetExpanded)
             } else {
                 // Compact nearby-market list uses vertical scrolling; no horizontal carousel.
                 ScrollView(.vertical, showsIndicators: false) {
@@ -1078,15 +1081,17 @@ struct ContentView: View {
                                 toggleFavorite: { toggleFavorite(row.market.id) }
                             ) {
                                 selectedMarketID = row.market.id
-                                withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                                withAnimation(.easeInOut(duration: 0.42)) {
                                     region.center = CLLocationCoordinate2D(latitude: row.market.lat, longitude: row.market.lon)
                                 }
                             }
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
                     }
                     .padding(.bottom, 2)
                 }
                 .frame(maxHeight: isKeyboardVisible ? .infinity : min(screenHeight * 0.32, 250))
+                .animation(.easeOut(duration: 0.20), value: sheetExpanded)
             }
             }
         }
@@ -1098,10 +1103,10 @@ struct ContentView: View {
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
             height: isKeyboardVisible
-                // Size the panel to the usable area above the keyboard. Avoid the
-                // previous extra 240pt, which could over-expand the panel and shift
-                // its visual position on devices with different keyboard heights.
-                ? min(screenHeight - 12, max(screenHeight - keyboardHeight, 360))
+                // Keep the stable top-anchored keyboard layout, but give the panel
+                // additional vertical room. Clamp to the available view height so
+                // repeated keyboard transitions cannot push it off-screen.
+                ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 240, 460))
                 // Once a keyboard-sized panel exists, retain that height when the
                 // keyboard hides; the root alignment moves it back to the bottom.
                 : retainedSearchPanelHeight,
@@ -1113,12 +1118,19 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: Color(red: 0.13, green: 0.20, blue: 0.16).opacity(0.18), radius: 22, x: 0, y: 8)
         .padding(.horizontal, 12)
-        .gesture(DragGesture(minimumDistance: 18).onEnded { value in
-            withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                if value.translation.height < -35 { sheetExpanded = true }
-                if value.translation.height > 45 { sheetExpanded = false }
-            }
-        })
+        .gesture(DragGesture(minimumDistance: 18)
+            .onEnded { value in
+                // Use predicted end position to respect intentional flicks while
+                // ignoring small accidental movements. Only animate after release.
+                let projected = value.translation.height * 0.35
+                    + (value.predictedEndTranslation.height - value.translation.height) * 0.65
+                let threshold: CGFloat = 64
+                guard abs(projected) > threshold else { return }
+                withAnimation(.spring(response: 0.36, dampingFraction: 0.90)) {
+                    if projected < 0 { sheetExpanded = true }
+                    else { sheetExpanded = false }
+                }
+            })
     }
 
     // Use only the nationwide administrative dataset; no hard-coded offline regions.
@@ -1551,6 +1563,8 @@ private struct MarketListRow: View {
                         .foregroundColor(isFavorite ? Color(red: 0.82, green: 0.27, blue: 0.25) : Color(red: 0.67, green: 0.69, blue: 0.61))
                         .frame(width: 38, height: 38)
                         .background(isFavorite ? Color(red: 0.98, green: 0.89, blue: 0.85) : Color(red: 0.94, green: 0.94, blue: 0.89), in: Circle())
+                        .scaleEffect(isFavorite ? 1.04 : 1.0)
+                        .animation(.spring(response: 0.24, dampingFraction: 0.78), value: isFavorite)
                 }
                 .buttonStyle(.plain)
                 .padding(.trailing, 10)
