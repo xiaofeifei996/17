@@ -1105,12 +1105,10 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: Color(red: 0.13, green: 0.20, blue: 0.16).opacity(0.18), radius: 22, x: 0, y: 8)
         .padding(.horizontal, 12)
-        .gesture(DragGesture(minimumDistance: 18).onEnded { value in
-            withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
-                if value.translation.height < -35 { sheetExpanded = true }
-                if value.translation.height > 45 { sheetExpanded = false }
-            }
-        })
+        // Do not attach a drag gesture to the entire panel. After keyboard
+        // presentation/dismissal, a parent DragGesture can interfere with hit
+        // testing for child controls (notably the expand/collapse button).
+        // Expand/collapse remains available through the explicit button above.
     }
 
     // Use only the nationwide administrative dataset; no hard-coded offline regions.
