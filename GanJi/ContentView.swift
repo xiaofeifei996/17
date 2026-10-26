@@ -132,43 +132,39 @@ struct ContentView: View {
         }
     }
 
+    // Keep the root view's result-builder expression small. Breaking the layers
+    // into separate computed views helps Swift's type checker on Xcode 16.
     private func pageLayers(screenHeight: CGFloat) -> some View {
-    ZStack(alignment: .top) {
-        // Draw the map behind both the top status-bar safe area and the bottom edge.
-        mapLayer
-            .ignoresSafeArea()
-        // Keep the map visible when searching. Do not place a tall white
-        // background behind the whole bottom lane: when SwiftUI resizes for
-        // the keyboard, that layer expands upward and creates the huge blank
-        // white area seen in v97. The search capsule and suggestions each have
-        // their own opaque backgrounds below.
-        // While the place-search field is active, hide the market list visually
-        // so no market rows appear in the narrow strip above the keyboard.
-        // Keep isMarketSheetVisible unchanged: when search focus ends, the panel
-        // returns to its previous expanded/collapsed state automatically.
+        ZStack(alignment: .top) {
+            mapBackgroundLayer
+            marketSheetLayer(screenHeight: screenHeight)
+            homePageLayer
+            persistentDockLayer
+        }
+    }
+
+    private var mapBackgroundLayer: some View {
+        mapLayer.ignoresSafeArea()
+    }
+
+    @ViewBuilder
+    private func marketSheetLayer(screenHeight: CGFloat) -> some View {
         if isMarketSheetVisible && showMainPage {
             marketSheet(screenHeight: screenHeight)
-                // Keep the container's coordinate space stable while the keyboard
-                // animates. The root ignores keyboard safe-area changes, so repeated
-                // show/hide cycles cannot accumulate vertical offsets.
-                // Keep a single predictable anchor: top while the keyboard is
-                // present, bottom when it is dismissed. Never offset the panel
-                // by the keyboard height; that mixes coordinate spaces and can
-                // push the panel behind the keyboard.
                 .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
                 .padding(.bottom, isKeyboardVisible ? 0 : 66)
                 .zIndex(3)
         }
+    }
+
+    @ViewBuilder
+    private var homePageLayer: some View {
         if !showMainPage {
             homePage
                 .padding(.bottom, 58)
                 .background(Color(uiColor: .systemGroupedBackground).ignoresSafeArea())
                 .zIndex(10)
         }
-        // One persistent Dock shared by every top-level page. Keeping the
-        // same SwiftUI view alive avoids the Dock flashing when switching to Map.
-        persistentDockLayer
-    }
     }
 
     var body: some View {
@@ -637,12 +633,16 @@ struct ContentView: View {
     }
 
     private var persistentDockLayer: some View {
+        dockStack
+            .ignoresSafeArea(edges: .bottom)
+            .zIndex(11)
+    }
+
+    private var dockStack: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 0)
             sharedDock
         }
-        .ignoresSafeArea(edges: .bottom)
-        .zIndex(11)
     }
 
     // Destination search panel split into smaller views to keep SwiftUI type-checking tractable.
@@ -1622,121 +1622,4 @@ struct ContentView: View {
         }
     }
 }
-
-private struct DirectionCone: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let center = CGPoint(x: rect.midX, y: rect.maxY)
-        path.move(to: center)
-        path.addArc(center: center, radius: min(rect.width / 2, rect.height), startAngle: .degrees(225), endAngle: .degrees(315), clockwise: false)
-        path.closeSubpath()
-        return path
-    }
-}
-
-private struct RegionOption: Identifiable {
-    enum Kind { case county, city, province }
-    let code: Int
-    let name: String
-    let city: String
-    let province: String
-    let kind: Kind
-    var id: Int { code }
-}
-
-private struct MarketListRow: View {
-    let row: MarketDay
-    let distanceText: String
-    let selected: Bool
-    let isFavorite: Bool
-    var showFavoriteButton: Bool = true
-    let toggleFavorite: () -> Void
-    let action: () -> Void
-
-    var body: some View {
-        HStack(spacing: 0) {
-            Button(action: action) {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 6) {
-                        Text(row.market.size)
-                            .font(.system(size: 9, weight: .heavy, design: .rounded))
-                            .tracking(0.8)
-                            .foregroundColor(Color(red: 0.75, green: 0.35, blue: 0.18))
-                        Text("·") .foregroundColor(.secondary)
-                        Text(row.dayLabel)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(Color(red: 0.24, green: 0.45, blue: 0.30))
-                        Spacer(minLength: 2)
-                        Text(distanceText)
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .foregroundColor(Color(red: 0.44, green: 0.49, blue: 0.42))
-                    }
-                    HStack(alignment: .center, spacing: 6) {
-                        Text(row.market.name)
-                            .font(.system(size: 17, weight: .bold, design: .rounded))
-                            .foregroundColor(Color(red: 0.13, green: 0.20, blue: 0.15))
-                            .lineLimit(1)
-                        Spacer(minLength: 2)
-                        Image(systemName: "arrow.up.right")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(Color(red: 0.59, green: 0.62, blue: 0.53))
-                    }
-                    Text((row.market.repeatType == 6 ? "属相  " : "圩日  ") + row.animals)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color(red: 0.48, green: 0.52, blue: 0.44))
-                        .lineLimit(1)
-                }
-                .padding(.leading, 12).padding(.trailing, 8).padding(.vertical, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            if showFavoriteButton {
-                Button(action: toggleFavorite) {
-                    Image(systemName: isFavorite ? "heart.fill" : "heart")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(isFavorite ? Color(red: 0.82, green: 0.27, blue: 0.25) : Color(red: 0.67, green: 0.69, blue: 0.61))
-                        .frame(width: 38, height: 38)
-                        .background(isFavorite ? Color(red: 0.98, green: 0.89, blue: 0.85) : Color(red: 0.94, green: 0.94, blue: 0.89), in: Circle())
-                }
-                .buttonStyle(.plain)
-                .padding(.trailing, 10)
-                .accessibilityLabel(isFavorite ? "取消收藏" : "收藏圩日")
-            }
-        }
-        .background(
-            selected
-                ? Color(red: 0.93, green: 0.93, blue: 0.85)
-                : Color.white.opacity(0.82),
-            in: RoundedRectangle(cornerRadius: 17, style: .continuous)
-        )
-    }
-}
-
-private extension Color {
-    static let ganjiBlue = Color(red: 0.16, green: 0.43, blue: 0.94)
-    static let ganjiOrange = Color(red: 0.96, green: 0.43, blue: 0.20)
-    static let ganjiGreen = Color(red: 0.10, green: 0.63, blue: 0.30)
-}
-
-
-private struct RegionPickerSheetSizing: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 16.0, *) {
-            content
-                .presentationDetents([.height(430)])
-                .presentationDragIndicator(.hidden)
-        } else {
-            content
-        }
-    }
-}
-
-
-// Included in ContentView.swift so the model is compiled even if the project file
-// has not yet registered PlaceSearchModel.swift as a source file.
-import Foundation
-import MapKit
-import Combine
-
 
