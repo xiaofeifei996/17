@@ -59,6 +59,9 @@ struct ContentView: View {
     @State private var selectedMarketID: String?
     @State private var showDatePicker = false
     @State private var sheetExpanded = false
+    // The floating map controls can be repositioned by long-pressing and dragging.
+    @State private var mapControlOffset: CGSize = .zero
+    @State private var mapControlDragOrigin: CGSize = .zero
     @State private var showMainPage = false
     @State private var favorites: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "GanJiFavoriteMarketIDs") ?? [])
     @State private var favoriteMarkets: [Market] = (try? JSONDecoder().decode([Market].self, from: UserDefaults.standard.data(forKey: "GanJiFavoriteMarketsData") ?? Data())) ?? []
@@ -851,6 +854,29 @@ struct ContentView: View {
             .shadow(color: .black.opacity(0.13), radius: 12, x: 0, y: 4)
             .padding(.trailing, 16)
             .padding(.bottom, sheetExpanded ? 470 : 335)
+            .offset(mapControlOffset)
+            .simultaneousGesture(
+                LongPressGesture(minimumDuration: 0.35)
+                    .sequenced(before: DragGesture(minimumDistance: 0))
+                    .onChanged { value in
+                        switch value {
+                        case .first(true):
+                            mapControlDragOrigin = mapControlOffset
+                        case .second(true, let drag):
+                            if let drag = drag {
+                                mapControlOffset = CGSize(
+                                    width: mapControlDragOrigin.width + drag.translation.width,
+                                    height: mapControlDragOrigin.height + drag.translation.height
+                                )
+                            }
+                        default:
+                            break
+                        }
+                    }
+                    .onEnded { _ in
+                        mapControlDragOrigin = mapControlOffset
+                    }
+            )
         }
     }
 
