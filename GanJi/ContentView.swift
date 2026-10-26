@@ -1,4 +1,4 @@
-import SwiftUI
+iimport SwiftUI
 import UIKit
 import MapKit
 import CoreLocation
@@ -179,7 +179,7 @@ struct ContentView: View {
                     keyboardHeight = height
                     // Remember the keyboard-time panel height so dismissing the
                     // keyboard moves the panel back to the bottom without shrinking it.
-                    retainedSearchPanelHeight = min(geo.size.height - 12, max(geo.size.height - height + 140, 360))
+                    retainedSearchPanelHeight = min(geo.size.height - 12, max(geo.size.height - height + 240, 420))
                     isKeyboardVisible = true
                 }
             }
@@ -1093,7 +1093,7 @@ struct ContentView: View {
                 // Keep the stable top-anchored keyboard layout, but give the panel
                 // additional vertical room. Clamp to the available view height so
                 // repeated keyboard transitions cannot push it off-screen.
-                ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 140, 360))
+                ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 240, 420))
                 // Once a keyboard-sized panel exists, retain that height when the
                 // keyboard hides; the root alignment moves it back to the bottom.
                 : retainedSearchPanelHeight,
