@@ -166,10 +166,17 @@ struct ContentView: View {
             }
             .background(Color.clear)
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
-                isKeyboardVisible = true
+                withAnimation(.easeOut(duration: 0.22)) {
+                    isKeyboardVisible = true
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                isKeyboardVisible = false
+                // Restore the normal compact panel geometry after the keyboard leaves.
+                // Do not leave the keyboard-sized frame attached to the sheet.
+                withAnimation(.easeOut(duration: 0.22)) {
+                    isKeyboardVisible = false
+                    sheetExpanded = false
+                }
             }
             .onAppear {
                 locator.start()
