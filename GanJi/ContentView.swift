@@ -30,26 +30,13 @@ private struct TopRoundedShape: Shape {
     }
 }
 
-private struct HeadingCone: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        path.move(to: CGPoint(x: rect.midX, y: rect.minY + 3))
-        path.addQuadCurve(to: CGPoint(x: rect.minX + 3, y: rect.midY + 10),
-                          control: CGPoint(x: rect.minX + 8, y: rect.minY + 22))
-        path.addQuadCurve(to: CGPoint(x: rect.maxX - 3, y: rect.midY + 10),
-                          control: CGPoint(x: rect.maxX - 8, y: rect.minY + 22))
-        path.closeSubpath()
-        return path
-    }
-}
-
+@MainActor
 struct ContentView: View {
     @StateObject private var locator = LocationModel()
     @State private var selectedFilter: MarketFilter = .all
     @State private var selectedDate = Calendar.current.startOfDay(for: Date())
     @State private var searchText = ""
-    @FocusState private var isPlaceSearchFocused: Bool
+    @FocusState private var isPlaceSearchFocused = false
     @State private var isMarketSheetVisible = true
     @State private var isKeyboardVisible = false
     @State private var keyboardHeight: CGFloat = 0
@@ -801,37 +788,9 @@ struct ContentView: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    private var mapAnnotations: [Market] {
-        var items = mapMarkets
-        if let latitude = locator.latitude, let longitude = locator.longitude {
-            items.append(Market(
-                id: "__user_heading__", name: "", province: "", city: "", area: "",
-                provinceCode: nil, cityCode: nil, areaCode: nil, sourceAreaCode: nil,
-                lat: latitude, lon: longitude, marketType: nil, repeatType: nil,
-                repeatValue: [], remark: "", place: "", address: "", status: nil
-            ))
-        }
-        return items
-    }
-
     private var mapLayer: some View {
-        Map(coordinateRegion: $region, showsUserLocation: false, annotationItems: mapAnnotations) { market in
-            MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: market.lat, longitude: market.lon), anchor: market.id == "__user_heading__" ? .center : .bottom) {
-                if market.id == "__user_heading__" {
-                    ZStack {
-                        if locator.headingAvailable {
-                            HeadingCone()
-                                .fill(LinearGradient(colors: [Color.blue.opacity(0.42), Color.blue.opacity(0.04)], startPoint: .top, endPoint: .bottom))
-                                .frame(width: 94, height: 94)
-                                .rotationEffect(.degrees(locator.heading))
-                        }
-                        Circle().fill(Color.blue).frame(width: 23, height: 23)
-                            .overlay(Circle().stroke(Color.white, lineWidth: 4))
-                            .shadow(color: .black.opacity(0.22), radius: 5, x: 0, y: 2)
-                    }
-                    .frame(width: 100, height: 100)
-                    .animation(.easeOut(duration: 0.18), value: locator.heading)
-                } else {
+        Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: mapMarkets) { market in
+            MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: market.lat, longitude: market.lon)) {
                 Button {
                     selectedMarketID = market.id
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { sheetExpanded = false }
@@ -862,7 +821,6 @@ struct ContentView: View {
                     }
                 }
                 .buttonStyle(PlainButtonStyle())
-                }
             }
         }
         .overlay(alignment: .bottomTrailing) {
