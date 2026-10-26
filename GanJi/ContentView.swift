@@ -68,6 +68,7 @@ struct ContentView: View {
     @State private var favoriteMarkets: [Market] = (try? JSONDecoder().decode([Market].self, from: UserDefaults.standard.data(forKey: "GanJiFavoriteMarketsData") ?? Data())) ?? []
     @State private var homeTab: HomeTab = .home
     @State private var pendingUserCentering = false
+    @State private var userTrackingMode: MapUserTrackingMode = .none
     @State private var region = MKCoordinateRegion(
         center: CLLocationCoordinate2D(latitude: 23.12, longitude: 110.31),
         span: MKCoordinateSpan(latitudeDelta: 0.32, longitudeDelta: 0.34)
@@ -805,7 +806,7 @@ struct ContentView: View {
     }
 
     private var mapLayer: some View {
-        Map(coordinateRegion: $region, showsUserLocation: true, annotationItems: mapMarkets) { market in
+        Map(coordinateRegion: $region, showsUserLocation: true, userTrackingMode: $userTrackingMode, annotationItems: mapMarkets) { market in
             MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: market.lat, longitude: market.lon)) {
                 Button {
                     selectedMarketID = market.id
@@ -839,27 +840,9 @@ struct ContentView: View {
                 .buttonStyle(PlainButtonStyle())
             }
         }
-        .overlay {
-            // Direction cone is shown only while the map is centered near the current location.
-            // This keeps the cone visually attached to the system location dot after tapping locate.
-            if let lat = locator.latitude, let lon = locator.longitude,
-               abs(region.center.latitude - lat) < 0.025,
-               abs(region.center.longitude - lon) < 0.035 {
-                ZStack {
-                    DirectionCone()
-                        .fill(LinearGradient(colors: [Color.ganjiBlue.opacity(0.02), Color.ganjiBlue.opacity(0.34)], startPoint: .leading, endPoint: .trailing))
-                        .frame(width: 92, height: 92)
-                        .rotationEffect(.degrees(locator.headingDegrees - 45))
-                        .offset(x: 0, y: -43)
-                    Circle()
-                        .fill(Color(red: 0.0, green: 0.52, blue: 0.98))
-                        .frame(width: 22, height: 22)
-                        .overlay(Circle().stroke(Color.white, lineWidth: 3))
-                        .shadow(color: .black.opacity(0.18), radius: 5, x: 0, y: 2)
-                }
-                .allowsHitTesting(false)
-            }
-        }
+        // Use MapKit's native user-location annotation only. A screen-fixed custom
+        // dot/cone drifts away from the real coordinate when the map is panned or zoomed,
+        // and creates the duplicate blue dot visible in the previous build.
         .overlay(alignment: .bottomTrailing) {
             // Hide the floating control while the market list is open; restore it when the list closes.
             if !isMarketSheetVisible {
@@ -1625,6 +1608,9 @@ struct ContentView: View {
 
     private func centerOnUser() {
         pendingUserCentering = true
+        // Ask MapKit to own the user-location indicator and heading presentation.
+        // This avoids a second, manually drawn dot/cone drifting over the real location.
+        userTrackingMode = .followWithHeading
         if let lat = locator.latitude, let lon = locator.longitude {
             withAnimation(.easeInOut(duration: 0.35)) {
                 region.center = CLLocationCoordinate2D(latitude: lat, longitude: lon)
