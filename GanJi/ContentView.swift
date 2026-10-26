@@ -38,7 +38,7 @@ struct ContentView: View {
     @FocusState private var isPlaceSearchFocused: Bool
     @State private var isMarketSheetVisible = true
     @State private var isKeyboardVisible = false
-    @State private var keyboardHeight: CGFloat = 0
+    @State private var keyboardBottomInset: CGFloat = 0
     @StateObject private var placeSearch = PlaceSearchModel()
     @State private var placeSearchMessage: String?
     @State private var selectedAreaCode: Int = 450881
@@ -148,7 +148,7 @@ struct ContentView: View {
                         // The keyboard height changes the bottom inset; we never flip
                         // between top/bottom alignment, which can cause layout jumps.
                         .frame(maxHeight: .infinity, alignment: .bottom)
-                        .padding(.bottom, isKeyboardVisible ? keyboardHeight : 66)
+                        .padding(.bottom, isKeyboardVisible ? keyboardBottomInset : 66)
                         .zIndex(3)
                 }
                 if !showMainPage {
@@ -170,18 +170,19 @@ struct ContentView: View {
             // Prevent GeometryReader/ZStack from changing height when iOS adjusts the
             // keyboard safe area. We position the panel using the keyboard frame instead.
             .ignoresSafeArea(.keyboard, edges: .bottom)
+            // Use the keyboard's actual screen-space top edge, not its full frame height.
+            // The frame height and GeometryReader height can use different safe-area origins;
+            // mixing them makes the sheet land at a slightly different Y after each cycle.
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
-                let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
-                let height = frame?.height ?? 0
-                withAnimation(.easeOut(duration: 0.22)) {
-                    keyboardHeight = height
-                    isKeyboardVisible = true
-                }
+                updateKeyboardPosition(notification: notification, geometry: geo)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { notification in
+                updateKeyboardPosition(notification: notification, geometry: geo)
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
                 withAnimation(.easeOut(duration: 0.22)) {
                     isKeyboardVisible = false
-                    keyboardHeight = 0
+                    keyboardBottomInset = 0
                     isPlaceSearchFocused = false
                 }
             }
@@ -1089,7 +1090,7 @@ struct ContentView: View {
                 // Keep the stable top-anchored keyboard layout, but give the panel
                 // additional vertical room. Clamp to the available view height so
                 // repeated keyboard transitions cannot push it off-screen.
-                ? min(screenHeight - 12, max(screenHeight - keyboardHeight + 240, 460))
+                ? min(screenHeight - 12, max(screenHeight - keyboardBottomInset + 240, 460))
                 // On dismissal, return to intrinsic height. Never reuse a cached
                 // keyboard-era height, which can mismatch the root's bottom alignment.
                 : nil,
@@ -1107,6 +1108,18 @@ struct ContentView: View {
                 if value.translation.height > 45 { sheetExpanded = false }
             }
         })
+    }
+
+    private func updateKeyboardPosition(notification: Notification, geometry: GeometryProxy) {
+        guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+        // Both values are measured in global screen coordinates, so safe-area offsets
+        // are accounted for once and are never accumulated from a previous layout pass.
+        let containerBottom = geometry.frame(in: .global).maxY
+        let overlap = max(0, containerBottom - frame.minY)
+        withAnimation(.easeOut(duration: 0.22)) {
+            keyboardBottomInset = overlap
+            isKeyboardVisible = overlap > 0
+        }
     }
 
     // Use only the nationwide administrative dataset; no hard-coded offline regions.
