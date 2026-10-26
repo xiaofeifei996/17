@@ -187,6 +187,11 @@ struct ContentView: View {
                 withAnimation(.easeOut(duration: 0.22)) {
                     isKeyboardVisible = false
                     keyboardHeight = 0
+                    // Do not keep the keyboard-sized fixed panel height after dismissal.
+                    // A stale height leaves the sheet in a mismatched layout/hit-test
+                    // geometry, which can make the expand button stop responding.
+                    retainedSearchPanelHeight = nil
+                    isPlaceSearchFocused = false
                 }
             }
             .onAppear {
@@ -1105,10 +1110,12 @@ struct ContentView: View {
         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         .shadow(color: Color(red: 0.13, green: 0.20, blue: 0.16).opacity(0.18), radius: 22, x: 0, y: 8)
         .padding(.horizontal, 12)
-        // Do not attach a drag gesture to the entire panel. After keyboard
-        // presentation/dismissal, a parent DragGesture can interfere with hit
-        // testing for child controls (notably the expand/collapse button).
-        // Expand/collapse remains available through the explicit button above.
+        .gesture(DragGesture(minimumDistance: 18).onEnded { value in
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) {
+                if value.translation.height < -35 { sheetExpanded = true }
+                if value.translation.height > 45 { sheetExpanded = false }
+            }
+        })
     }
 
     // Use only the nationwide administrative dataset; no hard-coded offline regions.
