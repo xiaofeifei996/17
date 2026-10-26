@@ -38,6 +38,7 @@ struct ContentView: View {
     @FocusState private var isPlaceSearchFocused: Bool
     @State private var isMarketSheetVisible = true
     @State private var isKeyboardVisible = false
+    @State private var keyboardHeight: CGFloat = 0
     @StateObject private var placeSearch = PlaceSearchModel()
     @State private var placeSearchMessage: String?
     @State private var selectedAreaCode: Int = 450881
@@ -140,11 +141,13 @@ struct ContentView: View {
                 // returns to its previous expanded/collapsed state automatically.
                 if isMarketSheetVisible && showMainPage {
                     marketSheet(screenHeight: geo.size.height)
-                        // Keep the same outer alignment behavior for both search results and
-                        // nearby-market content. The actual keyboard height is applied inside
-                        // marketSheet so its background and content grow together.
-                        .frame(maxHeight: .infinity, alignment: isKeyboardVisible ? .top : .bottom)
-                        // Keep the normal bottom inset when the keyboard is hidden.
+                        // Keep the container's coordinate space stable while the keyboard
+                        // animates. The root ignores keyboard safe-area changes, so repeated
+                        // show/hide cycles cannot accumulate vertical offsets.
+                        .frame(
+                            maxHeight: .infinity,
+                            alignment: isKeyboardVisible ? .top : .bottom
+                        )
                         .padding(.bottom, isKeyboardVisible ? 0 : 66)
                         .zIndex(3)
                 }
@@ -164,16 +167,21 @@ struct ContentView: View {
                 .zIndex(11)
             }
             .background(Color.clear)
-            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { _ in
+            // Prevent GeometryReader/ZStack from changing height when iOS adjusts the
+            // keyboard safe area. We position the panel using the keyboard frame instead.
+            .ignoresSafeArea(.keyboard, edges: .bottom)
+            .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { notification in
+                let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect
+                let height = frame?.height ?? 0
                 withAnimation(.easeOut(duration: 0.22)) {
+                    keyboardHeight = height
                     isKeyboardVisible = true
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in
-                // The conditional frame and bottom alignment restore the normal position
-                // when the keyboard leaves, without changing the user's expanded state.
                 withAnimation(.easeOut(duration: 0.22)) {
                     isKeyboardVisible = false
+                    keyboardHeight = 0
                 }
             }
             .onAppear {
@@ -1076,7 +1084,12 @@ struct ContentView: View {
         .padding(.bottom, searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0 : 16)
         // Apply the keyboard height before drawing the background. This is important:
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
-        .frame(height: isKeyboardVisible ? screenHeight * 0.98 : nil, alignment: .top)
+        .frame(
+            height: isKeyboardVisible
+                ? max(screenHeight - keyboardHeight - 12, 280)
+                : nil,
+            alignment: .top
+        )
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(red: 0.98, green: 0.97, blue: 0.91), in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(Color.white.opacity(0.95), lineWidth: 1))
