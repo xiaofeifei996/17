@@ -839,6 +839,27 @@ struct ContentView: View {
                 .buttonStyle(PlainButtonStyle())
             }
         }
+        .overlay {
+            // Direction cone is shown only while the map is centered near the current location.
+            // This keeps the cone visually attached to the system location dot after tapping locate.
+            if let lat = locator.latitude, let lon = locator.longitude,
+               abs(region.center.latitude - lat) < 0.025,
+               abs(region.center.longitude - lon) < 0.035 {
+                ZStack {
+                    DirectionCone()
+                        .fill(LinearGradient(colors: [Color.ganjiBlue.opacity(0.02), Color.ganjiBlue.opacity(0.34)], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: 92, height: 92)
+                        .rotationEffect(.degrees(locator.headingDegrees - 45))
+                        .offset(x: 0, y: -43)
+                    Circle()
+                        .fill(Color(red: 0.0, green: 0.52, blue: 0.98))
+                        .frame(width: 22, height: 22)
+                        .overlay(Circle().stroke(Color.white, lineWidth: 3))
+                        .shadow(color: .black.opacity(0.18), radius: 5, x: 0, y: 2)
+                }
+                .allowsHitTesting(false)
+            }
+        }
         .overlay(alignment: .bottomTrailing) {
             // Hide the floating control while the market list is open; restore it when the list closes.
             if !isMarketSheetVisible {
@@ -1613,6 +1634,17 @@ struct ContentView: View {
         } else {
             locator.start()
         }
+    }
+}
+
+private struct DirectionCone: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let center = CGPoint(x: rect.midX, y: rect.maxY)
+        path.move(to: center)
+        path.addArc(center: center, radius: min(rect.width / 2, rect.height), startAngle: .degrees(225), endAngle: .degrees(315), clockwise: false)
+        path.closeSubpath()
+        return path
     }
 }
 
