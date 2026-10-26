@@ -1003,9 +1003,10 @@ struct ContentView: View {
                     Text(message).font(.system(size: 11)).foregroundColor(.secondary)
                 } else {
                     Text("输入地点名称，搜索城市、区县或具体位置")
-                        .font(.system(size: 11)).foregroundColor(.secondary)
+                        .font(.system(size: 12)).foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, alignment: .center)
                         .multilineTextAlignment(.center)
+                        .offset(y: -3)
                 }
             }
 
