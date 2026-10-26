@@ -1096,9 +1096,11 @@ struct ContentView: View {
         // sizing only the outer wrapper leaves the colored panel at its old intrinsic height.
         .frame(
             height: isKeyboardVisible
-                // Fit only in the area above the keyboard. Do not add extra height
-                // or carry a previous keyboard layout into the next presentation.
-                ? max(240, screenHeight - keyboardHeight - 24)
+                // Keep the panel substantially taller while the keyboard is open.
+                // Geometry may already exclude the keyboard area, so subtracting
+                // keyboardHeight again can collapse this to the 240pt minimum.
+                // Use the available geometry as the stable height basis instead.
+                ? max(360, screenHeight - 24)
                 : nil,
             alignment: .top
         )
