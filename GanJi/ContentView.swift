@@ -409,7 +409,7 @@ struct ContentView: View {
                 Spacer(minLength: 0)
                 ZStack {
                     Circle().fill(Color(red: 0.87, green: 0.34, blue: 0.19)).frame(width: 38, height: 38)
-                    Image(systemName: homeTab == .favorites ? "bookmark.fill" : "sun.max.fill")
+                    Image(systemName: homeTab == .favorites ? "bookmark.fill" : "face.smiling.fill")
                         .font(.system(size: 19, weight: .bold)).foregroundColor(.white)
                 }.padding(.top, 7)
             }
