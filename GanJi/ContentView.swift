@@ -605,14 +605,17 @@ struct ContentView: View {
 
     private func dockItem(_ symbol: String, title: String, tab: HomeTab) -> some View {
         Button {
-            if tab == .region {
-                // The Region tab is now the map experience; no separate Map tab.
-                withAnimation {
+            // Switch top-level pages without implicit animations. Animating the
+            // conditional home/map layers together can briefly leave the previous
+            // page visible as a ghost during rapid tab changes.
+            var transaction = Transaction()
+            transaction.disablesAnimations = true
+            withTransaction(transaction) {
+                if tab == .region {
+                    // The Region tab is the map experience; no separate Map tab.
                     showMainPage = true
                     homeTab = .region
-                }
-            } else {
-                withAnimation {
+                } else {
                     showMainPage = false
                     homeTab = tab
                 }
