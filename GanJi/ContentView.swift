@@ -801,42 +801,15 @@ struct ContentView: View {
     }
 
     private var mapLayer: some View {
-        Map(coordinateRegion: $region, showsUserLocation: false, annotationItems: mapMarkets) { market in
-            MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: market.lat, longitude: market.lon)) {
-                if market.id == "__user_location__" {
-                    UserLocationMapMarker(heading: locator.heading)
-                } else {
-                Button {
-                    selectedMarketID = market.id
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { sheetExpanded = false }
-                } label: {
-                    VStack(spacing: 0) {
-                        ZStack {
-                            Circle()
-                                .fill(market.id == selectedMarketID ? Color(red: 0.90, green: 0.34, blue: 0.19) : Color(red: 0.16, green: 0.29, blue: 0.23))
-                                .frame(width: market.id == selectedMarketID ? 42 : 34, height: market.id == selectedMarketID ? 42 : 34)
-                            Circle().stroke(Color.white, lineWidth: 2).frame(width: market.id == selectedMarketID ? 42 : 34, height: market.id == selectedMarketID ? 42 : 34)
-                            Image(systemName: market.id == selectedMarketID ? "scope" : "storefront.fill")
-                                .font(.system(size: market.id == selectedMarketID ? 17 : 13, weight: .bold))
-                                .foregroundColor(.white)
-                        }
-                        .shadow(color: Color.black.opacity(0.22), radius: 7, x: 0, y: 3)
-                        Image(systemName: "triangle.fill")
-                            .font(.system(size: 8, weight: .bold))
-                            .rotationEffect(.degrees(180))
-                            .foregroundColor(market.id == selectedMarketID ? Color(red: 0.90, green: 0.34, blue: 0.19) : Color(red: 0.16, green: 0.29, blue: 0.23))
-                            .offset(y: -2)
-                        Text(market.name)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .lineLimit(1).padding(.horizontal, 7).padding(.vertical, 4)
-                            .foregroundColor(Color(red: 0.16, green: 0.23, blue: 0.19))
-                            .background(Color(red: 0.99, green: 0.97, blue: 0.89), in: Capsule())
-                            .overlay(Capsule().stroke(Color.white.opacity(0.95), lineWidth: 1))
-                            .shadow(color: .black.opacity(0.12), radius: 4, x: 0, y: 2)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-                }
+        RotatingMapView(
+            region: $region,
+            heading: locator.heading,
+            markets: mapMarkets,
+            selectedMarketID: selectedMarketID
+        ) { marketID in
+            selectedMarketID = marketID
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) {
+                sheetExpanded = false
             }
         }
         .overlay(alignment: .bottomTrailing) {

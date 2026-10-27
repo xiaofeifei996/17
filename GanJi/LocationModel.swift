@@ -60,8 +60,19 @@ final class LocationModel: NSObject, ObservableObject, CLLocationManagerDelegate
     }
 
     func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
-        let value = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
-        DispatchQueue.main.async { self.heading = value }
+        // Ignore invalid compass readings; poor accuracy can otherwise make the map jump.
+        guard newHeading.headingAccuracy >= 0 else { return }
+        let raw = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
+        let normalized = (raw.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360)
+        DispatchQueue.main.async {
+            // Circular interpolation handles the 359° -> 0° boundary without spinning backwards.
+            let current = self.heading
+            var delta = normalized - current
+            if delta > 180 { delta -= 360 }
+            if delta < -180 { delta += 360 }
+            let smoothed = (current + delta * 0.28).truncatingRemainder(dividingBy: 360)
+            self.heading = smoothed < 0 ? smoothed + 360 : smoothed
+        }
     }
 
     func locationManagerShouldDisplayHeadingCalibration(_ manager: CLLocationManager) -> Bool {
