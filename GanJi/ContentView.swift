@@ -804,7 +804,7 @@ struct ContentView: View {
         Map(coordinateRegion: $region, showsUserLocation: false, annotationItems: mapMarkets) { market in
             MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: market.lat, longitude: market.lon)) {
                 if market.id == "__user_location__" {
-                    UserLocationMapMarker()
+                    UserLocationMapMarker(heading: locator.heading)
                 } else {
                 Button {
                     selectedMarketID = market.id
@@ -1619,40 +1619,39 @@ struct ContentView: View {
 /// Apple Maps-inspired current-location marker with a translucent accuracy halo
 /// and a softly fading directional cone.
 private struct UserLocationMapMarker: View {
+    let heading: CLLocationDirection
+
     var body: some View {
         ZStack {
+            // Cone base stays under the GPS dot; its tip follows device compass heading.
             LocationDirectionCone()
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color(red: 0.05, green: 0.52, blue: 0.98).opacity(0.34),
-                            Color(red: 0.20, green: 0.63, blue: 1.0).opacity(0.16),
+                            Color(red: 0.05, green: 0.52, blue: 0.98).opacity(0.38),
+                            Color(red: 0.20, green: 0.63, blue: 1.0).opacity(0.20),
                             Color(red: 0.20, green: 0.63, blue: 1.0).opacity(0.0)
                         ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
                 )
-                .frame(width: 94, height: 104)
-                .rotationEffect(.degrees(-38))
-                .offset(x: -16, y: 39)
+                .frame(width: 62, height: 88)
+                .offset(y: -43)
 
-            Circle()
-                .fill(Color(red: 0.10, green: 0.55, blue: 1.0).opacity(0.10))
+            Circle().fill(Color(red: 0.10, green: 0.55, blue: 1.0).opacity(0.10))
                 .frame(width: 66, height: 66)
-            Circle()
-                .fill(Color(red: 0.10, green: 0.55, blue: 1.0).opacity(0.13))
+            Circle().fill(Color(red: 0.10, green: 0.55, blue: 1.0).opacity(0.13))
                 .frame(width: 48, height: 48)
-            Circle()
-                .fill(Color.white)
+            Circle().fill(Color.white)
                 .frame(width: 44, height: 44)
                 .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
-            Circle()
-                .fill(Color(red: 0.02, green: 0.52, blue: 0.98))
+            Circle().fill(Color(red: 0.02, green: 0.52, blue: 0.98))
                 .frame(width: 28, height: 28)
         }
         .frame(width: 112, height: 112)
-        .accessibilityLabel("当前位置")
+        .rotationEffect(.degrees(heading))
+        .accessibilityLabel("当前位置，朝向\\(Int(heading))度")
         .allowsHitTesting(false)
     }
 }
@@ -1660,11 +1659,11 @@ private struct UserLocationMapMarker: View {
 private struct LocationDirectionCone: Shape {
     func path(in rect: CGRect) -> Path {
         var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + 10))
         path.addQuadCurve(
-            to: CGPoint(x: rect.minX, y: rect.maxY),
-            control: CGPoint(x: rect.midX, y: rect.maxY - 8)
+            to: CGPoint(x: rect.minX, y: rect.minY + 10),
+            control: CGPoint(x: rect.midX, y: rect.minY - 2)
         )
         path.closeSubpath()
         return path
