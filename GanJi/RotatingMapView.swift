@@ -112,7 +112,6 @@ private final class GanJiAnnotationView: MKAnnotationView {
     var onTap: ((String) -> Void)?
     private let marker = UIView()
     private let titleLabel = UILabel()
-    private let cone = CAShapeLayer()
     private var configuredKey: String?
 
     override init(annotation: MKAnnotation?, reuseIdentifier: String?) {
@@ -133,7 +132,6 @@ private final class GanJiAnnotationView: MKAnnotationView {
         titleLabel.layer.cornerRadius = 8
         titleLabel.layer.masksToBounds = true
         addSubview(titleLabel)
-        layer.addSublayer(cone)
         addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(tapped)))
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
@@ -149,13 +147,6 @@ private final class GanJiAnnotationView: MKAnnotationView {
             marker.layer.borderWidth = 4
             marker.layer.borderColor = UIColor.white.cgColor
             titleLabel.isHidden = true
-            cone.isHidden = false
-            let path = UIBezierPath()
-            path.move(to: CGPoint(x: 32, y: 25)); path.addLine(to: CGPoint(x: 13, y: 2))
-            path.addQuadCurve(to: CGPoint(x: 51, y: 2), controlPoint: CGPoint(x: 32, y: -5)); path.close()
-            cone.path = path.cgPath
-            cone.fillColor = UIColor(red: 0.05, green: 0.52, blue: 0.98, alpha: 0.25).cgColor
-            cone.frame = bounds
             displayPriority = .required
         } else {
             frame = CGRect(x: 0, y: 0, width: 130, height: 66)
@@ -177,7 +168,6 @@ private final class GanJiAnnotationView: MKAnnotationView {
             titleLabel.sizeToFit()
             titleLabel.frame = CGRect(x: max(0, (130 - min(titleLabel.intrinsicContentSize.width, 130)) / 2), y: 38,
                                       width: min(max(titleLabel.intrinsicContentSize.width, 42), 130), height: 20)
-            cone.isHidden = true
             displayPriority = selected ? .required : .defaultHigh
         }
     }

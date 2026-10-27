@@ -107,7 +107,7 @@ struct ContentView: View {
             markets.append(saved)
         }
         // Render the user's current position as a custom map annotation instead of
-        // MapKit's default blue dot, so we can show the soft accuracy halo and direction cone.
+        // MapKit's default blue dot, using a simple custom location point.
         if let lat = locator.latitude, let lon = locator.longitude {
             markets.append(Market(
                 id: "__user_location__",
