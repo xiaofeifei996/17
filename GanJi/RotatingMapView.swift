@@ -31,11 +31,12 @@ struct RotatingMapView: UIViewRepresentable {
         let spanChanged = abs(map.region.span.latitudeDelta - region.span.latitudeDelta) > 0.001 ||
             abs(map.region.span.longitudeDelta - region.span.longitudeDelta) > 0.001
         if spanChanged {
-            map.setRegion(region, animated: false)
+            // Keep map movement animated when a place is selected or the area changes.
+            map.setRegion(region, animated: centerChanged || spanChanged)
         } else if centerChanged {
             var camera = map.camera
             camera.centerCoordinate = region.center
-            map.setCamera(camera, animated: false)
+            map.setCamera(camera, animated: true)
         }
 
         let old = map.annotations.compactMap { $0 as? GanJiAnnotation }
