@@ -1644,10 +1644,10 @@ private struct UserLocationMapMarker: View {
             Circle().fill(Color(red: 0.10, green: 0.55, blue: 1.0).opacity(0.13))
                 .frame(width: 48, height: 48)
             Circle().fill(Color.white)
-                .frame(width: 34, height: 34)
+                .frame(width: 30, height: 30)
                 .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
             Circle().fill(Color(red: 0.02, green: 0.52, blue: 0.98))
-                .frame(width: 20, height: 20)
+                .frame(width: 16, height: 16)
         }
         .frame(width: 88, height: 88)
         .rotationEffect(.degrees(heading))
