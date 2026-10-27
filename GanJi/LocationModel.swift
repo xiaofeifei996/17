@@ -4,6 +4,7 @@ import CoreLocation
 final class LocationModel: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var latitude: Double?
     @Published var longitude: Double?
+    @Published var heading: CLLocationDirection = 0
     @Published var horizontalAccuracy: CLLocationAccuracy = -1
     @Published var denied = false
 
@@ -14,6 +15,7 @@ final class LocationModel: NSObject, ObservableObject, CLLocationManagerDelegate
         manager.delegate = self
         manager.desiredAccuracy = kCLLocationAccuracyBest
         manager.distanceFilter = kCLDistanceFilterNone
+        manager.headingFilter = 2
     }
 
     func start() {
@@ -30,6 +32,9 @@ final class LocationModel: NSObject, ObservableObject, CLLocationManagerDelegate
     private func startSensors() {
         denied = false
         manager.startUpdatingLocation()
+        if CLLocationManager.headingAvailable() {
+            manager.startUpdatingHeading()
+        }
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
@@ -38,6 +43,7 @@ final class LocationModel: NSObject, ObservableObject, CLLocationManagerDelegate
             startSensors()
         case .denied, .restricted:
             denied = true
+            manager.stopUpdatingHeading()
             manager.stopUpdatingLocation()
         default:
             break
@@ -51,6 +57,15 @@ final class LocationModel: NSObject, ObservableObject, CLLocationManagerDelegate
             self.longitude = loc.coordinate.longitude
             self.horizontalAccuracy = loc.horizontalAccuracy
         }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didUpdateHeading newHeading: CLHeading) {
+        let value = newHeading.trueHeading >= 0 ? newHeading.trueHeading : newHeading.magneticHeading
+        DispatchQueue.main.async { self.heading = value }
+    }
+
+    func locationManagerShouldDisplayHeadingCalibration(_ manager: CLLocationManager) -> Bool {
+        true
     }
 
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {}
