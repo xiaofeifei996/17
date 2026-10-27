@@ -816,7 +816,7 @@ struct ContentView: View {
                                 .fill(market.id == selectedMarketID ? Color(red: 0.90, green: 0.34, blue: 0.19) : Color(red: 0.16, green: 0.29, blue: 0.23))
                                 .frame(width: market.id == selectedMarketID ? 42 : 34, height: market.id == selectedMarketID ? 42 : 34)
                             Circle().stroke(Color.white, lineWidth: 2).frame(width: market.id == selectedMarketID ? 42 : 34, height: market.id == selectedMarketID ? 42 : 34)
-                            Image(systemName: market.id == selectedMarketID ? "scope" : "storefront.fill")
+                            Text("圩")
                                 .font(.system(size: market.id == selectedMarketID ? 17 : 13, weight: .bold))
                                 .foregroundColor(.white)
                         }
