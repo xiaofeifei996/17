@@ -275,7 +275,7 @@ struct ContentView: View {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.system(size: 23))
                                 .foregroundColor(.secondary)
-                                .frame(width: 44, height: 44)
+                                .frame(width: 36, height: 36)
                                 .contentShape(Rectangle())
                         }
                         .accessibilityLabel("关闭地区选择")
@@ -408,7 +408,7 @@ struct ContentView: View {
                 }
                 Spacer(minLength: 0)
                 ZStack {
-                    Circle().fill(Color(red: 0.87, green: 0.34, blue: 0.19)).frame(width: 48, height: 48)
+                    Circle().fill(Color(red: 0.87, green: 0.34, blue: 0.19)).frame(width: 38, height: 38)
                     Image(systemName: homeTab == .favorites ? "bookmark.fill" : "sun.max.fill")
                         .font(.system(size: 19, weight: .bold)).foregroundColor(.white)
                 }.padding(.top, 7)
@@ -1636,20 +1636,20 @@ private struct UserLocationMapMarker: View {
                         endPoint: .bottom
                     )
                 )
-                .frame(width: 62, height: 88)
-                .offset(y: -43)
+                .frame(width: 46, height: 66)
+                .offset(y: -32)
 
             Circle().fill(Color(red: 0.10, green: 0.55, blue: 1.0).opacity(0.10))
-                .frame(width: 66, height: 66)
+                .frame(width: 50, height: 50)
             Circle().fill(Color(red: 0.10, green: 0.55, blue: 1.0).opacity(0.13))
                 .frame(width: 48, height: 48)
             Circle().fill(Color.white)
                 .frame(width: 44, height: 44)
                 .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
             Circle().fill(Color(red: 0.02, green: 0.52, blue: 0.98))
-                .frame(width: 28, height: 28)
+                .frame(width: 24, height: 24)
         }
-        .frame(width: 112, height: 112)
+        .frame(width: 88, height: 88)
         .rotationEffect(.degrees(heading))
         .accessibilityLabel("当前位置，朝向\\(Int(heading))度")
         .allowsHitTesting(false)
