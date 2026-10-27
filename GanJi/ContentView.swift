@@ -1639,10 +1639,6 @@ private struct UserLocationMapMarker: View {
                 .frame(width: 46, height: 66)
                 .offset(y: -32)
 
-            Circle().fill(Color(red: 0.10, green: 0.55, blue: 1.0).opacity(0.10))
-                .frame(width: 50, height: 50)
-            Circle().fill(Color(red: 0.10, green: 0.55, blue: 1.0).opacity(0.13))
-                .frame(width: 48, height: 48)
             Circle().fill(Color.white)
                 .frame(width: 30, height: 30)
                 .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
