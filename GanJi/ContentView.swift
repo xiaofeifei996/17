@@ -803,7 +803,6 @@ struct ContentView: View {
     private var mapLayer: some View {
         RotatingMapView(
             region: $region,
-            heading: locator.heading,
             markets: mapMarkets,
             selectedMarketID: selectedMarketID
         ) { marketID in
@@ -1586,56 +1585,6 @@ struct ContentView: View {
         } else {
             locator.start()
         }
-    }
-}
-
-/// Apple Maps-inspired current-location marker with a translucent accuracy halo
-/// and a softly fading directional cone.
-private struct UserLocationMapMarker: View {
-    let heading: CLLocationDirection
-
-    var body: some View {
-        ZStack {
-            // Cone base stays under the GPS dot; its tip follows device compass heading.
-            LocationDirectionCone()
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            Color(red: 0.05, green: 0.52, blue: 0.98).opacity(0.38),
-                            Color(red: 0.20, green: 0.63, blue: 1.0).opacity(0.20),
-                            Color(red: 0.20, green: 0.63, blue: 1.0).opacity(0.0)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-                .frame(width: 46, height: 66)
-                .offset(y: -32)
-
-            Circle().fill(Color.white)
-                .frame(width: 26, height: 26)
-                .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 3)
-            Circle().fill(Color(red: 0.02, green: 0.52, blue: 0.98))
-                .frame(width: 16, height: 16)
-        }
-        .frame(width: 88, height: 88)
-        .rotationEffect(.degrees(heading))
-        .accessibilityLabel("当前位置，朝向\\(Int(heading))度")
-        .allowsHitTesting(false)
-    }
-}
-
-private struct LocationDirectionCone: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY + 10))
-        path.addQuadCurve(
-            to: CGPoint(x: rect.minX, y: rect.minY + 10),
-            control: CGPoint(x: rect.midX, y: rect.minY - 2)
-        )
-        path.closeSubpath()
-        return path
     }
 }
 

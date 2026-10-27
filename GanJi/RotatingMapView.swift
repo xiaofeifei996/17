@@ -5,7 +5,6 @@ import CoreLocation
 /// MapKit bridge used because the iOS 15 SwiftUI Map API cannot rotate its camera.
 struct RotatingMapView: UIViewRepresentable {
     @Binding var region: MKCoordinateRegion
-    let heading: CLLocationDirection
     let markets: [Market]
     let selectedMarketID: String?
     let onSelectMarket: (String) -> Void
@@ -18,29 +17,25 @@ struct RotatingMapView: UIViewRepresentable {
         map.showsUserLocation = false
         map.pointOfInterestFilter = .excludingAll
         map.setRegion(region, animated: false)
-        map.camera.heading = normalizedHeading(heading)
         map.addAnnotations(makeAnnotations())
         return map
     }
 
     func updateUIView(_ map: MKMapView, context: Context) {
         context.coordinator.parent = self
+
+        // Keep the map north-up. Only update the visible region and center;
+        // no compass or device-heading data is used.
         let centerChanged = abs(map.region.center.latitude - region.center.latitude) > 0.0001 ||
             abs(map.region.center.longitude - region.center.longitude) > 0.0001
         let spanChanged = abs(map.region.span.latitudeDelta - region.span.latitudeDelta) > 0.001 ||
             abs(map.region.span.longitudeDelta - region.span.longitudeDelta) > 0.001
-        if centerChanged || spanChanged {
+        if spanChanged {
+            map.setRegion(region, animated: false)
+        } else if centerChanged {
             var camera = map.camera
             camera.centerCoordinate = region.center
-            map.setCamera(camera, animated: true)
-            if spanChanged { map.setRegion(region, animated: true) }
-        }
-
-        let targetHeading = normalizedHeading(heading)
-        if angularDifference(map.camera.heading, targetHeading) > 1.5 {
-            var camera = map.camera
-            camera.heading = targetHeading
-            map.setCamera(camera, animated: true)
+            map.setCamera(camera, animated: false)
         }
 
         let old = map.annotations.compactMap { $0 as? GanJiAnnotation }
@@ -80,16 +75,6 @@ struct RotatingMapView: UIViewRepresentable {
     private var regionUserLatitude: Double? { nil }
     private var regionUserLongitude: Double? { nil }
 
-    private func normalizedHeading(_ value: CLLocationDirection) -> CLLocationDirection {
-        let v = value.truncatingRemainder(dividingBy: 360)
-        return v < 0 ? v + 360 : v
-    }
-
-    private func angularDifference(_ a: CLLocationDirection, _ b: CLLocationDirection) -> Double {
-        let d = abs(a - b).truncatingRemainder(dividingBy: 360)
-        return min(d, 360 - d)
-    }
-
     final class Coordinator: NSObject, MKMapViewDelegate {
         var parent: RotatingMapView
         init(_ parent: RotatingMapView) { self.parent = parent }
@@ -106,7 +91,7 @@ struct RotatingMapView: UIViewRepresentable {
         }
 
         func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-            // Keep the SwiftUI region in sync with gestures without changing the camera heading.
+            // Keep the SwiftUI region in sync with map gestures.
             let newRegion = mapView.region
             DispatchQueue.main.async { self.parent.region = newRegion }
         }
